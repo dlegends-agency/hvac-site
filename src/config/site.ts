@@ -23,7 +23,7 @@ export const siteConfig: SiteConfig = {
     description:
       "A referral service that helps people with heating and cooling problems find independent local HVAC contractors, where suitable contractors are available.",
   },
-  url: (import.meta.env.VITE_SITE_URL as string | undefined) ?? "http://localhost:3100",
+  url: ((import.meta.env.VITE_SITE_URL as string | undefined) ?? "http://localhost:3100").replace(/\/+$/, ""),
   // Click-to-call is hidden unless a real number is configured.
   contact: {
     phone,
