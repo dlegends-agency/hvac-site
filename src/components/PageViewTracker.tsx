@@ -1,7 +1,5 @@
-"use client";
-
 import { useEffect } from "react";
-import { usePathname } from "next/navigation";
+import { useLocation } from "react-router-dom";
 import { getSupabaseBrowser, isSupabaseConfigured } from "@/lib/supabase";
 
 let lastTracked = "";
@@ -24,7 +22,7 @@ function sessionId(): string {
  * per-browser id. No IP, no user agent, no cookies. Skips /admin and browsers sending Do Not Track.
  */
 export function PageViewTracker() {
-  const pathname = usePathname();
+  const { pathname } = useLocation();
 
   useEffect(() => {
     if (!isSupabaseConfigured || pathname.startsWith("/admin") || navigator.doNotTrack === "1") return;
@@ -35,7 +33,9 @@ export function PageViewTracker() {
     try {
       const host = document.referrer ? new URL(document.referrer).hostname : "";
       referrerHost = host && host !== location.hostname ? host : null;
-    } catch {}
+    } catch {
+      // Malformed referrer: treat as direct traffic.
+    }
 
     const w = window.innerWidth;
     void getSupabaseBrowser()

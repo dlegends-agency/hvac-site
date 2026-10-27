@@ -1,8 +1,6 @@
-"use client";
-
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { Link } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, ExternalLink, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Field, inputClass } from "@/components/ui/Field";
@@ -27,7 +25,7 @@ const empty: Draft = { title: "", slug: "", excerpt: "", meta_description: "", c
 export function PostEditor() {
   const params = useParams<{ id?: string }>();
   const id = params.id; // undefined on /admin/blog/new
-  const router = useRouter();
+  const navigate = useNavigate();
   const [draft, setDraft] = useState<Draft>(empty);
   const [post, setPost] = useState<Post | null>(null);
   const [slugTouched, setSlugTouched] = useState(false);
@@ -93,19 +91,19 @@ export function PostEditor() {
     const saved = res.data as Post;
     setPost(saved);
     setMsg({ ok: true, text: draft.status === "published" ? "Saved and published. It may take a few minutes to appear on the site." : "Draft saved." });
-    if (!id) router.replace(`/admin/blog/${saved.id}`);
+    if (!id) navigate(`/admin/blog/${saved.id}`, { replace: true });
   }
 
   async function remove() {
     if (!id || !window.confirm("Delete this post permanently?")) return;
     const { error } = await getSupabaseBrowser().from("posts").delete().eq("id", id);
     if (error) return setMsg({ ok: false, text: "Could not delete." });
-    router.replace("/admin/blog");
+    navigate("/admin/blog", { replace: true });
   }
 
   return (
     <>
-      <Link href="/admin/blog" className="mb-4 inline-flex items-center gap-1 text-sm font-semibold text-primary">
+      <Link to="/admin/blog" className="mb-4 inline-flex items-center gap-1 text-sm font-semibold text-primary">
         <ArrowLeft className="size-4" aria-hidden /> All posts
       </Link>
       <QueryState loading={loading} error={loadError}>
@@ -116,7 +114,7 @@ export function PostEditor() {
             <div className="flex items-center justify-between gap-3">
               <h1 className="text-2xl font-bold text-navy">{id ? "Edit post" : "New post"}</h1>
               {post?.status === "published" && (
-                <Link href={`/blog/${post.slug}`} target="_blank" className="inline-flex items-center gap-1 text-sm font-semibold text-primary">
+                <Link to={`/blog/${post.slug}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm font-semibold text-primary">
                   View live <ExternalLink className="size-4" aria-hidden />
                 </Link>
               )}

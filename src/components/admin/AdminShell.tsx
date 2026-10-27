@@ -1,8 +1,6 @@
-"use client";
-
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { Link } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { BarChart3, FileText, LayoutDashboard, Loader2, LogOut, Users } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { getSupabaseBrowser, isSupabaseConfigured } from "@/lib/supabase";
@@ -18,8 +16,8 @@ type State = "loading" | "unconfigured" | "forbidden" | "ready";
 
 /** Auth + admin guard and navigation. Real access control is enforced by RLS in Supabase. */
 export function AdminShell({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
-  const pathname = usePathname();
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
   const [state, setState] = useState<State>("loading");
   const [email, setEmail] = useState("");
 
@@ -33,16 +31,16 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     (async () => {
       const { data } = await supabase.auth.getSession();
       const user = data.session?.user;
-      if (!user) return router.replace("/admin/login");
+      if (!user) return navigate("/admin/login", { replace: true });
       setEmail(user.email ?? "");
       const { data: row } = await supabase.from("admin_users").select("user_id").eq("user_id", user.id).maybeSingle();
       setState(row ? "ready" : "forbidden");
     })();
-  }, [router]);
+  }, [navigate]);
 
   async function signOut() {
     await getSupabaseBrowser().auth.signOut();
-    router.replace("/admin/login");
+    navigate("/admin/login", { replace: true });
   }
 
   if (state === "loading") {
@@ -73,7 +71,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     <div className="lg:flex">
       <aside className="border-b border-slate-200 bg-white lg:sticky lg:top-0 lg:h-screen lg:w-60 lg:shrink-0 lg:border-r lg:border-b-0">
         <div className="flex items-center justify-between gap-3 px-4 py-3 lg:block lg:px-5 lg:py-6">
-          <Link href="/" className="font-bold text-navy">Emergency HVAC Repair</Link>
+          <Link to="/" className="font-bold text-navy">Emergency HVAC Repair</Link>
           <p className="hidden truncate text-xs text-slate-500 lg:mt-1 lg:block">{email}</p>
           <button onClick={signOut} className="flex items-center gap-1 text-sm font-medium text-slate-600 hover:text-navy lg:hidden">
             <LogOut className="size-4" aria-hidden /> Sign out
@@ -83,7 +81,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           {links.map(({ href, label, icon: Icon }) => {
             const active = href === "/admin" ? pathname === href : pathname.startsWith(href);
             return (
-              <Link key={href} href={href} aria-current={active ? "page" : undefined}
+              <Link key={href} to={href} aria-current={active ? "page" : undefined}
                 className={`flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${active ? "bg-blue-50 text-primary" : "text-slate-700 hover:bg-slate-50"}`}>
                 <Icon className="size-4" aria-hidden /> {label}
               </Link>

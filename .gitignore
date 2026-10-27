@@ -45,3 +45,8 @@ next-env.d.ts
 # OpenNext / Cloudflare
 .open-next
 .wrangler
+
+.claude/
+
+# build output
+dist

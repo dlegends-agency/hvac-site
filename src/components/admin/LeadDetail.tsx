@@ -1,8 +1,6 @@
-"use client";
-
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { useParams } from "next/navigation";
+import { Link } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { ArrowLeft, Mail, Phone } from "lucide-react";
 import { Button, buttonClass } from "@/components/ui/Button";
 import { inputClass } from "@/components/ui/Field";
@@ -54,7 +52,7 @@ export function LeadDetail() {
 
   return (
     <>
-      <Link href="/admin/leads" className="mb-4 inline-flex items-center gap-1 text-sm font-semibold text-primary">
+      <Link to="/admin/leads" className="mb-4 inline-flex items-center gap-1 text-sm font-semibold text-primary">
         <ArrowLeft className="size-4" aria-hidden /> All leads
       </Link>
       <QueryState loading={loading} error={error}>

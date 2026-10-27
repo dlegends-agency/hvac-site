@@ -11,7 +11,6 @@ export function openLeadForm(issue?: HvacIssue) {
   const el = document.getElementById(LEAD_FORM_ID);
   if (!el) {
     // Not on the homepage: a full navigation to it is intended.
-    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
     window.location.assign(`/#${LEAD_FORM_ID}`);
     return;
   }

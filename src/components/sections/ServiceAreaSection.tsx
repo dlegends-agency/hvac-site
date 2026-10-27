@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Link } from "react-router-dom";
 import { MapPin } from "lucide-react";
 import { locations, locationPagesPublished } from "@/config/locations";
 import { OpenFormButton } from "@/components/OpenFormButton";
@@ -24,7 +24,7 @@ export function ServiceAreaSection() {
             return (
               <li key={loc.slug}>
                 {locationPagesPublished ? (
-                  <Link href={loc.path} className={`${cardClass} hover:border-primary`}>{body}</Link>
+                  <Link to={loc.path} className={`${cardClass} hover:border-primary`}>{body}</Link>
                 ) : (
                   <div className={cardClass}>{body}</div>
                 )}

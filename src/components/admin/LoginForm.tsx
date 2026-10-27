@@ -1,14 +1,12 @@
-"use client";
-
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Field, inputClass } from "@/components/ui/Field";
 import { getSupabaseBrowser, isSupabaseConfigured } from "@/lib/supabase";
 
 export function LoginForm() {
-  const router = useRouter();
+  const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -27,7 +25,7 @@ export function LoginForm() {
       setLoading(false);
       return;
     }
-    router.replace("/admin");
+    navigate("/admin", { replace: true });
   }
 
   return (

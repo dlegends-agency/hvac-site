@@ -1,7 +1,6 @@
-"use client";
-
 import { useEffect, useState } from "react";
 import { Menu, X } from "lucide-react";
+import { Link } from "react-router-dom";
 import type { NavItem } from "@/config/site";
 
 export function MobileNavigation({ items }: { items: NavItem[] }) {
@@ -31,9 +30,9 @@ export function MobileNavigation({ items }: { items: NavItem[] }) {
           <ul>
             {items.map((item) => (
               <li key={item.href}>
-                <a href={item.href} onClick={() => setOpen(false)} className="block rounded-lg px-3 py-3 text-base font-medium text-navy hover:bg-slate-50">
+                <Link to={item.href} onClick={() => setOpen(false)} className="block rounded-lg px-3 py-3 text-base font-medium text-navy hover:bg-slate-50">
                   {item.label}
-                </a>
+                </Link>
               </li>
             ))}
           </ul>

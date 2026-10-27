@@ -1,14 +1,11 @@
-"use client";
-
 import { useEffect, useRef } from "react";
 import { ArrowLeft, ArrowRight, CheckCircle2, Loader2, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { isSupabaseConfigured } from "@/lib/supabase";
 import { stepTitles } from "@/lib/lead-schema";
 import { useLeadForm } from "./useLeadForm";
 import { ContactStep, DetailsStep, IssueStep, LocationStep, ReviewStep } from "./LeadSteps";
 
-// Set NEXT_PUBLIC_LEAD_BACKEND_ENABLED=true once /api/leads forwards to a real destination.
-const devMode = process.env.NEXT_PUBLIC_LEAD_BACKEND_ENABLED !== "true";
 
 interface Props {
   title?: string;
@@ -71,7 +68,7 @@ export function LeadCaptureForm({
               {step === 1 && <LocationStep form={form} />}
               {step === 2 && <ContactStep form={form} />}
               {step === 3 && <DetailsStep form={form} />}
-              {step === 4 && <ReviewStep form={form} goTo={setStep} devMode={devMode} />}
+              {step === 4 && <ReviewStep form={form} goTo={setStep} devMode={!isSupabaseConfigured} />}
 
               <div role="alert" aria-live="assertive">
                 {status === "error" && (

@@ -1,5 +1,3 @@
-"use client";
-
 import type { ReactNode } from "react";
 import { buttonClass } from "@/components/ui/Button";
 import { openLeadForm } from "@/lib/lead-events";

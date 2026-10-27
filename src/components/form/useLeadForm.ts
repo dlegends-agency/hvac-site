@@ -1,10 +1,9 @@
-"use client";
-
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { leadSchema, stepFields, type LeadFormValues } from "@/lib/lead-schema";
 import { defaultCountry } from "@/config/form";
+import { submitLead } from "@/lib/submit-lead";
 import { onPreselectIssue } from "@/lib/lead-events";
 
 export type SubmitStatus = "idle" | "submitting" | "success" | "not_configured" | "error";
@@ -57,14 +56,8 @@ export function useLeadForm(source = "homepage") {
     inFlight.current = true;
     setStatus("submitting");
     try {
-      const res = await fetch("/api/leads", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Idempotency-Key": requestId.current },
-        body: JSON.stringify({ ...values, source }),
-      });
-      if (res.ok) setStatus("success");
-      else if (res.status === 501) setStatus("not_configured");
-      else setStatus("error");
+      const result = await submitLead(values, requestId.current, source);
+      setStatus(result === "ok" ? "success" : result === "not_configured" ? "not_configured" : "error");
     } catch {
       setStatus("error");
     } finally {

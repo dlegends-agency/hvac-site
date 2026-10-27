@@ -7,7 +7,7 @@
   --color-emergency: #c2410c;
   --color-emergency-soft: #fff1e6;
   --color-surface: #f4f6f9;
-  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-sans: "Inter Variable", system-ui, sans-serif;
 }
 
 html {

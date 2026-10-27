@@ -1,5 +1,3 @@
-"use client";
-
 import { useState } from "react";
 import { countBy, dailyCounts, useLeads, usePageViews } from "@/lib/admin-hooks";
 import { BarList, DailyChart, PageTitle, Panel, QueryState, StatCard } from "./widgets";

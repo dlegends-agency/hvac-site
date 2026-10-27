@@ -9,8 +9,11 @@ import { EmergencySituations } from "@/components/sections/EmergencySituations";
 import { ServiceAreaSection } from "@/components/sections/ServiceAreaSection";
 import { FAQAccordion } from "@/components/sections/FAQAccordion";
 import { FinalCTA } from "@/components/sections/FinalCTA";
+import { siteConfig } from "@/config/site";
+import { usePageMeta } from "@/lib/use-page-meta";
 
 export default function HomePage() {
+  usePageMeta({ title: siteConfig.seo.title, description: siteConfig.seo.description, path: "/" });
   return (
     <>
       <Header />

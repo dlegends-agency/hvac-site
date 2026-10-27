@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+
+Sitemap: https://REPLACE-WITH-YOUR-DOMAIN/sitemap.xml

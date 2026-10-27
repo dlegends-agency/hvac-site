@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Link } from "react-router-dom";
 import { siteConfig } from "@/config/site";
 import { CopyrightYear } from "@/components/CopyrightYear";
 import { services } from "@/config/services";
@@ -10,7 +10,7 @@ function FooterLink({ href, children }: { href: string; children: React.ReactNod
   return href.startsWith("#") ? (
     <a href={href} className="hover:text-white">{children}</a>
   ) : (
-    <Link href={href} className="hover:text-white">{children}</Link>
+    <Link to={href} className="hover:text-white">{children}</Link>
   );
 }
 
@@ -33,7 +33,7 @@ export function Footer() {
             <h2 className={col}>HVAC Services</h2>
             <ul className={list}>
               {services.slice(0, 5).map((s) => (
-                <li key={s.id}><Link href="/#services" className="hover:text-white">{s.name}</Link></li>
+                <li key={s.id}><Link to="/#services" className="hover:text-white">{s.name}</Link></li>
               ))}
             </ul>
           </nav>
@@ -42,7 +42,7 @@ export function Footer() {
             <ul className={list}>
               {locations.map((l) => (
                 <li key={l.slug}>
-                  {locationPagesPublished ? <FooterLink href={l.path}>{l.name}</FooterLink> : <Link href="/#service-areas" className="hover:text-white">{l.name}</Link>}
+                  {locationPagesPublished ? <FooterLink href={l.path}>{l.name}</FooterLink> : <Link to="/#service-areas" className="hover:text-white">{l.name}</Link>}
                 </li>
               ))}
             </ul>
@@ -50,9 +50,9 @@ export function Footer() {
           <nav aria-label="Company">
             <h2 className={col}>Company</h2>
             <ul className={list}>
-              <li><Link href="/#how-it-works" className="hover:text-white">How It Works</Link></li>
-              <li><Link href="/#faq" className="hover:text-white">FAQ</Link></li>
-              <li><Link href="/blog" className="hover:text-white">Blog</Link></li>
+              <li><Link to="/#how-it-works" className="hover:text-white">How It Works</Link></li>
+              <li><Link to="/#faq" className="hover:text-white">FAQ</Link></li>
+              <li><Link to="/blog" className="hover:text-white">Blog</Link></li>
               <li><FooterLink href={legal.contactHref}>Contact</FooterLink></li>
               <li><FooterLink href={legal.privacyHref}>Privacy Policy</FooterLink></li>
               <li><FooterLink href={legal.termsHref}>Terms of Use</FooterLink></li>

@@ -1,7 +1,5 @@
-"use client";
-
 import { useState } from "react";
-import Link from "next/link";
+import { Link } from "react-router-dom";
 import { ChevronRight, RefreshCw, Search } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { useLeads } from "@/lib/admin-hooks";
@@ -54,7 +52,7 @@ export function LeadsList() {
             <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
               {shown.map((l) => (
                 <li key={l.id}>
-                  <Link href={`/admin/leads/${l.id}`} className="flex items-center gap-4 px-5 py-4 hover:bg-slate-50">
+                  <Link to={`/admin/leads/${l.id}`} className="flex items-center gap-4 px-5 py-4 hover:bg-slate-50">
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-semibold text-navy">{l.first_name} {l.last_name}</span>
                       <span className="block truncate text-sm text-slate-600">{l.issue} · {l.urgency}</span>

@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Link } from "react-router-dom";
 import { Phone, Wind } from "lucide-react";
 import { siteConfig } from "@/config/site";
 import { OpenFormButton } from "@/components/OpenFormButton";
@@ -10,7 +10,7 @@ export function Header() {
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
-        <Link href="/" className="flex items-center gap-2 text-lg font-bold text-navy">
+        <Link to="/" className="flex items-center gap-2 text-lg font-bold text-navy">
           <span className="grid size-9 place-items-center rounded-lg bg-primary text-white" aria-hidden>
             <Wind className="size-5" />
           </span>
@@ -19,9 +19,9 @@ export function Header() {
 
         <nav aria-label="Primary" className="hidden items-center gap-6 lg:flex">
           {nav.map((item) => (
-            <a key={item.href} href={item.href} className="text-sm font-medium text-slate-700 hover:text-primary">
+            <Link key={item.href} to={item.href} className="text-sm font-medium text-slate-700 hover:text-primary">
               {item.label}
-            </a>
+            </Link>
           ))}
         </nav>
 

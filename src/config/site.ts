@@ -14,7 +14,7 @@ export interface SiteConfig {
   legal: { privacyHref: string; termsHref: string; contactHref: string };
 }
 
-const phone = process.env.NEXT_PUBLIC_CONTACT_PHONE || undefined;
+const phone = import.meta.env.VITE_CONTACT_PHONE || undefined;
 
 export const siteConfig: SiteConfig = {
   brand: {
@@ -23,13 +23,13 @@ export const siteConfig: SiteConfig = {
     description:
       "A referral service that helps people with heating and cooling problems find independent local HVAC contractors, where suitable contractors are available.",
   },
-  url: process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
+  url: (import.meta.env.VITE_SITE_URL as string | undefined) ?? "http://localhost:3100",
   // Click-to-call is hidden unless a real number is configured.
   contact: {
     phone,
     phoneHref: phone ? `tel:${phone.replace(/[^\d+]/g, "")}` : undefined,
-    email: process.env.NEXT_PUBLIC_CONTACT_EMAIL || undefined,
-    address: process.env.NEXT_PUBLIC_CONTACT_ADDRESS || undefined,
+    email: import.meta.env.VITE_CONTACT_EMAIL || undefined,
+    address: import.meta.env.VITE_CONTACT_ADDRESS || undefined,
   },
   nav: [
     { label: "Home", href: "/" },

@@ -1,6 +1,4 @@
-"use client";
-
-import Link from "next/link";
+import { Link } from "react-router-dom";
 import { countBy, dailyCounts, useLeads } from "@/lib/admin-hooks";
 import { LEAD_STATUSES } from "@/lib/types";
 import { BarList, DailyChart, Panel, PageTitle, QueryState, StatCard, StatusBadge } from "./widgets";
@@ -61,7 +59,7 @@ export function OverviewReport() {
               <ul className="divide-y divide-slate-100">
                 {leads.slice(0, 5).map((l) => (
                   <li key={l.id}>
-                    <Link href={`/admin/leads/${l.id}`} className="flex items-center justify-between gap-3 py-3 hover:bg-slate-50">
+                    <Link to={`/admin/leads/${l.id}`} className="flex items-center justify-between gap-3 py-3 hover:bg-slate-50">
                       <span className="min-w-0">
                         <span className="block truncate font-medium text-navy">{l.first_name} {l.last_name}</span>
                         <span className="block truncate text-sm text-slate-500">{l.issue} · {l.city}</span>
@@ -72,7 +70,7 @@ export function OverviewReport() {
                 ))}
               </ul>
             )}
-            <Link href="/admin/leads" className="mt-3 inline-block text-sm font-semibold text-primary">View all leads →</Link>
+            <Link to="/admin/leads" className="mt-3 inline-block text-sm font-semibold text-primary">View all leads →</Link>
           </Panel>
         </div>
       </QueryState>

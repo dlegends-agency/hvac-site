@@ -3,34 +3,36 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint",
-    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
-    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
-    "cf-build": "opennextjs-cloudflare build"
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "lint": "eslint ."
   },
   "dependencies": {
+    "@fontsource-variable/inter": "^5.3.0",
     "@hookform/resolvers": "^6.0.1",
-    "@opennextjs/cloudflare": "^1.20.13",
     "@supabase/supabase-js": "^2.118.0",
     "lucide-react": "^1.62.0",
-    "next": "16.4.3",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-hook-form": "^7.91.0",
-    "wrangler": "^4.154.0",
+    "react-router-dom": "^7.18.4",
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@tailwindcss/turbopack": "^4",
+    "@eslint/js": "^9.39.5",
+    "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^6.1.2",
     "eslint": "^9",
-    "eslint-config-next": "16.4.3",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.13.0",
     "tailwindcss": "^4",
-    "typescript": "^5"
-  }
+    "typescript": "^5",
+    "typescript-eslint": "^8.72.1",
+    "vite": "^8.3.5"
+  },
+  "type": "module"
 }
