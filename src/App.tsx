@@ -10,6 +10,11 @@ import AdminLoginPage from "@/pages/AdminLoginPage";
 import DirectoryPage from "@/pages/DirectoryPage";
 import ListingPage from "@/pages/ListingPage";
 import AddBusinessPage from "@/pages/AddBusinessPage";
+import LocationPage from "@/pages/LocationPage";
+import ServicePage from "@/pages/ServicePage";
+import ServicesIndexPage from "@/pages/ServicesIndexPage";
+import { locations } from "@/config/locations";
+import { servicePages } from "@/config/serviceContent";
 
 // The admin area is split into its own chunk so public visitors never download it.
 const PanelLayout = lazy(() => import("@/components/admin/PanelLayout"));
@@ -32,6 +37,9 @@ export default function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/blog" element={<BlogIndexPage />} />
           <Route path="/blog/:slug" element={<BlogPostPage />} />
+          {locations.map((l) => <Route key={l.slug} path={l.path} element={<LocationPage slug={l.slug} />} />)}
+          <Route path="/services" element={<ServicesIndexPage />} />
+          {servicePages.map((p) => <Route key={p.slug} path={`/services/${p.slug}`} element={<ServicePage slug={p.slug} />} />)}
           <Route path="/directory" element={<DirectoryPage />} />
           <Route path="/directory/add" element={<AddBusinessPage />} />
           <Route path="/directory/:slug" element={<ListingPage />} />

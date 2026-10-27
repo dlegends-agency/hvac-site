@@ -1,17 +1,8 @@
 import { useEffect } from "react";
 import { siteConfig } from "@/config/site";
+import { recordSeo, type SeoMeta } from "@/lib/seo-store";
 
-interface PageMeta {
-  title: string;
-  description?: string;
-  /** Path such as "/blog/my-post"; combined with the configured site URL. */
-  path?: string;
-  noindex?: boolean;
-  type?: "website" | "article";
-  /** Site-relative or absolute image URL for Open Graph. */
-  image?: string;
-  jsonLd?: object;
-}
+type PageMeta = SeoMeta;
 
 function setMeta(selector: string, create: () => HTMLElement, attr: "content" | "href", value: string | undefined) {
   let el = document.head.querySelector<HTMLElement>(selector);
@@ -34,6 +25,9 @@ const meta = (attrName: "name" | "property", key: string) => () => {
 
 /** Client-side head management: title, description, canonical, Open Graph, robots and JSON-LD. */
 export function usePageMeta({ title, description, path, noindex, type = "website", image, jsonLd }: PageMeta) {
+  // During prerendering (no document) record the head data so the build script can write it into the HTML.
+  if (typeof document === "undefined") recordSeo({ title, description, path, noindex, type, image, jsonLd });
+
   useEffect(() => {
     const url = path !== undefined ? `${siteConfig.url}${path}` : undefined;
     document.title = title;
@@ -56,15 +50,18 @@ export function usePageMeta({ title, description, path, noindex, type = "website
       url,
     );
 
-    let script: HTMLScriptElement | null = null;
-    if (jsonLd) {
-      script = document.createElement("script");
+    // Replace any JSON-LD from the prerendered HTML so it isn't duplicated after hydration.
+    document.head.querySelectorAll("script[data-seo-jsonld]").forEach((el) => el.remove());
+    const scripts = (jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : []).map((data) => {
+      const script = document.createElement("script");
       script.type = "application/ld+json";
-      script.textContent = JSON.stringify(jsonLd).replace(/</g, "\\u003c");
+      script.dataset.seoJsonld = "";
+      script.textContent = JSON.stringify(data).replace(/</g, "\\u003c");
       document.head.appendChild(script);
-    }
+      return script;
+    });
     return () => {
-      script?.remove();
+      scripts.forEach((s) => s.remove());
     };
   }, [title, description, path, noindex, type, image, jsonLd]);
 }

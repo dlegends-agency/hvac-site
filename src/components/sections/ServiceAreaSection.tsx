@@ -17,7 +17,8 @@ export function ServiceAreaSection() {
               <>
                 <MapPin className="size-5 shrink-0 text-primary" aria-hidden />
                 <span className="font-semibold text-navy">
-                  {loc.type === "city" ? `${loc.name}, ${loc.state}` : loc.name}
+                  HVAC Contractor {loc.name}
+                  {loc.type === "city" && <span className="block text-sm font-normal text-slate-500">{loc.state}</span>}
                 </span>
               </>
             );

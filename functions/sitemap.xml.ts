@@ -1,3 +1,6 @@
+import { locations } from "../src/config/locations";
+import { servicePages } from "../src/config/serviceContent";
+
 // Cloudflare Pages Function: builds /sitemap.xml from published posts so it never lists unpublished URLs.
 interface Env {
   VITE_SUPABASE_URL?: string;
@@ -30,6 +33,9 @@ export const onRequestGet = async ({ env, request }: { env: Env; request: Reques
     `<url><loc>${site}/</loc><changefreq>monthly</changefreq><priority>1</priority></url>`,
     `<url><loc>${site}/blog</loc><changefreq>weekly</changefreq><priority>0.6</priority></url>`,
     `<url><loc>${site}/directory</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>`,
+    `<url><loc>${site}/services</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>`,
+    ...servicePages.map((p) => `<url><loc>${site}/services/${p.slug}</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>`),
+    ...locations.map((l) => `<url><loc>${site}${l.path}</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>`),
     ...posts.map((p) => `<url><loc>${site}/blog/${encodeURIComponent(p.slug)}</loc><lastmod>${p.updated_at}</lastmod><priority>0.7</priority></url>`),
     ...listings.map((l) => `<url><loc>${site}/directory/${encodeURIComponent(l.slug)}</loc><lastmod>${l.updated_at}</lastmod><priority>0.6</priority></url>`),
   ];

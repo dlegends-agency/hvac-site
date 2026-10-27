@@ -1,8 +1,8 @@
 import { Link } from "react-router-dom";
 import { siteConfig } from "@/config/site";
 import { CopyrightYear } from "@/components/CopyrightYear";
-import { services } from "@/config/services";
-import { locations, locationPagesPublished } from "@/config/locations";
+import { servicePages, servicePath } from "@/config/serviceContent";
+import { locations } from "@/config/locations";
 
 function FooterLink({ href, children }: { href: string; children: React.ReactNode }) {
   // Pages that don't exist yet render as plain text rather than dead links.
@@ -32,9 +32,10 @@ export function Footer() {
           <nav aria-label="HVAC services">
             <h2 className={col}>HVAC Services</h2>
             <ul className={list}>
-              {services.slice(0, 5).map((s) => (
-                <li key={s.id}><Link to="/#services" className="hover:text-white">{s.name}</Link></li>
+              {servicePages.slice(0, 8).map((s) => (
+                <li key={s.slug}><Link to={servicePath(s.slug)} className="hover:text-white">{s.name}</Link></li>
               ))}
+              <li><Link to="/services" className="font-semibold hover:text-white">All services →</Link></li>
             </ul>
           </nav>
           <nav aria-label="Service areas">
@@ -42,7 +43,7 @@ export function Footer() {
             <ul className={list}>
               {locations.map((l) => (
                 <li key={l.slug}>
-                  {locationPagesPublished ? <FooterLink href={l.path}>{l.name}</FooterLink> : <Link to="/#service-areas" className="hover:text-white">{l.name}</Link>}
+                  <Link to={l.path} className="hover:text-white">HVAC Contractor {l.name}</Link>
                 </li>
               ))}
             </ul>

@@ -9,6 +9,18 @@ npm run dev                  # http://localhost:3100
 npm run lint && npm run build
 ```
 
+## SEO and prerendering
+
+`npm run build` runs the client build, an SSR build of `src/entry-server.tsx`, then `scripts/prerender.mjs`, which writes real HTML
+(content, title, description, canonical, Open Graph, JSON-LD) to `dist/<route>/index.html` for the homepage, `/services/*`,
+`/hvac-contractor-*`, `/blog`, `/directory` and `/directory/add`. The browser then hydrates it. Blog posts and directory listings
+load from Supabase in the browser (their titles and schema are set client-side).
+Set `VITE_SITE_URL` (no trailing slash needed) before building, since canonical URLs and sitemap entries use it.
+Do not add a `404.html` or a catch-all `_redirects`, or Cloudflare will stop serving the prerendered pages and SPA fallback.
+
+- Location pages: edit `src/config/locations.ts` (add a location and it gets a page, a route, footer link and sitemap entry on the next build).
+- Service guides: edit `src/config/serviceContent.ts`. The keyword-to-page map is in `docs/keyword-map.md`.
+
 ## Cloudflare Pages
 
 | Setting | Value |

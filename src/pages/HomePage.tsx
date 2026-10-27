@@ -11,10 +11,17 @@ import { FAQAccordion } from "@/components/sections/FAQAccordion";
 import { FinalCTA } from "@/components/sections/FinalCTA";
 import { DirectoryPromo } from "@/components/sections/DirectoryPromo";
 import { siteConfig } from "@/config/site";
+import { faqs } from "@/config/faq";
+import { faqLd, webPageLd } from "@/lib/schema";
 import { usePageMeta } from "@/lib/use-page-meta";
 
 export default function HomePage() {
-  usePageMeta({ title: siteConfig.seo.title, description: siteConfig.seo.description, path: "/" });
+  usePageMeta({
+    title: siteConfig.seo.title,
+    description: siteConfig.seo.description,
+    path: "/",
+    jsonLd: [webPageLd(siteConfig.seo.title, siteConfig.seo.description, "/"), faqLd(faqs)],
+  });
   return (
     <>
       <Header />
