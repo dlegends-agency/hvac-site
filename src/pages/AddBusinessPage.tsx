@@ -7,6 +7,7 @@ import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/Button";
 import { Field, inputClass } from "@/components/ui/Field";
 import { services } from "@/config/services";
+import { breadcrumbLd, webPageLd } from "@/lib/schema";
 import { slugify } from "@/lib/directory";
 import { getSupabaseBrowser, isSupabaseConfigured } from "@/lib/supabase";
 import { usePageMeta } from "@/lib/use-page-meta";
@@ -36,6 +37,10 @@ export default function AddBusinessPage() {
     title: "List Your HVAC Business | Emergency HVAC Repair",
     description: "Submit your heating and cooling business for review. Approved listings appear in the HVAC contractor directory.",
     path: "/directory/add",
+    jsonLd: [
+      webPageLd("List Your HVAC Business", "Submit your heating and cooling business for review.", "/directory/add"),
+      breadcrumbLd([{ name: "Home", path: "/" }, { name: "Directory", path: "/directory" }, { name: "List your business", path: "/directory/add" }]),
+    ],
   });
   const [errors, setErrors] = useState<Errors>({});
   const [picked, setPicked] = useState<string[]>([]);

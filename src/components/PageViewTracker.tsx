@@ -25,7 +25,7 @@ export function PageViewTracker() {
   const { pathname } = useLocation();
 
   useEffect(() => {
-    if (!isSupabaseConfigured || pathname.startsWith("/admin") || navigator.doNotTrack === "1") return;
+    if (!isSupabaseConfigured || pathname.startsWith("/admin") || location.search.includes("seo_audit=1") || navigator.doNotTrack === "1") return;
     if (lastTracked === pathname) return;
     lastTracked = pathname;
 

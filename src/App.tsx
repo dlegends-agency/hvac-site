@@ -25,6 +25,7 @@ const PostsList = lazy(() => import("@/components/admin/PostsList").then((m) => 
 const PostEditor = lazy(() => import("@/components/admin/PostEditor").then((m) => ({ default: m.PostEditor })));
 const ListingsAdmin = lazy(() => import("@/components/admin/ListingsAdmin").then((m) => ({ default: m.ListingsAdmin })));
 const ListingEditor = lazy(() => import("@/components/admin/ListingEditor").then((m) => ({ default: m.ListingEditor })));
+const SeoAudit = lazy(() => import("@/components/admin/SeoAudit").then((m) => ({ default: m.SeoAudit })));
 const AnalyticsReport = lazy(() => import("@/components/admin/AnalyticsReport").then((m) => ({ default: m.AnalyticsReport })));
 
 export default function App() {
@@ -54,6 +55,7 @@ export default function App() {
             <Route path="listings" element={<ListingsAdmin />} />
             <Route path="listings/new" element={<ListingEditor />} />
             <Route path="listings/:id" element={<ListingEditor />} />
+            <Route path="seo-audit" element={<SeoAudit />} />
             <Route path="analytics" element={<AnalyticsReport />} />
           </Route>
           <Route path="*" element={<NotFoundPage />} />

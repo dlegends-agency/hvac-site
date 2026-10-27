@@ -23,7 +23,7 @@ export default function ServicePage({ slug }: { slug: string }) {
   usePageMeta(
     page
       ? {
-          title: `${page.title} | Emergency HVAC Repair`.length > 70 ? page.title : `${page.title} | Emergency HVAC Repair`,
+          title: `${page.title} | Emergency HVAC Repair`.length > 60 ? page.title : `${page.title} | Emergency HVAC Repair`,
           description: page.metaDescription,
           path,
           jsonLd: [webPageLd(page.h1, page.metaDescription, path), breadcrumbLd(crumbs), faqLd(page.faqs)],

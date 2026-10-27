@@ -7,6 +7,7 @@ import { ListingCard } from "@/components/directory/ListingCard";
 import { buttonClass } from "@/components/ui/Button";
 import { inputClass } from "@/components/ui/Field";
 import { services } from "@/config/services";
+import { breadcrumbLd, webPageLd } from "@/lib/schema";
 import { usePublishedListings } from "@/lib/directory";
 import { usePageMeta } from "@/lib/use-page-meta";
 
@@ -15,6 +16,10 @@ export default function DirectoryPage() {
     title: "HVAC Contractor Directory | Find Local Heating and AC Companies",
     description: "Browse independent HVAC contractors by location and service. Listings are provided by the businesses; confirm licensing and insurance directly.",
     path: "/directory",
+    jsonLd: [
+      { ...webPageLd("HVAC Contractor Directory", "Browse independent HVAC contractors by location and service.", "/directory"), "@type": "CollectionPage" },
+      breadcrumbLd([{ name: "Home", path: "/" }, { name: "Directory", path: "/directory" }]),
+    ],
   });
   const { data: listings, loading, error } = usePublishedListings();
   const [params, setParams] = useSearchParams();

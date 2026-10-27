@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
+import { breadcrumbLd, webPageLd } from "@/lib/schema";
 import { usePublishedPosts } from "@/lib/blog";
 import { usePageMeta } from "@/lib/use-page-meta";
 
@@ -9,6 +10,10 @@ export default function BlogIndexPage() {
     title: "HVAC Repair Blog | Heating and AC Guides",
     description: "Practical guides on heating and air conditioning problems, what to expect from repairs, and when to call a professional.",
     path: "/blog",
+    jsonLd: [
+      { ...webPageLd("HVAC Repair Blog", "Guides on heating and cooling problems.", "/blog"), "@type": "CollectionPage" },
+      breadcrumbLd([{ name: "Home", path: "/" }, { name: "Blog", path: "/blog" }]),
+    ],
   });
   const { data: posts, loading } = usePublishedPosts();
 

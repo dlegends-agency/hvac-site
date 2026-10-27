@@ -21,6 +21,13 @@ Do not add a `404.html` or a catch-all `_redirects`, or Cloudflare will stop ser
 - Location pages: edit `src/config/locations.ts` (add a location and it gets a page, a route, footer link and sitemap entry on the next build).
 - Service guides: edit `src/config/serviceContent.ts`. The keyword-to-page map is in `docs/keyword-map.md`.
 
+## SEO audit (admin)
+
+`/admin/seo-audit` crawls every public page (static routes, published posts, published listings) in a hidden frame and reports
+titles, meta descriptions, canonicals, headings, structured data, image alt text, internal and broken links, duplicates and orphan pages.
+On the deployed site it also checks the raw server HTML, robots.txt and sitemap.xml. Results can be exported as CSV. Run it on production for full results:
+on the dev server the server-HTML and sitemap checks are skipped. Audit visits are excluded from analytics (`?seo_audit=1`).
+
 ## Cloudflare Pages
 
 | Setting | Value |

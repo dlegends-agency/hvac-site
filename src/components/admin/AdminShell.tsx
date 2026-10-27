@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useLocation, useNavigate } from "react-router-dom";
-import { BarChart3, Building2, FileText, LayoutDashboard, Loader2, LogOut, Users } from "lucide-react";
+import { BarChart3, Building2, ClipboardCheck, FileText, LayoutDashboard, Loader2, LogOut, Users } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { getSupabaseBrowser, isSupabaseConfigured } from "@/lib/supabase";
 
@@ -11,6 +11,7 @@ const links = [
   { href: "/admin/listings", label: "Directory", icon: Building2 },
   { href: "/admin/blog", label: "Blog", icon: FileText },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/admin/seo-audit", label: "SEO Audit", icon: ClipboardCheck },
 ];
 
 type State = "loading" | "unconfigured" | "forbidden" | "ready";
