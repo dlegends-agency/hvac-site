@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-label="Illustration for Gas Smell or Carbon Monoxide? HVAC Safety You Shouldn't Ignore">
+<rect width="1200" height="630" fill="#fee2e2"/>
+<circle cx="170" cy="120" r="150" fill="#ffffff" opacity=".45"/>
+<circle cx="1060" cy="560" r="190" fill="#ffffff" opacity=".45"/>
+<rect x="380" y="130" width="440" height="370" rx="44" fill="#ffffff"/>
+<rect x="380" y="130" width="440" height="22" rx="11" fill="#b91c1c"/>
+<g stroke="#b91c1c" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M600 200l95 35v70c0 55-40 90-95 110-55-20-95-55-95-110v-70z"/><path d="M600 265v50M600 350v2"/></g>
+<rect x="80" y="545" width="300" height="14" rx="7" fill="#b91c1c" opacity=".35"/>
+<rect x="80" y="575" width="190" height="14" rx="7" fill="#b91c1c" opacity=".2"/>
+</svg>

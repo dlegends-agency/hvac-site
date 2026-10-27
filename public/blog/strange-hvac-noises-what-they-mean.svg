@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-label="Illustration for Strange HVAC Noises: What They Might Mean">
+<rect width="1200" height="630" fill="#ede9fe"/>
+<circle cx="170" cy="120" r="150" fill="#ffffff" opacity=".45"/>
+<circle cx="1060" cy="560" r="190" fill="#ffffff" opacity=".45"/>
+<rect x="380" y="130" width="440" height="370" rx="44" fill="#ffffff"/>
+<rect x="380" y="130" width="440" height="22" rx="11" fill="#6d28d9"/>
+<g stroke="#6d28d9" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M520 300v30M560 270v90M600 240v150M640 270v90M680 300v30"/><path d="M480 250c-20 30-20 80 0 110M720 250c20 30 20 80 0 110"/></g>
+<rect x="80" y="545" width="300" height="14" rx="7" fill="#6d28d9" opacity=".35"/>
+<rect x="80" y="575" width="190" height="14" rx="7" fill="#6d28d9" opacity=".2"/>
+</svg>

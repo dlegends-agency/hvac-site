@@ -9,6 +9,7 @@ import { EmergencySituations } from "@/components/sections/EmergencySituations";
 import { ServiceAreaSection } from "@/components/sections/ServiceAreaSection";
 import { FAQAccordion } from "@/components/sections/FAQAccordion";
 import { FinalCTA } from "@/components/sections/FinalCTA";
+import { DirectoryPromo } from "@/components/sections/DirectoryPromo";
 import { siteConfig } from "@/config/site";
 import { usePageMeta } from "@/lib/use-page-meta";
 
@@ -21,6 +22,7 @@ export default function HomePage() {
         <HeroSection />
         <LeadSection />
         <ServiceGrid />
+        <DirectoryPromo />
         <HowItWorks />
         <BenefitsSection />
         <EmergencySituations />

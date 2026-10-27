@@ -17,10 +17,11 @@ interface Draft {
   excerpt: string;
   meta_description: string;
   content: string;
+  cover_image: string;
   status: "draft" | "published";
 }
 
-const empty: Draft = { title: "", slug: "", excerpt: "", meta_description: "", content: "", status: "draft" };
+const empty: Draft = { title: "", slug: "", excerpt: "", meta_description: "", content: "", cover_image: "", status: "draft" };
 
 export function PostEditor() {
   const params = useParams<{ id?: string }>();
@@ -53,6 +54,7 @@ export function PostEditor() {
             excerpt: p.excerpt ?? "",
             meta_description: p.meta_description ?? "",
             content: p.content,
+            cover_image: p.cover_image ?? "",
             status: p.status,
           });
         }
@@ -74,6 +76,7 @@ export function PostEditor() {
       excerpt: draft.excerpt.trim() || null,
       meta_description: draft.meta_description.trim() || null,
       content: draft.content,
+      cover_image: draft.cover_image.trim() || null,
       status: draft.status,
       published_at: draft.status === "published" ? (post?.published_at ?? new Date().toISOString()) : (post?.published_at ?? null),
     };
@@ -136,6 +139,9 @@ export function PostEditor() {
             </Field>
             <Field id="meta" label="Meta description" optional hint={`For search results. Aim for about 150 to 160 characters (${draft.meta_description.length} now).`}>
               {(a) => <textarea id="meta" rows={2} value={draft.meta_description} className={inputClass} {...a} onChange={(e) => set("meta_description", e.target.value)} />}
+            </Field>
+            <Field id="cover" label="Cover image URL" optional hint="A site path like /blog/my-image.svg (files in /public) or a full https:// image address.">
+              {(a) => <input id="cover" value={draft.cover_image} className={inputClass} {...a} onChange={(e) => set("cover_image", e.target.value)} />}
             </Field>
             <Field id="content" label="Content" hint="Markdown: ## Heading, ### Subheading, - bullets, 1. numbered, **bold**, *italic*, [text](https://link). Separate paragraphs with a blank line.">
               {(a) => <textarea id="content" rows={18} value={draft.content} className={`${inputClass} font-mono text-sm`} {...a} onChange={(e) => set("content", e.target.value)} />}

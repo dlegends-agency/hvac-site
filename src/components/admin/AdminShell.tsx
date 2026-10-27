@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useLocation, useNavigate } from "react-router-dom";
-import { BarChart3, FileText, LayoutDashboard, Loader2, LogOut, Users } from "lucide-react";
+import { BarChart3, Building2, FileText, LayoutDashboard, Loader2, LogOut, Users } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { getSupabaseBrowser, isSupabaseConfigured } from "@/lib/supabase";
 
 const links = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
   { href: "/admin/leads", label: "Leads", icon: Users },
+  { href: "/admin/listings", label: "Directory", icon: Building2 },
   { href: "/admin/blog", label: "Blog", icon: FileText },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
 ];

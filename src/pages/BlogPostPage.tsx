@@ -18,6 +18,7 @@ export default function BlogPostPage() {
         "@type": "Article",
         headline: post.title,
         description: post.meta_description || post.excerpt || undefined,
+        image: post.cover_image ? `${siteConfig.url}${post.cover_image}` : undefined,
         datePublished: post.published_at,
         dateModified: post.updated_at,
         mainEntityOfPage: `${siteConfig.url}/blog/${post.slug}`,
@@ -28,7 +29,7 @@ export default function BlogPostPage() {
 
   usePageMeta(
     post
-      ? { title: post.title, description: post.meta_description || post.excerpt || undefined, path: `/blog/${post.slug}`, type: "article", jsonLd: jsonLd ?? undefined }
+      ? { title: post.title, description: post.meta_description || post.excerpt || undefined, path: `/blog/${post.slug}`, type: "article", image: post.cover_image ?? undefined, jsonLd: jsonLd ?? undefined }
       : { title: loading ? "Loading… | Emergency HVAC Repair" : "Article not found", noindex: !loading },
   );
 
@@ -52,6 +53,10 @@ export default function BlogPostPage() {
               <p className="mt-2 text-sm text-slate-500">
                 <time dateTime={post.published_at}>{new Date(post.published_at).toLocaleDateString("en-US", { dateStyle: "long", timeZone: "UTC" })}</time>
               </p>
+            )}
+            {post.cover_image && (
+              <img src={post.cover_image} alt={`Illustration for: ${post.title}`} width={1200} height={630}
+                className="mt-8 aspect-[1200/630] w-full rounded-2xl border border-slate-200 object-cover" />
             )}
             <div className="mt-8"><Markdown source={post.content} /></div>
             <aside className="mt-12 rounded-2xl bg-navy p-6 text-center">

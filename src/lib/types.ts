@@ -35,6 +35,7 @@ export interface Post {
   excerpt: string | null;
   meta_description: string | null;
   content: string;
+  cover_image: string | null;
   status: "draft" | "published";
   published_at: string | null;
   created_at: string;
@@ -48,4 +49,35 @@ export interface PageView {
   utm_source: string | null;
   device: "mobile" | "tablet" | "desktop" | null;
   session_id: string | null;
+}
+
+export const LISTING_STATUSES = ["pending", "published", "hidden"] as const;
+export type ListingStatus = (typeof LISTING_STATUSES)[number];
+
+export interface Listing {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  slug: string;
+  status: ListingStatus;
+  business_name: string;
+  description: string | null;
+  services: string[];
+  emergency_service: boolean;
+  phone: string | null;
+  email: string | null;
+  website: string | null;
+  address: string | null;
+  city: string;
+  state: string;
+  postal_code: string | null;
+  service_areas: string | null;
+}
+
+/** Admin-only details stored in a separate table. */
+export interface ListingPrivate {
+  listing_id: string;
+  submitter_name: string | null;
+  submitter_email: string | null;
+  admin_notes: string | null;
 }

@@ -38,12 +38,22 @@ Replace the domain in `public/robots.txt` with your real one.
 
 ## Supabase setup
 
-1. Run `supabase/schema.sql`, then `supabase/schema-blog-analytics.sql` in the SQL Editor.
+1. Run, in order, in the SQL Editor: `supabase/schema.sql`, `supabase/schema-blog-analytics.sql`, `supabase/schema-directory.sql`, then (optional) `supabase/seed-blog-posts.sql` for 9 starter articles.
 2. Authentication > Users > Add user (auto-confirm), then run the `insert into admin_users` snippet at the bottom of `schema.sql`.
 3. Sign in at `/admin/login`. Leads: `/admin/leads`. Blog: `/admin/blog`. Analytics: `/admin/analytics`.
 
 The publishable key is safe in the browser: row level security allows the public to INSERT leads and page views and to
 read published posts only; everything else requires a signed-in user listed in `admin_users`. Never use the `service_role` key here.
+
+## Directory
+
+Public: `/directory` (search + state/city/service filters), `/directory/:slug` (listing page with HVACBusiness JSON-LD), `/directory/add` (business submission form, goes to `pending`).
+Admin: `/admin/listings` to review, edit, publish or hide listings and add private notes. Submitter contact details are stored in an admin-only table (`listing_private`).
+No listings are pre-filled: the directory only shows real businesses you publish. Listings are unverified and say so on the page.
+
+## Blog covers
+
+Covers are original SVG illustrations in `public/blog/` (no stock photos). Set any image path or URL in the post editor's "Cover image URL" field.
 
 ## Notes
 

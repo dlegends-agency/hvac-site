@@ -26,7 +26,13 @@ export default function BlogIndexPage() {
           ) : (
             <ul className="space-y-5">
               {posts.map((p) => (
-                <li key={p.slug} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <li key={p.slug} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                  {p.cover_image && (
+                    <Link to={`/blog/${p.slug}`} tabIndex={-1} aria-hidden>
+                      <img src={p.cover_image} alt="" loading="lazy" width={1200} height={630} className="aspect-[1200/630] w-full object-cover" />
+                    </Link>
+                  )}
+                  <div className="p-6">
                   <h2 className="text-xl font-bold text-navy">
                     <Link to={`/blog/${p.slug}`} className="hover:text-primary">{p.title}</Link>
                   </h2>
@@ -37,6 +43,7 @@ export default function BlogIndexPage() {
                   )}
                   {p.excerpt && <p className="mt-3 text-slate-700">{p.excerpt}</p>}
                   <Link to={`/blog/${p.slug}`} className="mt-3 inline-block text-sm font-semibold text-primary">Read article →</Link>
+                  </div>
                 </li>
               ))}
             </ul>

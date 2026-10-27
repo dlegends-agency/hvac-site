@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { getSupabaseBrowser, isSupabaseConfigured } from "@/lib/supabase";
 import type { Post } from "@/lib/types";
 
-export type PostSummary = Pick<Post, "slug" | "title" | "excerpt" | "published_at" | "updated_at">;
+export type PostSummary = Pick<Post, "slug" | "title" | "excerpt" | "cover_image" | "published_at" | "updated_at">;
 
 interface Result<T> {
   data: T;
@@ -16,7 +16,7 @@ export function usePublishedPosts(): Result<PostSummary[]> {
     if (!isSupabaseConfigured) return;
     getSupabaseBrowser()
       .from("posts")
-      .select("slug,title,excerpt,published_at,updated_at")
+      .select("slug,title,excerpt,cover_image,published_at,updated_at")
       .eq("status", "published")
       .order("published_at", { ascending: false })
       .then(({ data }) => setState({ data: (data as PostSummary[] | null) ?? [], loading: false }));

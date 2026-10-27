@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-label="Illustration for HVAC Maintenance Checklist: What to Do Each Season">
+<rect width="1200" height="630" fill="#fef9c3"/>
+<circle cx="170" cy="120" r="150" fill="#ffffff" opacity=".45"/>
+<circle cx="1060" cy="560" r="190" fill="#ffffff" opacity=".45"/>
+<rect x="380" y="130" width="440" height="370" rx="44" fill="#ffffff"/>
+<rect x="380" y="130" width="440" height="22" rx="11" fill="#a16207"/>
+<g stroke="#a16207" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" fill="none"><rect x="515" y="225" width="170" height="165" rx="20"/><path d="M515 280h170M560 205v35M640 205v35M560 335l25 25 55-55"/></g>
+<rect x="80" y="545" width="300" height="14" rx="7" fill="#a16207" opacity=".35"/>
+<rect x="80" y="575" width="190" height="14" rx="7" fill="#a16207" opacity=".2"/>
+</svg>

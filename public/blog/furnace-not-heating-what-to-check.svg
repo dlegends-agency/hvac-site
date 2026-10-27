@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-label="Illustration for Furnace Not Heating? What to Check Before You Call for Repair">
+<rect width="1200" height="630" fill="#ffedd5"/>
+<circle cx="170" cy="120" r="150" fill="#ffffff" opacity=".45"/>
+<circle cx="1060" cy="560" r="190" fill="#ffffff" opacity=".45"/>
+<rect x="380" y="130" width="440" height="370" rx="44" fill="#ffffff"/>
+<rect x="380" y="130" width="440" height="22" rx="11" fill="#c2410c"/>
+<g stroke="#c2410c" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M600 200c20 50 80 80 80 150a80 80 0 0 1-160 0c0-40 25-60 40-90 10 25 25 35 35 40-5-40 0-70 5-100z"/><path d="M600 380c15 15 25 30 25 45a25 25 0 0 1-50 0c0-15 15-30 25-45z"/></g>
+<rect x="80" y="545" width="300" height="14" rx="7" fill="#c2410c" opacity=".35"/>
+<rect x="80" y="575" width="190" height="14" rx="7" fill="#c2410c" opacity=".2"/>
+</svg>

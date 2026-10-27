@@ -37,6 +37,7 @@ export const siteConfig: SiteConfig = {
     { label: "How It Works", href: "/#how-it-works" },
     { label: "Service Areas", href: "/#service-areas" },
     { label: "FAQ", href: "/#faq" },
+    { label: "Directory", href: "/directory" },
     { label: "Blog", href: "/blog" },
   ],
   seo: {

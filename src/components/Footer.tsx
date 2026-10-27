@@ -52,6 +52,8 @@ export function Footer() {
             <ul className={list}>
               <li><Link to="/#how-it-works" className="hover:text-white">How It Works</Link></li>
               <li><Link to="/#faq" className="hover:text-white">FAQ</Link></li>
+              <li><Link to="/directory" className="hover:text-white">Contractor Directory</Link></li>
+              <li><Link to="/directory/add" className="hover:text-white">List Your Business</Link></li>
               <li><Link to="/blog" className="hover:text-white">Blog</Link></li>
               <li><FooterLink href={legal.contactHref}>Contact</FooterLink></li>
               <li><FooterLink href={legal.privacyHref}>Privacy Policy</FooterLink></li>

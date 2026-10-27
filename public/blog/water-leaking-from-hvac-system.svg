@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-label="Illustration for Why Is Water Leaking From My HVAC System?">
+<rect width="1200" height="630" fill="#e0f2fe"/>
+<circle cx="170" cy="120" r="150" fill="#ffffff" opacity=".45"/>
+<circle cx="1060" cy="560" r="190" fill="#ffffff" opacity=".45"/>
+<rect x="380" y="130" width="440" height="370" rx="44" fill="#ffffff"/>
+<rect x="380" y="130" width="440" height="22" rx="11" fill="#0369a1"/>
+<g stroke="#0369a1" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M600 200c50 70 90 120 90 170a90 90 0 0 1-180 0c0-50 40-100 90-170z"/><path d="M560 380a40 40 0 0 0 30 40"/></g>
+<rect x="80" y="545" width="300" height="14" rx="7" fill="#0369a1" opacity=".35"/>
+<rect x="80" y="575" width="190" height="14" rx="7" fill="#0369a1" opacity=".2"/>
+</svg>

@@ -8,6 +8,8 @@ interface PageMeta {
   path?: string;
   noindex?: boolean;
   type?: "website" | "article";
+  /** Site-relative or absolute image URL for Open Graph. */
+  image?: string;
   jsonLd?: object;
 }
 
@@ -31,7 +33,7 @@ const meta = (attrName: "name" | "property", key: string) => () => {
 };
 
 /** Client-side head management: title, description, canonical, Open Graph, robots and JSON-LD. */
-export function usePageMeta({ title, description, path, noindex, type = "website", jsonLd }: PageMeta) {
+export function usePageMeta({ title, description, path, noindex, type = "website", image, jsonLd }: PageMeta) {
   useEffect(() => {
     const url = path !== undefined ? `${siteConfig.url}${path}` : undefined;
     document.title = title;
@@ -39,6 +41,8 @@ export function usePageMeta({ title, description, path, noindex, type = "website
     setMeta('meta[property="og:title"]', meta("property", "og:title"), "content", title);
     setMeta('meta[property="og:description"]', meta("property", "og:description"), "content", description);
     setMeta('meta[property="og:type"]', meta("property", "og:type"), "content", type);
+    const imageUrl = image ? (image.startsWith("http") ? image : `${siteConfig.url}${image}`) : undefined;
+    setMeta('meta[property="og:image"]', meta("property", "og:image"), "content", imageUrl);
     setMeta('meta[property="og:url"]', meta("property", "og:url"), "content", url);
     setMeta('meta[name="robots"]', meta("name", "robots"), "content", noindex ? "noindex, nofollow" : undefined);
     setMeta(
@@ -62,5 +66,5 @@ export function usePageMeta({ title, description, path, noindex, type = "website
     return () => {
       script?.remove();
     };
-  }, [title, description, path, noindex, type, jsonLd]);
+  }, [title, description, path, noindex, type, image, jsonLd]);
 }
