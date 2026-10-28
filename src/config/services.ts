@@ -34,23 +34,25 @@ export interface ServiceCategory {
   issue: HvacIssue;
   /** Slug of the guide page for this service (see serviceContent.ts). */
   pageSlug?: string;
+  /** Photo shown on the service card (public/images). */
+  image: string;
 }
 
 export const services: ServiceCategory[] = [
-  { id: "emergency-ac", pageSlug: "emergency-ac-repair", name: "Emergency AC Repair", icon: "snowflake", issue: "Emergency AC Repair",
+  { id: "emergency-ac", image: "/images/svc-condenser.jpg", pageSlug: "emergency-ac-repair", name: "Emergency AC Repair", icon: "snowflake", issue: "Emergency AC Repair",
     description: "Cooling has stopped or is failing during hot weather." },
-  { id: "emergency-furnace", pageSlug: "furnace-repair", name: "Emergency Furnace Repair", icon: "flame", issue: "Furnace Not Heating",
+  { id: "emergency-furnace", image: "/images/svc-furnace.jpg", pageSlug: "furnace-repair", name: "Emergency Furnace Repair", icon: "flame", issue: "Furnace Not Heating",
     description: "Your furnace won't produce heat when you need it." },
-  { id: "heating-repair", pageSlug: "heat-pump-repair", name: "Heating System Repair", icon: "wrench", issue: "Emergency Heating Repair",
+  { id: "heating-repair", image: "/images/svc-outdoor.jpg", pageSlug: "heat-pump-repair", name: "Heating System Repair", icon: "wrench", issue: "Emergency Heating Repair",
     description: "Heat pumps, boilers and other heating equipment that isn't working properly." },
-  { id: "ac-repair", pageSlug: "ac-repair", name: "Air Conditioning Repair", icon: "fan", issue: "AC Not Cooling",
+  { id: "ac-repair", image: "/images/svc-split.jpg", pageSlug: "ac-repair", name: "Air Conditioning Repair", icon: "fan", issue: "AC Not Cooling",
     description: "Weak airflow, warm air or a system that won't cool the space." },
-  { id: "breakdown", name: "HVAC System Breakdown", icon: "power", issue: "No Heating or Cooling",
+  { id: "breakdown", image: "/images/svc-ducts.jpg", name: "HVAC System Breakdown", icon: "power", issue: "No Heating or Cooling",
     description: "The whole system is down, won't start or keeps shutting off." },
-  { id: "thermostat", name: "Thermostat Problems", icon: "thermometer", issue: "Thermostat Problem",
+  { id: "thermostat", image: "/images/svc-thermostat.jpg", name: "Thermostat Problems", icon: "thermometer", issue: "Thermostat Problem",
     description: "Blank screens, wrong readings or controls that don't respond." },
-  { id: "leaks", pageSlug: "ac-repair", name: "HVAC Leak Problems", icon: "droplets", issue: "Water Leaking From HVAC",
+  { id: "leaks", image: "/images/svc-air.jpg", pageSlug: "ac-repair", name: "HVAC Leak Problems", icon: "droplets", issue: "Water Leaking From HVAC",
     description: "Water pooling around your indoor or outdoor unit." },
-  { id: "commercial", pageSlug: "commercial-hvac-repair", name: "Commercial HVAC Repair", icon: "building", issue: "Commercial HVAC Problem",
+  { id: "commercial", image: "/images/svc-commercial.jpg", pageSlug: "commercial-hvac-repair", name: "Commercial HVAC Repair", icon: "building", issue: "Commercial HVAC Problem",
     description: "Heating or cooling failures at offices, shops and other commercial properties." },
 ];

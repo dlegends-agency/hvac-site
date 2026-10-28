@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { siteConfig } from "@/config/site";
+import { Logo } from "@/components/Logo";
 import { CopyrightYear } from "@/components/CopyrightYear";
 import { servicePages, servicePath } from "@/config/serviceContent";
 import { locations } from "@/config/locations";
@@ -23,7 +24,7 @@ export function Footer() {
       <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
         <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-5">
           <div className="lg:col-span-2">
-            <p className="text-lg font-bold text-white">{brand.name}</p>
+            <Link to="/" aria-label={`${brand.name} home`}><Logo light /></Link>
             <p className="mt-3 max-w-sm text-sm leading-relaxed">
               A referral service that helps connect people with independent local HVAC contractors, where suitable contractors are available.
               We do not perform HVAC repairs ourselves.

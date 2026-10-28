@@ -2,11 +2,11 @@
 
 @theme inline {
   --color-navy: #0b1f3a;
-  --color-primary: #1d4ed8;
-  --color-primary-dark: #1e40af;
+  --color-primary: #1a56db;
+  --color-primary-dark: #1645b8;
   --color-emergency: #c2410c;
   --color-emergency-soft: #fff1e6;
-  --color-surface: #f4f6f9;
+  --color-surface: #f3f7fc;
   --font-sans: "Inter Variable", system-ui, sans-serif;
 }
 

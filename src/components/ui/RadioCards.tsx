@@ -18,10 +18,10 @@ export function RadioCards({ legend, options, register, error, name, columns = "
         {options.map((option) => (
           <label
             key={option}
-            className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-300 bg-white px-3.5 py-3 text-base text-navy shadow-sm has-[:checked]:border-primary has-[:checked]:bg-blue-50 has-[:checked]:ring-1 has-[:checked]:ring-primary has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary/50"
+            className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-[15px] font-medium text-navy shadow-sm hover:border-primary/50 has-[:checked]:border-primary has-[:checked]:bg-blue-50 has-[:checked]:ring-1 has-[:checked]:ring-primary has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary/50"
           >
-            <input type="radio" value={option} className="size-4 accent-primary" {...register} />
-            <span>{option}</span>
+            <span className="flex-1">{option}</span>
+            <input type="radio" value={option} className="size-4 shrink-0 accent-primary" {...register} />
           </label>
         ))}
       </div>

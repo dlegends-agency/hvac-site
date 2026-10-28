@@ -70,6 +70,12 @@ Public: `/directory` (search + state/city/service filters), `/directory/:slug` (
 Admin: `/admin/listings` to review, edit, publish or hide listings and add private notes. Submitter contact details are stored in an admin-only table (`listing_private`).
 No listings are pre-filled: the directory only shows real businesses you publish. Listings are unverified and say so on the page.
 
+## Homepage photos
+
+The homepage photos in `public/images/` were cropped and upscaled from the design mockup screenshot, so they are low resolution.
+Replace any of them with a full-size original using the same file name (hero.jpg, form-tech.jpg, svc-*.jpg, dir-van.jpg, faq-family.jpg, cta-house.jpg) and nothing else needs to change.
+Confirm you have the rights to use each photo.
+
 ## Blog covers
 
 Covers are original SVG illustrations in `public/blog/` (no stock photos). Set any image path or URL in the post editor's "Cover image URL" field.

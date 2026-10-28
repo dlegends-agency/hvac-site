@@ -19,7 +19,7 @@ const phone = import.meta.env.VITE_CONTACT_PHONE || undefined;
 export const siteConfig: SiteConfig = {
   brand: {
     name: "Emergency HVAC Repair",
-    tagline: "Local HVAC contractor referrals",
+    tagline: "Find · Connect · Get it fixed",
     description:
       "A referral service that helps people with heating and cooling problems find independent local HVAC contractors, where suitable contractors are available.",
   },
@@ -33,11 +33,10 @@ export const siteConfig: SiteConfig = {
   },
   nav: [
     { label: "Home", href: "/" },
-    { label: "HVAC Services", href: "/#services" },
     { label: "How It Works", href: "/#how-it-works" },
-    { label: "Service Areas", href: "/#service-areas" },
+    { label: "Services", href: "/#services" },
+    { label: "Find Contractors", href: "/directory" },
     { label: "FAQ", href: "/#faq" },
-    { label: "Directory", href: "/directory" },
     { label: "Blog", href: "/blog" },
   ],
   seo: {

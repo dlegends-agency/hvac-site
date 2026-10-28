@@ -1,91 +1,68 @@
-import { Check } from "lucide-react";
+import { Link } from "react-router-dom";
+import { ArrowRight, Building2, Check, MapPin, Play, Snowflake, Wrench } from "lucide-react";
 import { OpenFormButton } from "@/components/OpenFormButton";
 import { buttonClass } from "@/components/ui/Button";
 
-const benefits = [
-  "Heating and cooling problems",
-  "Residential and commercial",
-  "Takes only a few minutes",
-  "No need to compare multiple websites",
-];
+const points = ["Heating and cooling problems", "Residential and commercial", "Takes only a few minutes"];
 
-/** Original illustration (house, outdoor condenser, thermostat) so no stock or fake imagery is needed. */
-function HvacIllustration() {
-  return (
-    <svg viewBox="0 0 480 380" role="img" aria-label="Illustration of a home with an outdoor air conditioning unit and an indoor thermostat" className="h-auto w-full rounded-3xl shadow-lg shadow-slate-900/10">
-      <rect width="480" height="380" fill="#e8f0fb" />
-      <circle cx="400" cy="70" r="34" fill="#ffe3cc" />
-      <path d="M40 90h70a14 14 0 0 0 0-28 22 22 0 0 0-42-6 16 16 0 0 0-28 34z" fill="#fff" opacity=".9" />
-      <rect y="300" width="480" height="80" fill="#cfddf1" />
-      <rect y="300" width="480" height="6" fill="#b8cae4" />
-      {/* house */}
-      <path d="M60 300V170l130-92 130 92v130z" fill="#fff" stroke="#b5c4dc" strokeWidth="3" strokeLinejoin="round" />
-      <path d="M44 176 190 70l146 106" fill="none" stroke="#0b1f3a" strokeWidth="10" strokeLinecap="round" strokeLinejoin="round" />
-      <rect x="90" y="200" width="70" height="60" rx="6" fill="#dbe8fa" stroke="#b5c4dc" strokeWidth="3" />
-      <path d="M125 200v60M90 230h70" stroke="#b5c4dc" strokeWidth="3" />
-      <rect x="205" y="215" width="60" height="85" rx="6" fill="#0b1f3a" />
-      <circle cx="254" cy="260" r="4" fill="#ffd9b8" />
-      {/* thermostat */}
-      <rect x="276" y="190" width="34" height="34" rx="8" fill="#fff" stroke="#1d4ed8" strokeWidth="3" />
-      <text x="293" y="212" textAnchor="middle" fontSize="13" fontWeight="700" fill="#1d4ed8">72°</text>
-      {/* outdoor unit */}
-      <rect x="338" y="226" width="110" height="74" rx="10" fill="#fff" stroke="#8fa6c8" strokeWidth="3" />
-      <rect x="338" y="218" width="110" height="14" rx="7" fill="#0b1f3a" />
-      <circle cx="393" cy="268" r="25" fill="#f1f6fd" stroke="#1d4ed8" strokeWidth="3" />
-      <g stroke="#1d4ed8" strokeWidth="4" strokeLinecap="round">
-        <path d="M393 268v-19M393 268l16 9M393 268l-16 9" />
-      </g>
-      <circle cx="393" cy="268" r="4" fill="#c2410c" />
-      <rect x="350" y="300" width="10" height="7" rx="2" fill="#0b1f3a" />
-      <rect x="426" y="300" width="10" height="7" rx="2" fill="#0b1f3a" />
-      {/* heat / cool badges */}
-      <g>
-        <rect x="318" y="140" width="62" height="28" rx="14" fill="#dbeafe" />
-        <path d="M335 154h12M341 148v12M337 150l8 8M345 150l-8 8" stroke="#1d4ed8" strokeWidth="2" strokeLinecap="round" />
-        <text x="365" y="158" textAnchor="middle" fontSize="11" fontWeight="700" fill="#1e40af">Cool</text>
-      </g>
-      <g>
-        <rect x="392" y="140" width="62" height="28" rx="14" fill="#ffedd5" />
-        <path d="M410 160c-5-3-6-8-3-12 1 3 3 4 4 4-1-4 1-7 4-9 0 5 5 7 5 12 0 3-3 5-6 5z" fill="#c2410c" />
-        <text x="436" y="158" textAnchor="middle" fontSize="11" fontWeight="700" fill="#9a3412">Heat</text>
-      </g>
-    </svg>
-  );
-}
+const floatingCards = [
+  { icon: MapPin, title: "Local Contractors", text: "Search by your area" },
+  { icon: Building2, title: "Independent Businesses", text: "Not employed by us" },
+  { icon: Wrench, title: "Repairs & Installations", text: "Heating, cooling, commercial" },
+];
 
 export function HeroSection() {
   return (
-    <section id="top" aria-labelledby="hero-title" className="bg-surface">
-      <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-12 sm:px-6 sm:py-16 lg:grid-cols-[1.1fr_0.9fr] lg:py-20">
+    <section id="top" aria-labelledby="hero-title" className="relative overflow-hidden bg-gradient-to-b from-sky-50 via-sky-50/60 to-white">
+      <div aria-hidden className="pointer-events-none absolute -top-24 -left-24 size-80 rounded-full bg-sky-100/70 blur-3xl" />
+      <div className="relative mx-auto grid max-w-6xl items-center gap-10 px-4 py-12 sm:px-6 sm:py-16 lg:grid-cols-[1fr_1.05fr] lg:py-20">
         <div>
-          <p className="inline-flex rounded-full bg-emergency-soft px-3 py-1 text-sm font-semibold text-emergency">
-            Heating and AC trouble
+          <p className="inline-flex rounded-md bg-orange-100 px-3 py-1 text-xs font-bold tracking-wider text-emergency uppercase">
+            Heating &amp; AC help, made simple
           </p>
-          <h1 id="hero-title" className="mt-4 text-4xl font-extrabold tracking-tight text-navy sm:text-5xl">
+          <h1 id="hero-title" className="mt-5 text-4xl font-extrabold tracking-tight text-navy sm:text-5xl lg:text-[3.4rem] lg:leading-[1.05]">
             Need Emergency HVAC Repair?
           </h1>
-          <p className="mt-3 text-2xl font-semibold text-primary sm:text-3xl">Find Help From Local HVAC Contractors.</p>
-          <p className="mt-5 max-w-xl text-lg leading-relaxed text-slate-700">
+          <p className="mt-4 text-xl font-medium text-navy sm:text-2xl">Find Help From Local HVAC Contractors.</p>
+          <p className="mt-4 max-w-xl text-base leading-relaxed text-slate-600 sm:text-lg">
             Having trouble with your heating or air conditioning system? Tell us what&apos;s happening and where you&apos;re located.
             We&apos;ll help you find a suitable local contractor for your repair needs.
           </p>
           <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-            <OpenFormButton className="px-7 py-4 text-lg">Find HVAC Help</OpenFormButton>
-            <a href="#how-it-works" className={buttonClass("secondary", "px-7 py-4 text-lg")}>How It Works</a>
+            <OpenFormButton className="!rounded-full px-7 py-3.5 text-base">Find HVAC Help <ArrowRight className="size-4" aria-hidden /></OpenFormButton>
+            <Link to="/#how-it-works" className={buttonClass("secondary", "!rounded-full px-7 py-3.5 text-base !text-primary")}>
+              <Play className="size-4 fill-current" aria-hidden /> How It Works
+            </Link>
           </div>
           <p className="mt-5 max-w-xl text-sm text-slate-600">
             One simple request. Your HVAC problem and location. We&apos;ll help you explore suitable local repair options.
           </p>
-          <ul className="mt-6 grid gap-2 sm:grid-cols-2">
-            {benefits.map((b) => (
-              <li key={b} className="flex items-center gap-2 text-sm font-medium text-navy">
-                <Check className="size-4 shrink-0 text-primary" aria-hidden /> {b}
+          <ul className="mt-6 flex flex-wrap gap-x-6 gap-y-2">
+            {points.map((b) => (
+              <li key={b} className="flex items-center gap-2 text-sm font-semibold text-navy">
+                <span className="grid size-5 place-items-center rounded-full bg-blue-100 text-primary" aria-hidden><Check className="size-3" strokeWidth={3} /></span> {b}
               </li>
             ))}
           </ul>
         </div>
-        <div className="mx-auto w-full max-w-md lg:max-w-none">
-          <HvacIllustration />
+
+        <div className="relative">
+          <div className="overflow-hidden rounded-[2rem] shadow-xl shadow-slate-900/10">
+            <img src="/images/hero.jpg" alt="Technician servicing an outdoor air conditioning unit at a home" width={776} height={848}
+              fetchPriority="high" decoding="async" className="h-[340px] w-full object-cover object-[55%_85%] sm:h-[420px] lg:h-[460px]" />
+          </div>
+          <ul className="absolute top-5 right-3 hidden w-52 space-y-2.5 sm:block lg:-right-4">
+            {floatingCards.map(({ icon: Icon, title, text }) => (
+              <li key={title} className="flex items-center gap-3 rounded-xl bg-white/95 p-3 shadow-lg shadow-slate-900/10 backdrop-blur">
+                <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-blue-50 text-primary" aria-hidden><Icon className="size-5" /></span>
+                <span className="leading-tight"><span className="block text-sm font-bold text-navy">{title}</span><span className="text-xs text-slate-600">{text}</span></span>
+              </li>
+            ))}
+          </ul>
+          <div className="absolute bottom-4 left-4 flex items-center gap-3 rounded-2xl bg-white/95 p-3 pr-5 shadow-lg shadow-slate-900/10 backdrop-blur">
+            <span className="grid size-10 place-items-center rounded-full bg-primary text-white" aria-hidden><Snowflake className="size-5" /></span>
+            <span className="leading-tight"><span className="block text-sm font-bold text-navy">Request Help Today</span><span className="text-xs text-slate-600">We&apos;ll help you look for options</span></span>
+          </div>
         </div>
       </div>
     </section>

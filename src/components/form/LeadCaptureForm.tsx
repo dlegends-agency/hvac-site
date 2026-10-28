@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { ArrowLeft, ArrowRight, CheckCircle2, Loader2, TriangleAlert } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, CheckCircle2, Loader2, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { stepTitles } from "@/lib/lead-schema";
@@ -13,6 +13,9 @@ interface Props {
   /** Recorded with the lead so future location pages can identify where it came from. */
   source?: string;
   id?: string;
+  /** Set false when the page shows its own heading, and pass that heading id as labelledBy. */
+  showHeader?: boolean;
+  labelledBy?: string;
 }
 
 export function LeadCaptureForm({
@@ -20,6 +23,8 @@ export function LeadCaptureForm({
   description = "Share a few details so we can understand your repair needs and service location.",
   source,
   id = "lead-form",
+  showHeader = true,
+  labelledBy,
 }: Props) {
   const { form, step, setStep, status, setStatus, next, back, submit } = useLeadForm(source);
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -39,24 +44,29 @@ export function LeadCaptureForm({
   const showForm = status === "idle" || status === "submitting" || status === "error";
 
   return (
-    <section id={id} aria-labelledby={`${id}-title`} className="scroll-mt-24">
+    <section id={id} aria-labelledby={showHeader ? `${id}-title` : labelledBy} className="scroll-mt-24">
       <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-lg shadow-slate-900/5 sm:p-8">
-        <h2 id={`${id}-title`} className="text-2xl font-bold text-navy sm:text-3xl">{title}</h2>
-        <p className="mt-2 text-slate-600">{description}</p>
+        {showHeader && (
+          <>
+            <h2 id={`${id}-title`} className="text-2xl font-bold text-navy sm:text-3xl">{title}</h2>
+            <p className="mt-2 text-slate-600">{description}</p>
+          </>
+        )}
 
         {showForm && (
           <>
-            <ol className="mt-6 flex items-center gap-2" aria-label="Form progress">
+            <ol className="mt-2 flex items-start" aria-label="Form progress">
               {stepTitles.map((t, i) => (
-                <li key={t} className="flex flex-1 flex-col gap-1.5" aria-current={i === step ? "step" : undefined}>
-                  <span className={`h-1.5 rounded-full ${i <= step ? "bg-primary" : "bg-slate-200"}`} />
-                  <span className={`hidden text-xs sm:block ${i === step ? "font-semibold text-navy" : "text-slate-500"}`}>{t}</span>
+                <li key={t} className="relative flex flex-1 flex-col items-center text-center" aria-current={i === step ? "step" : undefined}>
+                  {i > 0 && <span aria-hidden className={`absolute top-4 right-1/2 h-0.5 w-full ${i <= step ? "bg-primary" : "bg-slate-200"}`} />}
+                  <span className={`relative z-10 grid size-8 place-items-center rounded-full text-sm font-semibold ${i < step ? "bg-primary text-white" : i === step ? "bg-primary text-white ring-4 ring-primary/20" : "bg-slate-200 text-slate-600"}`}>
+                    {i < step ? <Check className="size-4" aria-hidden /> : i + 1}
+                  </span>
+                  <span className={`mt-1.5 text-xs ${i === step ? "font-semibold text-navy" : "text-slate-500"}`}>{t}</span>
+                  <span className="sr-only">{i < step ? " (completed)" : i === step ? " (current step)" : ""}</span>
                 </li>
               ))}
             </ol>
-            <p className="mt-3 text-sm font-medium text-slate-600 sm:hidden">
-              Step {step + 1} of {stepTitles.length}: {stepTitles[step]}
-            </p>
 
             <form onSubmit={step === last ? submit : (e) => { e.preventDefault(); void next(); }} noValidate className="mt-6">
               <h3 ref={headingRef} tabIndex={-1} className="mb-4 text-lg font-semibold text-navy outline-none">
