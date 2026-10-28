@@ -7,7 +7,7 @@ import { breadcrumbLd, webPageLd } from "@/lib/schema";
 import { usePageMeta } from "@/lib/use-page-meta";
 
 const crumbs = [{ name: "Home", path: "/" }, { name: "HVAC Services", path: "/services" }];
-const title = "HVAC Services and Repair Guides | Emergency HVAC Repair";
+const title = "HVAC Services and Repair Guides | HVACHelp";
 const description = "Guides to common HVAC repair, replacement and installation topics: AC, furnace, heat pump, mini-split, commercial and more.";
 
 export default function ServicesIndexPage() {

@@ -45,7 +45,7 @@ export default function LocationPage({ slug }: { slug: string }) {
   usePageMeta(
     loc
       ? { title, description, path: loc.path, jsonLd: [webPageLd(title, description, loc.path), breadcrumbLd(crumbs), faqLd(faqs)] }
-      : { title: "Page not found | Emergency HVAC Repair", noindex: true },
+      : { title: "Page not found | HVACHelp", noindex: true },
   );
 
   if (!loc) return <NotFoundPage />;

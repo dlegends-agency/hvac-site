@@ -76,6 +76,11 @@ Photos in `public/images/` are free-license stock photos from Pexels, cropped an
 To swap one, replace the file with the same name and keep its aspect ratio (hero 1400x1186, form-tech 1000x667, faq-family 900x1098, dir-van 800x727, svc-* 800x500).
 They are stock images, not photos of this business or its contractors.
 
+## Logo and brand
+
+The logo files are `public/logo.png` (light backgrounds), `public/logo-light.png` (dark backgrounds), `public/favicon.png`, `public/apple-touch-icon.png` and the default share image `public/og-default.png`.
+The brand name is `siteConfig.brand.name` (HVACHelp). The homepage title keeps the keyword phrase "Emergency HVAC Repair | Find Local Heating and AC Help".
+
 ## Motion
 
 Entrance animations are CSS only (`src/index.css`). Scroll reveals use `data-reveal` plus `RevealManager` (IntersectionObserver); content is fully visible without JavaScript, and all motion is disabled for visitors who prefer reduced motion.

@@ -35,7 +35,7 @@ export default function ListingPage() {
           path: `/directory/${l.slug}`,
           jsonLd: jsonLd ?? undefined,
         }
-      : { title: loading ? "Loading… | Emergency HVAC Repair" : "Listing not found", noindex: !loading },
+      : { title: loading ? "Loading… | HVACHelp" : "Listing not found", noindex: !loading },
   );
 
   const website = safeUrl(l?.website);

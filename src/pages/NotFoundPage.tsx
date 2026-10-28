@@ -4,7 +4,7 @@ import { Footer } from "@/components/Footer";
 import { usePageMeta } from "@/lib/use-page-meta";
 
 export default function NotFoundPage() {
-  usePageMeta({ title: "Page not found | Emergency HVAC Repair", noindex: true });
+  usePageMeta({ title: "Page not found | HVACHelp", noindex: true });
   return (
     <>
       <Header />

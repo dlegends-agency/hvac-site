@@ -23,12 +23,12 @@ export default function ServicePage({ slug }: { slug: string }) {
   usePageMeta(
     page
       ? {
-          title: `${page.title} | Emergency HVAC Repair`.length > 60 ? page.title : `${page.title} | Emergency HVAC Repair`,
+          title: `${page.title} | HVACHelp`.length > 60 ? page.title : `${page.title} | HVACHelp`,
           description: page.metaDescription,
           path,
           jsonLd: [webPageLd(page.h1, page.metaDescription, path), breadcrumbLd(crumbs), faqLd(page.faqs)],
         }
-      : { title: "Page not found | Emergency HVAC Repair", noindex: true },
+      : { title: "Page not found | HVACHelp", noindex: true },
   );
 
   if (!page) return <NotFoundPage />;

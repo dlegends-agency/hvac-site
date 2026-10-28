@@ -30,7 +30,7 @@ export default function BlogPostPage() {
   usePageMeta(
     post
       ? { title: post.title, description: post.meta_description || post.excerpt || undefined, path: `/blog/${post.slug}`, type: "article", image: post.cover_image ?? undefined, jsonLd: jsonLd ?? undefined }
-      : { title: loading ? "Loading… | Emergency HVAC Repair" : "Article not found", noindex: !loading },
+      : { title: loading ? "Loading… | HVACHelp" : "Article not found", noindex: !loading },
   );
 
   return (

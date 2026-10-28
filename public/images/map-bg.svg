@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 420" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e9f2fc"/><stop offset="0.5" stop-color="#f4f9ff"/><stop offset="1" stop-color="#e6f0fb"/></linearGradient>
+    <pattern id="dots" width="18" height="18" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.3" fill="#b9d2ee" opacity="0.55"/></pattern>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#cfe3fa" stop-opacity="0.9"/><stop offset="1" stop-color="#cfe3fa" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="1440" height="420" fill="url(#sky)"/>
+  <!-- soft landmasses -->
+  <g fill="#d6e6f8" opacity="0.7">
+    <path d="M70 130c40-40 120-60 190-40 50 14 90-6 140 18 36 18 22 60-8 80-26 18-18 52-54 70-40 20-86-8-120 14-40 26-96 10-120-30-22-36-60-52-28-112z"/>
+    <path d="M520 90c60-30 140-24 210 6 48 20 96 4 150 22 40 14 52 60 14 86-34 24-26 70-76 84-56 16-98-30-150-16-44 12-84 34-124 12-44-24-30-70-52-104-14-22-32-62 28-90z"/>
+    <path d="M980 120c52-34 138-30 198 6 36 22 90 14 132 44 34 26 22 74-20 96-44 22-60 66-118 70-60 4-92-48-146-42-40 4-70 30-108 6-34-22-22-60-44-92-16-24-20-64 106-88z"/>
+    <path d="M1180 300c30-14 70-10 100 8 20 12 44 8 66 24 18 14 10 40-12 50-28 12-44 40-80 38-36-2-52-34-84-40-26-6-48-24-34-46 12-18 22-24 44-34z"/>
+  </g>
+  <rect width="1440" height="420" fill="url(#dots)" opacity="0.8"/>
+  <!-- faint route arcs -->
+  <g fill="none" stroke="#a9c8ea" stroke-width="1.5" stroke-dasharray="3 7" stroke-linecap="round" opacity="0.8">
+    <path d="M150 150C380 40 640 60 820 160S1180 260 1320 190"/>
+    <path d="M260 300C480 230 700 340 940 270"/>
+  </g>
+  <circle cx="1310" cy="200" r="150" fill="url(#glow)"/>
+  <circle cx="150" cy="150" r="90" fill="url(#glow)"/>
+</svg>

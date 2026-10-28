@@ -6,6 +6,7 @@ import { siteConfig } from "./config/site";
 import { takeSeo } from "./lib/seo-store";
 
 export const siteUrl = siteConfig.url;
+export const brandName = siteConfig.brand.name;
 
 export const prerenderRoutes: string[] = staticRoutes;
 

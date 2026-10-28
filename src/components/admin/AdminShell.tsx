@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useLocation, useNavigate } from "react-router-dom";
 import { BarChart3, Building2, ClipboardCheck, FileText, LayoutDashboard, Loader2, LogOut, Users } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { Logo } from "@/components/Logo";
 import { getSupabaseBrowser, isSupabaseConfigured } from "@/lib/supabase";
 
 const links = [
@@ -73,7 +74,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     <div className="lg:flex">
       <aside className="border-b border-slate-200 bg-white lg:sticky lg:top-0 lg:h-screen lg:w-60 lg:shrink-0 lg:border-r lg:border-b-0">
         <div className="flex items-center justify-between gap-3 px-4 py-3 lg:block lg:px-5 lg:py-6">
-          <Link to="/" className="font-bold text-navy">Emergency HVAC Repair</Link>
+          <Link to="/" aria-label="HVACHelp home"><Logo className="!h-8" /></Link>
           <p className="hidden truncate text-xs text-slate-500 lg:mt-1 lg:block">{email}</p>
           <button onClick={signOut} className="flex items-center gap-1 text-sm font-medium text-slate-600 hover:text-navy lg:hidden">
             <LogOut className="size-4" aria-hidden /> Sign out

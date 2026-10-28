@@ -18,7 +18,7 @@ const phone = import.meta.env.VITE_CONTACT_PHONE || undefined;
 
 export const siteConfig: SiteConfig = {
   brand: {
-    name: "Emergency HVAC Repair",
+    name: "HVACHelp",
     tagline: "Find · Connect · Get it fixed",
     description:
       "A referral service that helps people with heating and cooling problems find independent local HVAC contractors, where suitable contractors are available.",

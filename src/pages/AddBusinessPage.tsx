@@ -34,7 +34,7 @@ type Errors = Partial<Record<string, string>>;
 
 export default function AddBusinessPage() {
   usePageMeta({
-    title: "List Your HVAC Business | Emergency HVAC Repair",
+    title: "List Your HVAC Business | HVACHelp",
     description: "Submit your heating and cooling business for review. Approved listings appear in the HVAC contractor directory.",
     path: "/directory/add",
     jsonLd: [
