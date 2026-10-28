@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { getSupabaseBrowser, isSupabaseConfigured } from "@/lib/supabase";
+import { locations, type ServiceLocation } from "@/config/locations";
 import type { Listing } from "@/lib/types";
 
 export function usePublishedListings() {
@@ -54,4 +55,53 @@ export function safeUrl(url: string | null | undefined): string | null {
   } catch {
     return null;
   }
+}
+
+/** How many businesses a location page shows before linking to the full directory. */
+export const LOCATION_PAGE_LIMIT = 6;
+
+const norm = (s: string) => s.trim().toLowerCase();
+
+const isLetter = (c: string | undefined) => Boolean(c) && (c as string).toLowerCase() !== (c as string).toUpperCase();
+
+/** True when text names the place as a whole word (case-insensitive), e.g. "Austin" but not "Austinville". */
+function mentionsPlace(text: string, place: string): boolean {
+  const t = text.toLowerCase();
+  const p = place.toLowerCase();
+  for (let i = t.indexOf(p); i !== -1; i = t.indexOf(p, i + 1)) {
+    if (!isLetter(t[i - 1]) && !isLetter(t[i + p.length])) return true;
+  }
+  return false;
+}
+
+/**
+ * Businesses for a location page. A city page lists businesses in that city first, then businesses whose own stated
+ * service area names the city. A state page lists businesses in the state, interleaved across cities so the sample is varied.
+ */
+export function listingsForLocation(all: Listing[], loc: ServiceLocation): Listing[] {
+  if (loc.type === "state") {
+    // Take businesses evenly from each city area so the statewide sample is varied.
+    const lists = locations
+      .filter((l) => l.type === "city" && norm(l.state) === norm(loc.name))
+      .map((city) => listingsForLocation(all, city));
+    const seen = new Set<string>();
+    const out: Listing[] = [];
+    const longest = Math.max(0, ...lists.map((l) => l.length));
+    for (let i = 0; i < longest; i++) {
+      for (const list of lists) {
+        const item = list[i];
+        if (item && !seen.has(item.id)) {
+          seen.add(item.id);
+          out.push(item);
+        }
+      }
+    }
+    for (const l of all) if (norm(l.state) === norm(loc.name) && !seen.has(l.id)) out.push(l);
+    return out;
+  }
+  const serves = (l: Listing) => Boolean(l.service_areas) && mentionsPlace(l.service_areas as string, loc.name);
+  const sameState = all.filter((l) => norm(l.state) === norm(loc.state));
+  const inCity = sameState.filter((l) => norm(l.city) === norm(loc.name));
+  const servesCity = sameState.filter((l) => norm(l.city) !== norm(loc.name) && serves(l));
+  return [...inCity, ...servesCity];
 }

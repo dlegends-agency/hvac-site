@@ -57,7 +57,7 @@ Replace the domain in `public/robots.txt` with your real one.
 
 ## Supabase setup
 
-1. Run, in order, in the SQL Editor: `supabase/schema.sql`, `supabase/schema-blog-analytics.sql`, `supabase/schema-directory.sql`, then (optional) `supabase/seed-blog-posts.sql` for 9 starter articles.
+1. Run, in order, in the SQL Editor: `supabase/schema.sql`, `supabase/schema-blog-analytics.sql`, `supabase/schema-directory.sql`, then (optional) `supabase/seed-blog-posts.sql` for 9 starter articles and `supabase/seed-listings.sql` for 24 starter directory listings.
 2. Authentication > Users > Add user (auto-confirm), then run the `insert into admin_users` snippet at the bottom of `schema.sql`.
 3. Sign in at `/admin/login`. Leads: `/admin/leads`. Blog: `/admin/blog`. Analytics: `/admin/analytics`.
 
@@ -68,7 +68,7 @@ read published posts only; everything else requires a signed-in user listed in `
 
 Public: `/directory` (search + state/city/service filters), `/directory/:slug` (listing page with HVACBusiness JSON-LD), `/directory/add` (business submission form, goes to `pending`).
 Admin: `/admin/listings` to review, edit, publish or hide listings and add private notes. Submitter contact details are stored in an admin-only table (`listing_private`).
-No listings are pre-filled: the directory only shows real businesses you publish. Listings are unverified and say so on the page.
+The directory only shows businesses you publish. `supabase/seed-listings.sql` adds 24 real Texas HVAC businesses (6 each for Austin, Dallas, Houston and San Antonio areas) whose details were read from their own websites; see `docs/listing-sources.md`. Licensing, insurance and availability are not verified, and listings are not endorsements. Location pages show up to 6 businesses (matched by city or by the service area the business states) and link to the full directory.
 
 ## Homepage photos
 

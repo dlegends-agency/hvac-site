@@ -2,13 +2,13 @@ import { Link } from "react-router-dom";
 import { ListingCard } from "@/components/directory/ListingCard";
 import { buttonClass } from "@/components/ui/Button";
 import type { ServiceLocation } from "@/config/locations";
-import { usePublishedListings } from "@/lib/directory";
+import { LOCATION_PAGE_LIMIT, listingsForLocation, usePublishedListings } from "@/lib/directory";
 
 /** Published directory businesses for a city (or whole state). Shows an honest empty state when there are none. */
 export function CityListings({ location }: { location: ServiceLocation }) {
   const { data, loading, error } = usePublishedListings();
-  const eq = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
-  const matches = data.filter((l) => (location.type === "city" ? eq(l.city, location.name) && eq(l.state, location.state) : eq(l.state, location.name)));
+  const matches = listingsForLocation(data, location);
+  const shown = matches.slice(0, LOCATION_PAGE_LIMIT);
 
   if (loading) return <p className="text-slate-600">Loading businesses…</p>;
   if (error || matches.length === 0) {
@@ -24,8 +24,15 @@ export function CityListings({ location }: { location: ServiceLocation }) {
     );
   }
   return (
-    <ul className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-      {matches.map((l) => <ListingCard key={l.id} listing={l} />)}
-    </ul>
+    <>
+      <ul className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+        {shown.map((l) => <ListingCard key={l.id} listing={l} />)}
+      </ul>
+      {matches.length > shown.length && (
+        <p className="mt-6">
+          <Link to="/directory" className="font-semibold text-primary hover:underline">View all {matches.length} businesses in the directory →</Link>
+        </p>
+      )}
+    </>
   );
 }
