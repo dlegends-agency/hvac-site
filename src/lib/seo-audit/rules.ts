@@ -46,7 +46,7 @@ export const normalizePath = (p: string) => {
 };
 
 /** Index, form and listing pages are expected to have little prose. */
-const THIN_OK = new Set(["/", "/blog", "/directory", "/directory/add", "/services"]);
+const THIN_OK = new Set(["/", "/blog", "/directory", "/directory/add", "/services", "/contact"]);
 const MIN_WORDS = 250;
 const GENERIC_ANCHORS = new Set(["click here", "here", "read more", "more", "link"]);
 

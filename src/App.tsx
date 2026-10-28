@@ -12,6 +12,9 @@ import DirectoryPage from "@/pages/DirectoryPage";
 import ListingPage from "@/pages/ListingPage";
 import AddBusinessPage from "@/pages/AddBusinessPage";
 import LocationPage from "@/pages/LocationPage";
+import ContactPage from "@/pages/ContactPage";
+import PrivacyPage from "@/pages/PrivacyPage";
+import TermsPage from "@/pages/TermsPage";
 import ServicePage from "@/pages/ServicePage";
 import ServicesIndexPage from "@/pages/ServicesIndexPage";
 import { locations } from "@/config/locations";
@@ -26,6 +29,7 @@ const PostsList = lazy(() => import("@/components/admin/PostsList").then((m) => 
 const PostEditor = lazy(() => import("@/components/admin/PostEditor").then((m) => ({ default: m.PostEditor })));
 const ListingsAdmin = lazy(() => import("@/components/admin/ListingsAdmin").then((m) => ({ default: m.ListingsAdmin })));
 const ListingEditor = lazy(() => import("@/components/admin/ListingEditor").then((m) => ({ default: m.ListingEditor })));
+const MessagesAdmin = lazy(() => import("@/components/admin/MessagesAdmin").then((m) => ({ default: m.MessagesAdmin })));
 const SeoAudit = lazy(() => import("@/components/admin/SeoAudit").then((m) => ({ default: m.SeoAudit })));
 const AnalyticsReport = lazy(() => import("@/components/admin/AnalyticsReport").then((m) => ({ default: m.AnalyticsReport })));
 
@@ -43,6 +47,9 @@ export default function App() {
           {locations.map((l) => <Route key={l.slug} path={l.path} element={<LocationPage slug={l.slug} />} />)}
           <Route path="/services" element={<ServicesIndexPage />} />
           {servicePages.map((p) => <Route key={p.slug} path={`/services/${p.slug}`} element={<ServicePage slug={p.slug} />} />)}
+          <Route path="/contact" element={<ContactPage />} />
+          <Route path="/privacy-policy" element={<PrivacyPage />} />
+          <Route path="/terms-of-use" element={<TermsPage />} />
           <Route path="/directory" element={<DirectoryPage />} />
           <Route path="/directory/add" element={<AddBusinessPage />} />
           <Route path="/directory/:slug" element={<ListingPage />} />
@@ -57,6 +64,7 @@ export default function App() {
             <Route path="listings" element={<ListingsAdmin />} />
             <Route path="listings/new" element={<ListingEditor />} />
             <Route path="listings/:id" element={<ListingEditor />} />
+            <Route path="messages" element={<MessagesAdmin />} />
             <Route path="seo-audit" element={<SeoAudit />} />
             <Route path="analytics" element={<AnalyticsReport />} />
           </Route>

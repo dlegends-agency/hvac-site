@@ -57,7 +57,7 @@ Replace the domain in `public/robots.txt` with your real one.
 
 ## Supabase setup
 
-1. Run, in order, in the SQL Editor: `supabase/schema.sql`, `supabase/schema-blog-analytics.sql`, `supabase/schema-directory.sql`, then (optional) `supabase/seed-blog-posts.sql` for 9 starter articles and `supabase/seed-listings.sql` for 24 starter directory listings.
+1. Run, in order, in the SQL Editor: `supabase/schema.sql`, `supabase/schema-blog-analytics.sql`, `supabase/schema-directory.sql`, `supabase/schema-contact.sql` (Contact page messages), then (optional) `supabase/seed-blog-posts.sql` for 9 starter articles and `supabase/seed-listings.sql` for 24 starter directory listings.
 2. Authentication > Users > Add user (auto-confirm), then run the `insert into admin_users` snippet at the bottom of `schema.sql`.
 3. Sign in at `/admin/login`. The Overview (`/admin`) auto-refreshes every 30 seconds (Live toggle), shows KPIs vs the previous period, most-viewed cities, and business registrations with Approve / Decline actions. Leads: `/admin/leads`. Blog: `/admin/blog`. Analytics: `/admin/analytics`.
 
@@ -75,6 +75,13 @@ The directory only shows businesses you publish. `supabase/seed-listings.sql` ad
 Photos in `public/images/` are free-license stock photos from Pexels, cropped and compressed (about 1 MB total). Credits and source pages are in `docs/image-credits.md`.
 To swap one, replace the file with the same name and keep its aspect ratio (hero 1400x1186, form-tech 1000x667, faq-family 900x1350, dir-van 800x727, svc-* 800x500).
 They are stock images, not photos of this business or its contractors.
+
+## Contact, Privacy Policy and Terms
+
+`/contact` (form saved to `contact_messages`; read and reply in `/admin/messages`), `/privacy-policy` and `/terms-of-use`. The policy text describes this site's actual data practices
+(request form, contact form, listings, cookie-free analytics, Supabase and Cloudflare as providers). These are good-faith drafts, not legal advice: have a lawyer review them
+before launch, especially the sharing-with-contractors language (which can count as a "sale" or "sharing" under some state privacy laws) and any texting consent wording.
+Optional env vars: `VITE_LEGAL_ENTITY` (registered business name) and `VITE_LEGAL_GOVERNING_STATE` (adds a governing-law clause). Email, phone and address show on the Contact page only when `VITE_CONTACT_*` are set.
 
 ## Logo and brand
 

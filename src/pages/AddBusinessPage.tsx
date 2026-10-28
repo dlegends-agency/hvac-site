@@ -165,7 +165,7 @@ export default function AddBusinessPage() {
               <div>
                 <label className="flex items-start gap-3 text-sm text-slate-800">
                   <input id="consent" name="consent" type="checkbox" className="mt-0.5 size-5 shrink-0 accent-primary" aria-invalid={Boolean(errors.consent)} />
-                  <span>I confirm I&apos;m authorized to list this business and the information provided is accurate. I understand listings are reviewed and may be declined or removed.</span>
+                  <span>I confirm I&apos;m authorized to list this business and the information provided is accurate. I understand listings are reviewed and may be declined or removed. See the <Link to="/terms-of-use" className="text-primary underline">Terms of Use</Link> and <Link to="/privacy-policy" className="text-primary underline">Privacy Policy</Link>.</span>
                 </label>
                 {errors.consent && <p className="mt-1 text-sm font-medium text-red-700">{errors.consent}</p>}
               </div>

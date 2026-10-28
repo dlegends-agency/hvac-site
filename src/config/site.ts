@@ -12,6 +12,10 @@ export interface SiteConfig {
   seo: { title: string; description: string };
   /** Leave empty until the page exists; the footer renders plain text for empty hrefs. */
   legal: { privacyHref: string; termsHref: string; contactHref: string };
+  /** Name used in the Privacy Policy and Terms (defaults to the brand name). Set VITE_LEGAL_ENTITY to the registered business name. */
+  legalEntity: string;
+  /** US state whose law governs the Terms. The governing-law clause is omitted when unset (VITE_LEGAL_GOVERNING_STATE). */
+  governingState?: string;
 }
 
 const phone = import.meta.env.VITE_CONTACT_PHONE || undefined;
@@ -44,5 +48,7 @@ export const siteConfig: SiteConfig = {
     description:
       "Need emergency HVAC repair? Tell us about your heating or AC problem and location. We'll help you find suitable local HVAC repair options.",
   },
-  legal: { privacyHref: "", termsHref: "", contactHref: "#contact" },
+  legal: { privacyHref: "/privacy-policy", termsHref: "/terms-of-use", contactHref: "/contact" },
+  legalEntity: (import.meta.env.VITE_LEGAL_ENTITY as string | undefined) || "HVACHelp",
+  governingState: (import.meta.env.VITE_LEGAL_GOVERNING_STATE as string | undefined) || undefined,
 };

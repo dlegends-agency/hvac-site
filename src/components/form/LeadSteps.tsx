@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { Building2, CalendarClock, ClipboardList, Droplets, Flame, Gauge, Home, MapPin, Power, Siren, Snowflake, Thermometer, User, Volume2, Wrench, Zap, Clock, type LucideIcon } from "lucide-react";
 import type { UseFormReturn } from "react-hook-form";
 import type { LeadFormValues } from "@/lib/lead-schema";
@@ -173,6 +174,10 @@ export function ReviewStep({ form, goTo, devMode }: { form: F; goTo: (step: numb
           <span>I&apos;d also like to receive offers and updates about HVAC services. <span className="text-slate-500">(Optional)</span></span>
         </label>
       </div>
+
+      <p className="text-xs text-slate-500">
+        See our <Link to="/privacy-policy" className="text-primary underline">Privacy Policy</Link> and <Link to="/terms-of-use" className="text-primary underline">Terms of Use</Link>.
+      </p>
 
       {devMode && (
         <p className="rounded-xl border border-orange-200 bg-orange-50 p-3 text-sm text-orange-900">
