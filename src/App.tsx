@@ -19,7 +19,7 @@ import { servicePages } from "@/config/serviceContent";
 
 // The admin area is split into its own chunk so public visitors never download it.
 const PanelLayout = lazy(() => import("@/components/admin/PanelLayout"));
-const OverviewReport = lazy(() => import("@/components/admin/OverviewReport").then((m) => ({ default: m.OverviewReport })));
+const OverviewDashboard = lazy(() => import("@/components/admin/OverviewDashboard").then((m) => ({ default: m.OverviewDashboard })));
 const LeadsList = lazy(() => import("@/components/admin/LeadsList").then((m) => ({ default: m.LeadsList })));
 const LeadDetail = lazy(() => import("@/components/admin/LeadDetail").then((m) => ({ default: m.LeadDetail })));
 const PostsList = lazy(() => import("@/components/admin/PostsList").then((m) => ({ default: m.PostsList })));
@@ -48,7 +48,7 @@ export default function App() {
           <Route path="/directory/:slug" element={<ListingPage />} />
           <Route path="/admin/login" element={<AdminLoginPage />} />
           <Route path="/admin" element={<PanelLayout />}>
-            <Route index element={<OverviewReport />} />
+            <Route index element={<OverviewDashboard />} />
             <Route path="leads" element={<LeadsList />} />
             <Route path="leads/:id" element={<LeadDetail />} />
             <Route path="blog" element={<PostsList />} />

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { getSupabaseBrowser } from "@/lib/supabase";
 import type { Lead, PageView } from "@/lib/types";
 
@@ -70,4 +70,84 @@ export function dailyCounts(dates: string[], days: number) {
     if (buckets.has(k)) buckets.set(k, (buckets.get(k) ?? 0) + 1);
   }
   return [...buckets.entries()].map(([date, value]) => ({ date, value }));
+}
+
+/**
+ * Fetches data and, when intervalMs is set, silently refreshes it on a timer (skipped while the tab is hidden).
+ * loading is only true until the first response, so refreshes never flash a spinner. Change key to refetch.
+ */
+export function useLiveQuery<T>(
+  initial: T,
+  run: () => PromiseLike<{ data: unknown; error: unknown }>,
+  opts: { key: string; intervalMs: number | null },
+) {
+  const [state, setState] = useState<{ data: T; loading: boolean; error: boolean; updatedAt: Date | null }>({
+    data: initial,
+    loading: true,
+    error: false,
+    updatedAt: null,
+  });
+  const runRef = useRef(run);
+  useEffect(() => {
+    runRef.current = run;
+  });
+
+  const load = useCallback(async () => {
+    const { data, error } = await runRef.current();
+    setState((s) => ({
+      data: error ? s.data : (data as T),
+      loading: false,
+      error: Boolean(error),
+      updatedAt: error ? s.updatedAt : new Date(),
+    }));
+  }, []);
+
+  const { key, intervalMs } = opts;
+  useEffect(() => {
+    void load();
+    if (!intervalMs) return;
+    const id = setInterval(() => {
+      if (!document.hidden) void load();
+    }, intervalMs);
+    return () => clearInterval(id);
+  }, [load, key, intervalMs]);
+
+  return { ...state, reload: load };
+}
+
+/** Current time in ms, re-rendering every intervalMs (for "updated 12s ago" labels). */
+export function useNow(intervalMs = 1000) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), intervalMs);
+    return () => clearInterval(id);
+  }, [intervalMs]);
+  return now;
+}
+
+/** Animates a number up to its target (respects reduced motion). */
+export function useCountUp(target: number, durationMs = 700) {
+  const [value, setValue] = useState(0);
+  const fromRef = useRef(0);
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      fromRef.current = target;
+      const id = requestAnimationFrame(() => setValue(target));
+      return () => cancelAnimationFrame(id);
+    }
+    const from = fromRef.current;
+    const start = performance.now();
+    let raf = 0;
+    const tick = (t: number) => {
+      const p = Math.min(1, (t - start) / durationMs);
+      const eased = 1 - Math.pow(1 - p, 3);
+      const next = Math.round(from + (target - from) * eased);
+      fromRef.current = next;
+      setValue(next);
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target, durationMs]);
+  return value;
 }

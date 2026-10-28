@@ -59,7 +59,7 @@ Replace the domain in `public/robots.txt` with your real one.
 
 1. Run, in order, in the SQL Editor: `supabase/schema.sql`, `supabase/schema-blog-analytics.sql`, `supabase/schema-directory.sql`, then (optional) `supabase/seed-blog-posts.sql` for 9 starter articles and `supabase/seed-listings.sql` for 24 starter directory listings.
 2. Authentication > Users > Add user (auto-confirm), then run the `insert into admin_users` snippet at the bottom of `schema.sql`.
-3. Sign in at `/admin/login`. Leads: `/admin/leads`. Blog: `/admin/blog`. Analytics: `/admin/analytics`.
+3. Sign in at `/admin/login`. The Overview (`/admin`) auto-refreshes every 30 seconds (Live toggle), shows KPIs vs the previous period, most-viewed cities, and business registrations with Approve / Decline actions. Leads: `/admin/leads`. Blog: `/admin/blog`. Analytics: `/admin/analytics`.
 
 The publishable key is safe in the browser: row level security allows the public to INSERT leads and page views and to
 read published posts only; everything else requires a signed-in user listed in `admin_users`. Never use the `service_role` key here.
