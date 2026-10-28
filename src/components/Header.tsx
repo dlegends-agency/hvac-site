@@ -16,10 +16,10 @@ export function Header() {
       <div className="mx-auto flex h-[72px] max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
         <Link to="/" aria-label={`${siteConfig.brand.name} home`}><Logo /></Link>
 
-        <nav aria-label="Primary" className="hidden items-center gap-7 lg:flex">
+        <nav aria-label="Primary" className="hidden items-center gap-5 xl:gap-7 lg:flex">
           {nav.map((item) => (
             <Link key={item.href} to={item.href} aria-current={isActive(item.href) ? "page" : undefined}
-              className={`border-b-2 py-1 text-sm font-semibold transition-colors ${isActive(item.href) ? "border-primary text-primary" : "border-transparent text-navy hover:text-primary"}`}>
+              className={`border-b-2 py-1 text-[13px] font-semibold whitespace-nowrap transition-colors xl:text-sm ${isActive(item.href) ? "border-primary text-primary" : "border-transparent text-navy hover:text-primary"}`}>
               {item.label}
             </Link>
           ))}

@@ -2,6 +2,7 @@ import { lazy, Suspense } from "react";
 import { Route, Routes } from "react-router-dom";
 import { PageViewTracker } from "@/components/PageViewTracker";
 import { ScrollManager } from "@/components/ScrollManager";
+import { RevealManager } from "@/components/RevealManager";
 import HomePage from "@/pages/HomePage";
 import BlogIndexPage from "@/pages/BlogIndexPage";
 import BlogPostPage from "@/pages/BlogPostPage";
@@ -32,6 +33,7 @@ export default function App() {
   return (
     <>
       <ScrollManager />
+      <RevealManager />
       <PageViewTracker />
       <Suspense fallback={<p className="p-8 text-slate-600">Loading…</p>}>
         <Routes>

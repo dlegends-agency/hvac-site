@@ -1,4 +1,5 @@
 import { FileText, MapPinned, MessageSquare, Search } from "lucide-react";
+import { reveal } from "@/lib/reveal";
 import { SectionHeading } from "./SectionHeading";
 
 const benefits = [
@@ -14,9 +15,9 @@ export function BenefitsSection() {
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <SectionHeading id="benefits-title" title="A Simpler Way to Find HVAC Repair Help" text="One place to describe the problem, share your location and say how you want to be contacted." />
         <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {benefits.map(({ icon: Icon, title, text }) => (
-            <li key={title} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <span className="grid size-10 place-items-center rounded-xl bg-blue-50 text-primary" aria-hidden><Icon className="size-5" /></span>
+          {benefits.map(({ icon: Icon, title, text }, i) => (
+            <li key={title} {...reveal(i)} className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-blue-900/10">
+              <span className="grid size-10 place-items-center rounded-xl bg-blue-50 text-primary transition-colors duration-300 group-hover:bg-primary group-hover:text-white" aria-hidden><Icon className="size-5" /></span>
               <h3 className="mt-3 text-base font-bold text-navy">{title}</h3>
               <p className="mt-1.5 text-sm leading-relaxed text-slate-600">{text}</p>
             </li>

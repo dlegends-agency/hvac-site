@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { ArrowRight, MapPin } from "lucide-react";
 import { locations } from "@/config/locations";
+import { reveal } from "@/lib/reveal";
 import { OpenFormButton } from "@/components/OpenFormButton";
 import { SectionHeading } from "./SectionHeading";
 
@@ -13,9 +14,9 @@ export function ServiceAreaSection() {
         <SectionHeading id="areas-title" title="Looking for HVAC Repair Near You?"
           text="Tell us where service is needed so we can help identify suitable local repair options." />
         <ul className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {locations.map((loc) => (
-            <li key={loc.slug}>
-              <Link to={loc.path} className="group flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-colors hover:border-primary">
+          {locations.map((loc, i) => (
+            <li key={loc.slug} {...reveal(i)}>
+              <Link to={loc.path} className="group flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-colors hover:-translate-y-0.5 hover:border-primary hover:shadow-lg">
                 <MapPin className="size-5 shrink-0 text-primary" aria-hidden />
                 <span className="flex-1 font-semibold text-navy">
                   HVAC Contractor {loc.name}

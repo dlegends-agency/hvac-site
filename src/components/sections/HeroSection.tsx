@@ -2,42 +2,49 @@ import { Link } from "react-router-dom";
 import { ArrowRight, Building2, Check, MapPin, Play, Snowflake, Wrench } from "lucide-react";
 import { OpenFormButton } from "@/components/OpenFormButton";
 import { buttonClass } from "@/components/ui/Button";
+import { delay } from "@/lib/reveal";
 
 const points = ["Heating and cooling problems", "Residential and commercial", "Takes only a few minutes"];
 
-const floatingCards = [
-  { icon: MapPin, title: "Local Contractors", text: "Search by your area" },
-  { icon: Building2, title: "Independent Businesses", text: "Not employed by us" },
-  { icon: Wrench, title: "Repairs & Installations", text: "Heating, cooling, commercial" },
-];
+function FloatCard({ icon: Icon, title, text, className, d }: { icon: typeof MapPin; title: string; text: string; className: string; d: number }) {
+  return (
+    <div className={`absolute z-10 hidden items-center gap-3 rounded-2xl bg-white/95 p-3 pr-4 shadow-xl shadow-slate-900/10 ring-1 ring-slate-100 backdrop-blur anim-float sm:flex ${className}`} style={delay(d)}>
+      <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-blue-50 text-primary" aria-hidden><Icon className="size-5" /></span>
+      <span className="leading-tight"><span className="block text-sm font-bold text-navy">{title}</span><span className="text-xs text-slate-600">{text}</span></span>
+    </div>
+  );
+}
 
 export function HeroSection() {
   return (
     <section id="top" aria-labelledby="hero-title" className="relative overflow-hidden bg-gradient-to-b from-sky-50 via-sky-50/60 to-white">
-      <div aria-hidden className="pointer-events-none absolute -top-24 -left-24 size-80 rounded-full bg-sky-100/70 blur-3xl" />
-      <div className="relative mx-auto grid max-w-6xl items-center gap-10 px-4 py-12 sm:px-6 sm:py-16 lg:grid-cols-[1fr_1.05fr] lg:py-20">
+      <div aria-hidden className="pointer-events-none absolute -top-24 -left-24 size-80 rounded-full bg-sky-100/80 blur-3xl" />
+      <div aria-hidden className="pointer-events-none absolute right-0 bottom-0 size-72 rounded-full bg-blue-100/50 blur-3xl" />
+      <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-4 py-12 sm:px-6 sm:py-16 lg:grid-cols-[1.05fr_1fr] lg:py-24">
         <div>
-          <p className="inline-flex rounded-md bg-orange-100 px-3 py-1 text-xs font-bold tracking-wider text-emergency uppercase">
+          <p className="anim-fade-up inline-flex rounded-md bg-orange-100 px-3 py-1 text-xs font-bold tracking-wider text-emergency uppercase">
             Heating &amp; AC help, made simple
           </p>
-          <h1 id="hero-title" className="mt-5 text-4xl font-extrabold tracking-tight text-navy sm:text-5xl lg:text-[3.4rem] lg:leading-[1.05]">
+          <h1 id="hero-title" className="anim-fade-up mt-5 text-4xl font-extrabold tracking-tight text-navy sm:text-5xl lg:text-[3.4rem] lg:leading-[1.05]" style={delay(80)}>
             Need Emergency HVAC Repair?
           </h1>
-          <p className="mt-4 text-xl font-medium text-navy sm:text-2xl">Find Help From Local HVAC Contractors.</p>
-          <p className="mt-4 max-w-xl text-base leading-relaxed text-slate-600 sm:text-lg">
+          <p className="anim-fade-up mt-4 text-xl font-medium text-navy sm:text-2xl" style={delay(160)}>Find Help From Local HVAC Contractors.</p>
+          <p className="anim-fade-up mt-4 max-w-xl text-base leading-relaxed text-slate-600 sm:text-lg" style={delay(240)}>
             Having trouble with your heating or air conditioning system? Tell us what&apos;s happening and where you&apos;re located.
             We&apos;ll help you find a suitable local contractor for your repair needs.
           </p>
-          <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-            <OpenFormButton className="!rounded-full px-7 py-3.5 text-base">Find HVAC Help <ArrowRight className="size-4" aria-hidden /></OpenFormButton>
-            <Link to="/#how-it-works" className={buttonClass("secondary", "!rounded-full px-7 py-3.5 text-base !text-primary")}>
+          <div className="anim-fade-up mt-7 flex flex-col gap-3 sm:flex-row" style={delay(320)}>
+            <OpenFormButton className="group !rounded-full px-7 py-3.5 text-base shadow-lg shadow-blue-600/25 hover:-translate-y-0.5 hover:shadow-xl">
+              Find HVAC Help <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" aria-hidden />
+            </OpenFormButton>
+            <Link to="/#how-it-works" className={buttonClass("secondary", "group !rounded-full px-7 py-3.5 text-base !text-primary hover:-translate-y-0.5")}>
               <Play className="size-4 fill-current" aria-hidden /> How It Works
             </Link>
           </div>
-          <p className="mt-5 max-w-xl text-sm text-slate-600">
+          <p className="anim-fade-up mt-5 max-w-xl text-sm text-slate-600" style={delay(400)}>
             One simple request. Your HVAC problem and location. We&apos;ll help you explore suitable local repair options.
           </p>
-          <ul className="mt-6 flex flex-wrap gap-x-6 gap-y-2">
+          <ul className="anim-fade-up mt-6 flex flex-wrap gap-x-6 gap-y-2" style={delay(480)}>
             {points.map((b) => (
               <li key={b} className="flex items-center gap-2 text-sm font-semibold text-navy">
                 <span className="grid size-5 place-items-center rounded-full bg-blue-100 text-primary" aria-hidden><Check className="size-3" strokeWidth={3} /></span> {b}
@@ -46,23 +53,21 @@ export function HeroSection() {
           </ul>
         </div>
 
-        <div className="relative">
-          <div className="overflow-hidden rounded-[2rem] shadow-xl shadow-slate-900/10">
+        {/* The source photo is small, so it is shown at about its native size in a framed collage to stay sharp. */}
+        <div className="anim-fade-in relative mx-auto w-full max-w-lg py-6" style={delay(200)}>
+          <div aria-hidden className="absolute inset-x-8 inset-y-0 rotate-3 rounded-[2.5rem] bg-gradient-to-br from-sky-200/80 via-blue-100/60 to-white" />
+          <div aria-hidden className="anim-spin-slow absolute top-0 right-12 size-24 rounded-full border-2 border-dashed border-sky-300" />
+          <svg aria-hidden viewBox="0 0 96 96" className="absolute bottom-2 left-6 size-20 text-sky-300" fill="currentColor">
+            {Array.from({ length: 25 }, (_, i) => <circle key={i} cx={10 + (i % 5) * 19} cy={10 + Math.floor(i / 5) * 19} r="2.4" />)}
+          </svg>
+          <div className="relative mx-auto w-[270px] overflow-hidden rounded-[2rem] shadow-2xl shadow-blue-900/20 ring-[10px] ring-white sm:w-[300px]">
             <img src="/images/hero.jpg" alt="Technician servicing an outdoor air conditioning unit at a home" width={776} height={848}
-              fetchPriority="high" decoding="async" className="h-[340px] w-full object-cover object-[55%_85%] sm:h-[420px] lg:h-[460px]" />
+              fetchPriority="high" decoding="async" className="aspect-[194/212] w-full object-cover" />
           </div>
-          <ul className="absolute top-5 right-3 hidden w-52 space-y-2.5 sm:block lg:-right-4">
-            {floatingCards.map(({ icon: Icon, title, text }) => (
-              <li key={title} className="flex items-center gap-3 rounded-xl bg-white/95 p-3 shadow-lg shadow-slate-900/10 backdrop-blur">
-                <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-blue-50 text-primary" aria-hidden><Icon className="size-5" /></span>
-                <span className="leading-tight"><span className="block text-sm font-bold text-navy">{title}</span><span className="text-xs text-slate-600">{text}</span></span>
-              </li>
-            ))}
-          </ul>
-          <div className="absolute bottom-4 left-4 flex items-center gap-3 rounded-2xl bg-white/95 p-3 pr-5 shadow-lg shadow-slate-900/10 backdrop-blur">
-            <span className="grid size-10 place-items-center rounded-full bg-primary text-white" aria-hidden><Snowflake className="size-5" /></span>
-            <span className="leading-tight"><span className="block text-sm font-bold text-navy">Request Help Today</span><span className="text-xs text-slate-600">We&apos;ll help you look for options</span></span>
-          </div>
+          <FloatCard icon={MapPin} title="Local Contractors" text="Search by your area" className="top-10 -left-2 lg:-left-6" d={0} />
+          <FloatCard icon={Building2} title="Independent Businesses" text="Not employed by us" className="top-[68%] -right-2 lg:-right-6" d={1200} />
+          <FloatCard icon={Wrench} title="Repairs & Installations" text="Heating, cooling, commercial" className="bottom-2 left-10 lg:left-6" d={2400} />
+          <div className="absolute top-4 right-2 z-10 grid size-14 place-items-center rounded-full bg-primary text-white shadow-lg anim-ring-pulse sm:right-4" aria-hidden><Snowflake className="size-6" /></div>
         </div>
       </div>
     </section>

@@ -76,6 +76,12 @@ The homepage photos in `public/images/` were cropped and upscaled from the desig
 Replace any of them with a full-size original using the same file name (hero.jpg, form-tech.jpg, svc-*.jpg, dir-van.jpg, faq-family.jpg, cta-house.jpg) and nothing else needs to change.
 Confirm you have the rights to use each photo.
 
+The source photos are small, so the layouts show them near native size (framed collage, 96px square thumbnails `thumb-*.jpg`) to stay sharp. Larger originals would let the hero, form and FAQ photos be shown bigger.
+
+## Motion
+
+Entrance animations are CSS only (`src/index.css`). Scroll reveals use `data-reveal` plus `RevealManager` (IntersectionObserver); content is fully visible without JavaScript, and all motion is disabled for visitors who prefer reduced motion.
+
 ## Blog covers
 
 Covers are original SVG illustrations in `public/blog/` (no stock photos). Set any image path or URL in the post editor's "Cover image URL" field.
