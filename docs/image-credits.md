@@ -8,7 +8,7 @@ Photos are cropped and compressed (`public/images/`). Verify the license on each
 | --- | --- | --- |
 | `hero.jpg` | Hero | https://www.pexels.com/photo/technician-inspecting-outdoor-hvac-unit-32497161/ |
 | `form-tech.jpg` | Request form section | https://www.pexels.com/photo/man-checking-an-air-conditioner-5463575/ |
-| `faq-family.jpg` | FAQ section | https://www.pexels.com/photo/family-sitting-on-sofa-at-home-7799613/ |
+| `faq-family.jpg` | FAQ section | Supplied by the site owner (not a Pexels photo) |
 | `dir-van.jpg` | Directory promo | https://www.pexels.com/photo/smiling-man-in-workwear-holding-tools-13821194/ |
 | `svc-emergency-ac.jpg` | Emergency AC Repair card | https://www.pexels.com/photo/repairman-repairing-a-air-conditioner-5463587/ |
 | `svc-furnace.jpg` | Emergency Furnace Repair card | https://www.pexels.com/photo/close-up-of-electric-heating-element-glowing-red-36788832/ |

@@ -73,7 +73,7 @@ No listings are pre-filled: the directory only shows real businesses you publish
 ## Homepage photos
 
 Photos in `public/images/` are free-license stock photos from Pexels, cropped and compressed (about 1 MB total). Credits and source pages are in `docs/image-credits.md`.
-To swap one, replace the file with the same name and keep its aspect ratio (hero 1400x1186, form-tech 1000x667, faq-family 900x1098, dir-van 800x727, svc-* 800x500).
+To swap one, replace the file with the same name and keep its aspect ratio (hero 1400x1186, form-tech 1000x667, faq-family 900x1350, dir-van 800x727, svc-* 800x500).
 They are stock images, not photos of this business or its contractors.
 
 ## Logo and brand

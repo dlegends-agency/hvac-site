@@ -9,7 +9,7 @@ export function FAQAccordion() {
         <div className="hidden lg:sticky lg:top-28 lg:block" {...reveal()}>
           <div className="relative mx-auto max-w-[400px]">
             <div aria-hidden className="absolute -right-4 -bottom-4 h-full w-full rounded-3xl bg-sky-100" />
-            <img src="/images/faq-family.jpg" alt="Family relaxing in a comfortable living room" width={900} height={1098}
+            <img src="/images/faq-family.jpg" alt="Family relaxing on a sofa under a wall-mounted air conditioner" width={900} height={1350}
               loading="lazy" decoding="async" className="relative w-full rounded-3xl shadow-xl ring-8 ring-white" />
           </div>
         </div>
