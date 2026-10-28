@@ -6,7 +6,7 @@ import { reveal } from "@/lib/reveal";
 export function DirectoryPromo() {
   return (
     <section aria-labelledby="directory-title" className="bg-white py-12 sm:py-16">
-      <div className="mx-auto grid max-w-6xl gap-5 px-4 sm:px-6 lg:grid-cols-2">
+      <div className="mx-auto grid max-w-site gap-5 px-4 sm:px-6 lg:grid-cols-2">
         <div {...reveal(0)} className="group relative flex items-center gap-5 overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-br from-sky-50 to-white p-6 shadow-sm transition-shadow hover:shadow-xl hover:shadow-blue-900/10 sm:p-8">
           <div aria-hidden className="relative hidden size-28 shrink-0 place-items-center sm:grid">
             <span className="anim-ring-pulse absolute size-28 rounded-full border border-sky-200" />

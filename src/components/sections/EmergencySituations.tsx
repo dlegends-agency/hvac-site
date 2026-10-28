@@ -17,7 +17,7 @@ const situations = [
 export function EmergencySituations() {
   return (
     <section aria-labelledby="situations-title" className="bg-white py-16 sm:py-20">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+      <div className="mx-auto max-w-site px-4 sm:px-6">
         <SectionHeading id="situations-title" title="When Your HVAC System Stops Working"
           text="Common situations where it makes sense to bring in a professional." />
         <ul className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">

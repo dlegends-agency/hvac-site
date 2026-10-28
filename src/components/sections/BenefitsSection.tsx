@@ -12,7 +12,7 @@ const benefits = [
 export function BenefitsSection() {
   return (
     <section aria-labelledby="benefits-title" className="bg-gradient-to-b from-white to-sky-50/70 py-16 sm:py-20">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+      <div className="mx-auto max-w-site px-4 sm:px-6">
         <SectionHeading id="benefits-title" title="A Simpler Way to Find HVAC Repair Help" text="One place to describe the problem, share your location and say how you want to be contacted." />
         <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {benefits.map(({ icon: Icon, title, text }, i) => (

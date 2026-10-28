@@ -57,7 +57,7 @@ export default function LocationPage({ slug }: { slug: string }) {
       <Header />
       <main>
         <section className="bg-surface">
-          <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16">
+          <div className="mx-auto max-w-site px-4 py-12 sm:px-6 sm:py-16">
             <Breadcrumbs crumbs={crumbs} />
             <h1 className="mt-5 text-4xl font-extrabold tracking-tight text-navy sm:text-5xl">
               HVAC Contractor in {locationLabel(loc)}
@@ -79,7 +79,7 @@ export default function LocationPage({ slug }: { slug: string }) {
         </section>
 
         <section aria-labelledby="loc-services" className="bg-white py-14">
-          <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <div className="mx-auto max-w-site px-4 sm:px-6">
             <h2 id="loc-services" className="text-3xl font-bold tracking-tight text-navy">HVAC Help in {loc.name}</h2>
             <p className="mt-2 max-w-2xl text-slate-600">Common heating and cooling needs. Select a topic to learn more, then request help for your address.</p>
             <ul className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -95,7 +95,7 @@ export default function LocationPage({ slug }: { slug: string }) {
         </section>
 
         <section aria-labelledby="loc-listings" className="bg-surface py-14">
-          <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <div className="mx-auto max-w-site px-4 sm:px-6">
             <h2 id="loc-listings" className="text-3xl font-bold tracking-tight text-navy">HVAC Businesses Listed in {loc.name}</h2>
             <p className="mt-2 mb-8 max-w-2xl text-slate-600">Listings are provided by the businesses. We don&apos;t verify licensing, insurance or availability.</p>
             <CityListings location={loc} />
@@ -117,7 +117,7 @@ export default function LocationPage({ slug }: { slug: string }) {
         </section>
 
         <section aria-labelledby="loc-nearby" className="bg-white py-12">
-          <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <div className="mx-auto max-w-site px-4 sm:px-6">
             <h2 id="loc-nearby" className="text-xl font-bold text-navy">Other Areas</h2>
             <ul className="mt-4 flex flex-wrap gap-3">
               {nearby.map((n) => (

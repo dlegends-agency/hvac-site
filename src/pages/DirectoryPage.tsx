@@ -58,7 +58,7 @@ export default function DirectoryPage() {
       <Header />
       <main className="bg-surface">
         <section className="border-b border-slate-200 bg-white">
-          <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
+          <div className="mx-auto max-w-site px-4 py-12 sm:px-6">
             <h1 className="text-4xl font-extrabold tracking-tight text-navy">HVAC Contractor Directory</h1>
             <p className="mt-3 max-w-2xl text-lg text-slate-600">
               Browse independent heating and cooling businesses by location and service. Listings are submitted by the businesses.
@@ -67,7 +67,7 @@ export default function DirectoryPage() {
           </div>
         </section>
 
-        <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+        <div className="mx-auto max-w-site px-4 py-8 sm:px-6">
           <form role="search" onSubmit={(e) => e.preventDefault()} className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-5">
             <div className="relative lg:col-span-2">
               <Search className="pointer-events-none absolute top-3.5 left-3 size-4 text-slate-400" aria-hidden />

@@ -1,6 +1,8 @@
 @import "tailwindcss";
 
 @theme inline {
+  /* Site content width (max-w-site). */
+  --container-site: 90rem;
   --color-navy: #0b1f3a;
   --color-primary: #1a56db;
   --color-primary-dark: #1645b8;

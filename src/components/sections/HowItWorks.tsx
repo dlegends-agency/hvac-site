@@ -11,7 +11,7 @@ const steps = [
 export function HowItWorks() {
   return (
     <section id="how-it-works" aria-labelledby="how-title" className="bg-white py-16 sm:py-20">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+      <div className="mx-auto max-w-site px-4 sm:px-6">
         <SectionHeading id="how-title" eyebrow="Getting started" title="Getting HVAC Help Is Simple" text="Follow these easy steps to explore local HVAC options." />
         <ol className="mt-12 grid gap-4 md:grid-cols-3 md:gap-0">
           {steps.map(({ icon: Icon, title, text }, i) => (

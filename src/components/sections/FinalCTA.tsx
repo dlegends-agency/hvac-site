@@ -37,7 +37,7 @@ function HouseArt() {
 export function FinalCTA() {
   return (
     <section aria-labelledby="cta-title" className="bg-white pb-16 sm:pb-20">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6" {...reveal()}>
+      <div className="mx-auto max-w-site px-4 sm:px-6" {...reveal()}>
         <div className="relative overflow-hidden rounded-3xl bg-navy">
           <div className="absolute inset-y-0 right-0 hidden w-1/2 p-4 md:block"><HouseArt /></div>
           <div aria-hidden className="absolute -top-20 -left-20 size-64 rounded-full bg-primary/30 blur-3xl" />

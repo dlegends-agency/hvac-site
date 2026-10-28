@@ -21,7 +21,7 @@ export default function BlogIndexPage() {
     <>
       <Header />
       <main className="bg-surface py-14">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+        <div className="mx-auto max-w-site px-4 sm:px-6">
           <h1 className="text-4xl font-extrabold tracking-tight text-navy">HVAC Repair Blog</h1>
           <p className="mt-3 mb-8 max-w-2xl text-lg text-slate-600">Guides on heating and cooling problems and what to do about them.</p>
           {loading ? (

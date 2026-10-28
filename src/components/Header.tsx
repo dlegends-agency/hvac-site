@@ -13,7 +13,7 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/95 backdrop-blur">
-      <div className="mx-auto flex h-[72px] max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
+      <div className="mx-auto flex h-[72px] max-w-site items-center justify-between gap-4 px-4 sm:px-6">
         <Link to="/" aria-label={`${siteConfig.brand.name} home`}><Logo /></Link>
 
         <nav aria-label="Primary" className="hidden items-center gap-5 xl:gap-7 lg:flex">

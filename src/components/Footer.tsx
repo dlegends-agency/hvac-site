@@ -21,7 +21,7 @@ export function Footer() {
   const list = "mt-3 space-y-2 text-sm text-slate-300";
   return (
     <footer className="bg-navy text-slate-300">
-      <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
+      <div className="mx-auto max-w-site px-4 py-12 sm:px-6">
         <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-5">
           <div className="lg:col-span-2">
             <Link to="/" aria-label={`${brand.name} home`}><Logo light /></Link>

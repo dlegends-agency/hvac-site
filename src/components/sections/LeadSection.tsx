@@ -5,7 +5,7 @@ import { reveal } from "@/lib/reveal";
 export function LeadSection() {
   return (
     <div className="bg-white py-14 sm:py-20">
-      <div className="mx-auto grid max-w-6xl items-start gap-10 px-4 sm:px-6 lg:grid-cols-[0.8fr_1.2fr]">
+      <div className="mx-auto grid max-w-site items-start gap-10 px-4 sm:px-6 lg:grid-cols-[0.8fr_1.2fr]">
         <div className="lg:sticky lg:top-28" {...reveal()}>
           <p className="text-xs font-bold tracking-[0.18em] text-slate-500 uppercase">Get started</p>
           <h2 id="lead-heading" className="mt-3 text-3xl font-extrabold tracking-tight text-navy sm:text-4xl">Tell Us About Your HVAC Problem</h2>

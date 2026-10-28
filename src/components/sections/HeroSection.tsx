@@ -20,7 +20,7 @@ export function HeroSection() {
     <section id="top" aria-labelledby="hero-title" className="relative overflow-hidden bg-gradient-to-b from-sky-50 via-sky-50/60 to-white">
       <div aria-hidden className="pointer-events-none absolute -top-24 -left-24 size-80 rounded-full bg-sky-100/80 blur-3xl" />
       <div aria-hidden className="pointer-events-none absolute right-0 bottom-0 size-72 rounded-full bg-blue-100/50 blur-3xl" />
-      <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-4 py-12 sm:px-6 sm:py-16 lg:grid-cols-[1.05fr_1fr] lg:py-24">
+      <div className="relative mx-auto grid max-w-site items-center gap-12 px-4 py-12 sm:px-6 sm:py-16 lg:grid-cols-[1.05fr_1fr] lg:py-24">
         <div>
           <p className="anim-fade-up inline-flex rounded-md bg-orange-100 px-3 py-1 text-xs font-bold tracking-wider text-emergency uppercase">
             Heating &amp; AC help, made simple
