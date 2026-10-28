@@ -7,9 +7,9 @@ export function FAQAccordion() {
     <section id="faq" aria-labelledby="faq-title" className="bg-white py-16 sm:py-20">
       <div className="mx-auto grid max-w-6xl items-start gap-10 px-4 sm:px-6 lg:grid-cols-[0.75fr_1.25fr]">
         <div className="hidden lg:sticky lg:top-28 lg:block" {...reveal()}>
-          <div className="relative mx-auto max-w-[340px]">
+          <div className="relative mx-auto max-w-[400px]">
             <div aria-hidden className="absolute -right-4 -bottom-4 h-full w-full rounded-3xl bg-sky-100" />
-            <img src="/images/faq-family.jpg" alt="Family relaxing in a comfortable living room" width={1320} height={748}
+            <img src="/images/faq-family.jpg" alt="Family relaxing in a comfortable living room" width={900} height={1098}
               loading="lazy" decoding="async" className="relative w-full rounded-3xl shadow-xl ring-8 ring-white" />
           </div>
         </div>

@@ -19,20 +19,18 @@ const icons: Record<ServiceIcon, LucideIcon> = {
 export function ServiceCard({ service, index = 0 }: { service: ServiceCategory; index?: number }) {
   const Icon = icons[service.icon];
   return (
-    <li {...reveal(index)} className="group flex gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/30 hover:shadow-xl hover:shadow-blue-900/10">
-      <div className="relative shrink-0 self-start">
-        <span className="block size-24 overflow-hidden rounded-xl">
-          <img src={service.image} alt="" width={208} height={208} loading="lazy" decoding="async"
-            className="size-full object-cover transition-transform duration-500 group-hover:scale-110" />
-        </span>
-        <span className="absolute -right-2 -bottom-2 grid size-9 place-items-center rounded-full bg-primary text-white shadow-md ring-4 ring-white transition-transform duration-300 group-hover:rotate-12" aria-hidden>
-          <Icon className="size-4" />
+    <li {...reveal(index)} className="group flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1.5 hover:border-primary/30 hover:shadow-xl hover:shadow-blue-900/10">
+      <div className="relative overflow-hidden">
+        <img src={service.image} alt="" width={800} height={500} loading="lazy" decoding="async"
+          className="aspect-[8/5] w-full object-cover transition-transform duration-700 group-hover:scale-105" />
+        <span className="absolute bottom-3 left-4 grid size-11 place-items-center rounded-full bg-white text-primary shadow-lg ring-1 ring-slate-100 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:rotate-6" aria-hidden>
+          <Icon className="size-5" />
         </span>
       </div>
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex flex-1 flex-col px-5 pt-4 pb-5">
         <h3 className="text-base font-bold text-navy">{service.name}</h3>
-        <p className="mt-1 flex-1 text-sm leading-relaxed text-slate-600">{service.description}</p>
-        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+        <p className="mt-1.5 flex-1 text-sm leading-relaxed text-slate-600">{service.description}</p>
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
           <OpenFormButton issue={service.issue} variant="link" ariaLabel={`Request help with ${service.name}`}>
             <span className="font-semibold">Find Help Now</span> <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-1" aria-hidden />
           </OpenFormButton>

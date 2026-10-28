@@ -53,21 +53,20 @@ export function HeroSection() {
           </ul>
         </div>
 
-        {/* The source photo is small, so it is shown at about its native size in a framed collage to stay sharp. */}
-        <div className="anim-fade-in relative mx-auto w-full max-w-lg py-6" style={delay(200)}>
-          <div aria-hidden className="absolute inset-x-8 inset-y-0 rotate-3 rounded-[2.5rem] bg-gradient-to-br from-sky-200/80 via-blue-100/60 to-white" />
-          <div aria-hidden className="anim-spin-slow absolute top-0 right-12 size-24 rounded-full border-2 border-dashed border-sky-300" />
-          <svg aria-hidden viewBox="0 0 96 96" className="absolute bottom-2 left-6 size-20 text-sky-300" fill="currentColor">
+        <div className="anim-fade-in relative mx-auto w-full max-w-xl py-6" style={delay(200)}>
+          <div aria-hidden className="absolute inset-x-6 inset-y-0 rotate-3 rounded-[2.5rem] bg-gradient-to-br from-sky-200/80 via-blue-100/60 to-white" />
+          <div aria-hidden className="anim-spin-slow absolute top-0 right-10 size-24 rounded-full border-2 border-dashed border-sky-300" />
+          <svg aria-hidden viewBox="0 0 96 96" className="absolute bottom-2 left-2 size-20 text-sky-300" fill="currentColor">
             {Array.from({ length: 25 }, (_, i) => <circle key={i} cx={10 + (i % 5) * 19} cy={10 + Math.floor(i / 5) * 19} r="2.4" />)}
           </svg>
-          <div className="relative mx-auto w-[270px] overflow-hidden rounded-[2rem] shadow-2xl shadow-blue-900/20 ring-[10px] ring-white sm:w-[300px]">
-            <img src="/images/hero.jpg" alt="Technician servicing an outdoor air conditioning unit at a home" width={776} height={848}
-              fetchPriority="high" decoding="async" className="aspect-[194/212] w-full object-cover" />
+          <div className="relative overflow-hidden rounded-[2rem] shadow-2xl shadow-blue-900/20 ring-[10px] ring-white">
+            <img src="/images/hero.jpg" alt="Technician servicing an outdoor air conditioning unit at a home" width={1400} height={1186}
+              fetchPriority="high" decoding="async" className="aspect-[1400/1186] w-full object-cover" />
           </div>
-          <FloatCard icon={MapPin} title="Local Contractors" text="Search by your area" className="top-10 -left-2 lg:-left-6" d={0} />
-          <FloatCard icon={Building2} title="Independent Businesses" text="Not employed by us" className="top-[68%] -right-2 lg:-right-6" d={1200} />
-          <FloatCard icon={Wrench} title="Repairs & Installations" text="Heating, cooling, commercial" className="bottom-2 left-10 lg:left-6" d={2400} />
-          <div className="absolute top-4 right-2 z-10 grid size-14 place-items-center rounded-full bg-primary text-white shadow-lg anim-ring-pulse sm:right-4" aria-hidden><Snowflake className="size-6" /></div>
+          <FloatCard icon={MapPin} title="Local Contractors" text="Search by your area" className="top-12 -left-3 lg:-left-8" d={0} />
+          <FloatCard icon={Building2} title="Independent Businesses" text="Not employed by us" className="top-[55%] -right-3 lg:-right-8" d={1200} />
+          <FloatCard icon={Wrench} title="Repairs & Installations" text="Heating, cooling, commercial" className="bottom-0 left-8 lg:left-4" d={2400} />
+          <div className="absolute top-3 right-4 z-10 grid size-14 place-items-center rounded-full bg-primary text-white shadow-lg anim-ring-pulse" aria-hidden><Snowflake className="size-6" /></div>
         </div>
       </div>
     </section>

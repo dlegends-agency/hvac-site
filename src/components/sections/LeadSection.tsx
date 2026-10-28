@@ -10,9 +10,9 @@ export function LeadSection() {
           <p className="text-xs font-bold tracking-[0.18em] text-slate-500 uppercase">Get started</p>
           <h2 id="lead-heading" className="mt-3 text-3xl font-extrabold tracking-tight text-navy sm:text-4xl">Tell Us About Your HVAC Problem</h2>
           <p className="mt-3 max-w-md text-slate-600">Share a few details so we can understand your repair needs and service location.</p>
-          <div className="relative mt-10 hidden max-w-[320px] lg:block">
+          <div className="relative mt-10 hidden max-w-md lg:block">
             <div aria-hidden className="absolute -inset-3 -rotate-3 rounded-3xl bg-sky-100" />
-            <img src="/images/form-tech.jpg" alt="Technician repairing an outdoor air conditioning unit" width={940} height={468}
+            <img src="/images/form-tech.jpg" alt="Technician repairing an outdoor air conditioning unit" width={1000} height={667}
               loading="lazy" decoding="async" className="relative w-full rounded-2xl shadow-xl ring-8 ring-white" />
             <p className="absolute -right-4 -bottom-4 rounded-xl bg-white px-3 py-2 text-xs font-semibold text-navy shadow-lg ring-1 ring-slate-100">
               Independent local contractors,<br />where available

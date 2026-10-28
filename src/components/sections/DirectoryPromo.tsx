@@ -25,8 +25,8 @@ export function DirectoryPromo() {
         </div>
 
         <div {...reveal(1)} className="group relative flex items-center gap-5 overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-br from-sky-50 to-white p-6 shadow-sm transition-shadow hover:shadow-xl hover:shadow-blue-900/10 sm:p-8">
-          <span className="hidden size-28 shrink-0 overflow-hidden rounded-2xl shadow-md ring-4 ring-white sm:block">
-            <img src="/images/dir-van.jpg" alt="Technician standing in front of a service van" width={528} height={440} loading="lazy" decoding="async"
+          <span className="hidden h-36 w-32 shrink-0 overflow-hidden rounded-2xl shadow-md ring-4 ring-white sm:block">
+            <img src="/images/dir-van.jpg" alt="Technician standing in front of a service van" width={800} height={727} loading="lazy" decoding="async"
               className="size-full object-cover object-[30%_20%] transition-transform duration-500 group-hover:scale-105" />
           </span>
           <div>

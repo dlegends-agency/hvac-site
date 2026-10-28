@@ -72,11 +72,9 @@ No listings are pre-filled: the directory only shows real businesses you publish
 
 ## Homepage photos
 
-The homepage photos in `public/images/` were cropped and upscaled from the design mockup screenshot, so they are low resolution.
-Replace any of them with a full-size original using the same file name (hero.jpg, form-tech.jpg, svc-*.jpg, dir-van.jpg, faq-family.jpg, cta-house.jpg) and nothing else needs to change.
-Confirm you have the rights to use each photo.
-
-The source photos are small, so the layouts show them near native size (framed collage, 96px square thumbnails `thumb-*.jpg`) to stay sharp. Larger originals would let the hero, form and FAQ photos be shown bigger.
+Photos in `public/images/` are free-license stock photos from Pexels, cropped and compressed (about 1 MB total). Credits and source pages are in `docs/image-credits.md`.
+To swap one, replace the file with the same name and keep its aspect ratio (hero 1400x1186, form-tech 1000x667, faq-family 900x1098, dir-van 800x727, svc-* 800x500).
+They are stock images, not photos of this business or its contractors.
 
 ## Motion
 
