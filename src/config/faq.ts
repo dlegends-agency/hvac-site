@@ -9,7 +9,7 @@ export const faqs: FaqItem[] = [
   { question: "Do you perform HVAC repairs directly?",
     answer: "No. We are a referral service. Repairs are performed by independent contractors, not by us." },
   { question: "What information do I need to submit?",
-    answer: "Your HVAC issue and how urgent it is, the service address, your name, phone number and email, and your preferred contact method. A description of the problem and property details are optional but helpful." },
+    answer: "Your HVAC issues (you can select more than one) and how urgent it is, the service address, your name, phone number and email, and your preferred contact method. A description of the problem and property details are optional but helpful." },
   { question: "Will I be connected with a local contractor?",
     answer: "We aim to help, but we can't promise a match. Connections depend on whether a suitable contractor serves your area and can take the work." },
   { question: "How quickly will a contractor contact me?",

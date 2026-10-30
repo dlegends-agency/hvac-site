@@ -9,6 +9,7 @@ import { onPreselectIssue } from "@/lib/lead-events";
 export type SubmitStatus = "idle" | "submitting" | "success" | "not_configured" | "error";
 
 const defaults: Partial<LeadFormValues> = {
+  issues: [],
   country: defaultCountry,
   unit: "",
   description: "",
@@ -37,7 +38,8 @@ export function useLeadForm(source = "homepage") {
   useEffect(
     () =>
       onPreselectIssue((issue) => {
-        form.setValue("issue", issue, { shouldValidate: true });
+        const current = form.getValues("issues") ?? [];
+        form.setValue("issues", current.includes(issue) ? current : [...current, issue], { shouldValidate: true });
         setStep(0);
         setStatus((s) => (s === "success" ? s : "idle"));
       }),

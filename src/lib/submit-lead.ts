@@ -12,7 +12,7 @@ export async function submitLead(values: LeadFormValues, idempotencyKey: string,
   const { error } = await getSupabaseBrowser().from("leads").insert({
     idempotency_key: idempotencyKey,
     source,
-    issue: values.issue,
+    issue: values.issues.join(", "),
     urgency: values.urgency,
     country: values.country,
     state: values.state,

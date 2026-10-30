@@ -3,7 +3,7 @@ import { reveal } from "@/lib/reveal";
 import { SectionHeading } from "./SectionHeading";
 
 const steps = [
-  { icon: ClipboardList, title: "Tell Us About Your Problem", text: "Choose your HVAC issue and explain what is happening." },
+  { icon: ClipboardList, title: "Tell Us About Your Problem", text: "Choose your HVAC issues and explain what is happening." },
   { icon: MapPin, title: "Share Your Location", text: "Provide your address and contact details so we can understand where service is needed." },
   { icon: Handshake, title: "Get Help Finding a Contractor", text: "We review your request and help connect you with a suitable local contractor when one is available." },
 ];

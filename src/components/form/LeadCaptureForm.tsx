@@ -17,7 +17,7 @@ interface Props {
   labelledBy?: string;
 }
 
-const stepHeadings = ["Select your HVAC issue", "Service location", "Contact details", "Additional information", "Review and submit"];
+const stepHeadings = ["Select your HVAC issues", "Service location", "Contact details", "Additional information", "Review and submit"];
 
 export function LeadCaptureForm({
   title = "Tell Us About Your HVAC Problem",

@@ -388,7 +388,7 @@ export function OverviewDashboard() {
       <div className="mt-6 grid gap-6 md:grid-cols-2 xl:grid-cols-4">
         <Panel title="Top pages"><BarList rows={topPages} empty="No page views yet." /></Panel>
         <Panel title="Traffic sources"><BarList rows={countBy(stats.cur, (v) => v.utm_source ?? v.referrer_host ?? "Direct / none", 6)} empty="No traffic yet." /></Panel>
-        <Panel title="Top issues requested"><BarList rows={countBy(stats.curLeads, (l) => l.issue)} empty="No leads yet." /></Panel>
+        <Panel title="Top issues requested"><BarList rows={countBy(stats.curLeads.flatMap((l) => l.issue.split(", ").map((issue) => ({ issue }))), (l) => l.issue)} empty="No leads yet." /></Panel>
         <Panel title="Latest leads">
           {leadsQ.data.length === 0 ? (
             <p className="text-sm text-slate-500">No leads yet.</p>

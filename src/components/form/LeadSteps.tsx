@@ -5,6 +5,7 @@ import type { LeadFormValues } from "@/lib/lead-schema";
 import { HVAC_ISSUES, URGENCY_OPTIONS } from "@/config/services";
 import { CONTACT_METHODS, PROPERTY_STATUSES, PROPERTY_TYPES, countries, getCountry } from "@/config/form";
 import { Field, SelectWrap, inputClass } from "@/components/ui/Field";
+import { CheckboxCards } from "@/components/ui/CheckboxCards";
 import { RadioCards } from "@/components/ui/RadioCards";
 
 type F = UseFormReturn<LeadFormValues>;
@@ -30,11 +31,12 @@ const urgencyIcons: Record<string, LucideIcon> = {
 };
 
 export function IssueStep({ form }: { form: F }) {
-  const { register, formState: { errors } } = form;
+  const { register, watch, setValue, formState: { errors } } = form;
+  const issues = watch("issues") ?? [];
   return (
     <div className="space-y-7">
-      <RadioCards legend="What problem are you experiencing?" name="issue" options={HVAC_ISSUES} icons={issueIcons}
-        register={register("issue")} error={errors.issue?.message} />
+      <CheckboxCards legend="What problems are you experiencing?" hint="Select all that apply." name="issues" options={HVAC_ISSUES} icons={issueIcons}
+        value={issues} onChange={(next) => setValue("issues", next as typeof issues, { shouldValidate: true, shouldDirty: true, shouldTouch: true })} error={errors.issues?.message} />
       <RadioCards legend="How urgently do you need help?" name="urgency" options={URGENCY_OPTIONS} icons={urgencyIcons} variant="pills"
         urgent={["Immediately"]} register={register("urgency")} error={errors.urgency?.message} columns="grid-cols-1 sm:grid-cols-3" />
       <p className="rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
@@ -146,7 +148,7 @@ export function ReviewStep({ form, goTo, devMode }: { form: F; goTo: (step: numb
   return (
     <div className="space-y-5">
       <dl className="divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white px-4 shadow-sm">
-        <SummaryRow icon={ClipboardList} label="HVAC issue" value={`${v.issue}\nUrgency: ${v.urgency}`} onEdit={() => goTo(0)} editLabel="Edit HVAC issue" />
+        <SummaryRow icon={ClipboardList} label="HVAC issues" value={`${v.issues.join(", ")}\nUrgency: ${v.urgency}`} onEdit={() => goTo(0)} editLabel="Edit HVAC issues" />
         <SummaryRow icon={MapPin} label="Service location" value={address} onEdit={() => goTo(1)} editLabel="Edit service location" />
         <SummaryRow icon={User} label="Contact details" value={`${v.firstName} ${v.lastName}\n${v.phone}\n${v.email}\nPrefers: ${v.contactMethod}`}
           onEdit={() => goTo(2)} editLabel="Edit contact details" />

@@ -5,7 +5,7 @@ import { CONTACT_METHODS, PROPERTY_STATUSES, PROPERTY_TYPES, getCountry } from "
 const required = (label: string) => z.string().trim().min(1, `${label} is required.`);
 
 const issueSchema = z.object({
-  issue: z.enum(HVAC_ISSUES, { error: "Please select the problem you are experiencing." }),
+  issues: z.array(z.enum(HVAC_ISSUES)).min(1, "Please select at least one problem you are experiencing."),
   urgency: z.enum(URGENCY_OPTIONS, { error: "Please tell us how urgently you need help." }),
 });
 
@@ -70,7 +70,7 @@ export type LeadFormValues = z.infer<typeof leadSchema>;
 
 /** Fields validated at each step, in order. */
 export const stepFields: (keyof LeadFormValues)[][] = [
-  ["issue", "urgency"],
+  ["issues", "urgency"],
   ["country", "state", "city", "postalCode", "street", "unit"],
   ["firstName", "lastName", "phone", "email", "contactMethod"],
   ["description", "propertyType", "propertyStatus", "preferredContactTime"],
