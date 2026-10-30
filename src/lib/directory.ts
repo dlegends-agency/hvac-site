@@ -58,6 +58,16 @@ export function safeUrl(url: string | null | undefined): string | null {
   }
 }
 
+const GOOGLE_HOSTS = ["google.com", "goo.gl", "g.page", "g.co", "share.google"];
+
+/** A Google Maps / Business Profile link, or null. Only Google's own domains are accepted, so the reviews button can't point elsewhere. */
+export function safeGoogleUrl(url: string | null | undefined): string | null {
+  const safe = safeUrl(url);
+  if (!safe) return null;
+  const host = new URL(safe).hostname.toLowerCase();
+  return GOOGLE_HOSTS.some((h) => host === h || host.endsWith(`.${h}`)) ? safe : null;
+}
+
 /** How many businesses a location page shows before linking to the full directory. */
 export const LOCATION_PAGE_LIMIT = 6;
 

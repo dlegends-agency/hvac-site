@@ -32,6 +32,7 @@ export const plans: Plan[] = [
     features: [
       "Everything in Basic",
       "Featured badge and placement above Basic listings",
+      "\"See reviews on Google\" button linking to your Google profile",
       "Longer description and highlighted services",
     ],
   },
