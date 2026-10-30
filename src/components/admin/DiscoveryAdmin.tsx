@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { BadgeCheck, Bot, ExternalLink, Info, Loader2, MapPin, Play, Plus, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Field, SelectWrap, inputClass } from "@/components/ui/Field";
@@ -22,7 +21,6 @@ function ago(ms: number) {
 
 export function DiscoveryAdmin() {
   const supabase = getSupabaseBrowser();
-  const navigate = useNavigate();
   const now = useNow(30_000);
 
   const jobsQ = useLiveQuery<DiscoveryJob[]>([], () => supabase.from("discovery_jobs").select("*").order("created_at", { ascending: false }), { key: "jobs", intervalMs: 30_000 });
@@ -34,6 +32,7 @@ export function DiscoveryAdmin() {
   const [jobFilter, setJobFilter] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [gone, setGone] = useState<Set<string>>(new Set());
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [form, setForm] = useState({ location: "", query: "HVAC contractor", max: "20", frequency: "weekly" });
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -93,36 +92,66 @@ export function DiscoveryAdmin() {
     void jobsQ.reload();
   }
 
-  async function reject(c: ListingCandidate) {
-    setBusyId(c.id);
-    await supabase.from("discovery_rejected").upsert({ external_id: c.external_id });
-    await supabase.from("listing_candidates").delete().eq("id", c.id);
-    setGone((g) => new Set(g).add(c.id));
-    setBusyId(null);
+  const selectedList = candidates.filter((c) => selected.has(c.id));
+  const allSelected = candidates.length > 0 && selectedList.length === candidates.length;
+
+  function toggle(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
   }
 
-  async function importCandidate(c: ListingCandidate) {
-    if (!window.confirm(`Create a pending listing for "${c.name}"?\n\nYou will review it in the editor before it can be published.`)) return;
-    setBusyId(c.id);
-    const job = c.job_id ? jobById.get(c.job_id) : undefined;
-    const id = crypto.randomUUID();
-    const city = c.city ?? job?.location.split(",")[0]?.trim() ?? "";
-    const { error } = await supabase.from("listings").insert({
-      id, slug: `${slugify(`${c.name} ${city}`)}-${id.slice(0, 4)}`, status: "pending", source: "agent", source_url: c.source_url,
-      attribution: c.origin === "osm" && !c.verified ? OSM_ATTRIBUTION : null,
-      business_name: c.name, phone: c.phone, website: c.website, address: c.address, city, state: c.state ?? "Texas", postal_code: c.postal_code,
-      services: c.services, emergency_service: c.emergency,
+  function removeLocally(ids: string[]) {
+    setGone((g) => new Set([...g, ...ids]));
+    setSelected((prev) => new Set([...prev].filter((id) => !ids.includes(id))));
+  }
+
+  async function reject(list: ListingCandidate[]) {
+    if (list.length > 1 && !window.confirm(`Reject ${list.length} candidates? They will not be suggested again.`)) return;
+    setBusyId("bulk");
+    await supabase.from("discovery_rejected").upsert(list.map((c) => ({ external_id: c.external_id })));
+    await supabase.from("listing_candidates").delete().in("id", list.map((c) => c.id));
+    removeLocally(list.map((c) => c.id));
+    setBusyId(null);
+    setMsg({ ok: true, text: `Rejected ${list.length} candidate${list.length === 1 ? "" : "s"}.` });
+  }
+
+  /** Adds the candidates to the directory as pending listings (not public until you publish them). */
+  async function importMany(list: ListingCandidate[]) {
+    setBusyId("bulk");
+    setMsg(null);
+    const rows = list.map((c) => {
+      const job = c.job_id ? jobById.get(c.job_id) : undefined;
+      const id = crypto.randomUUID();
+      const city = c.city ?? job?.location.split(",")[0]?.trim() ?? "";
+      return {
+        candidate: c,
+        row: {
+          id, slug: `${slugify(`${c.name} ${city}`)}-${id.slice(0, 4)}`, status: "pending", source: "agent", source_url: c.source_url,
+          attribution: c.origin === "osm" && !c.verified ? OSM_ATTRIBUTION : null,
+          business_name: c.name, phone: c.phone, website: c.website, address: c.address, city, state: c.state ?? "Texas", postal_code: c.postal_code,
+          services: c.services, emergency_service: c.emergency,
+        },
+      };
     });
+    const { error } = await supabase.from("listings").insert(rows.map((r) => r.row));
     if (error) {
       setBusyId(null);
-      return setMsg({ ok: false, text: error.code === "23505" ? "That business is already in the directory." : "Could not create the listing." });
+      return setMsg({ ok: false, text: error.code === "23505" ? "One of these businesses is already in the directory. Import them one at a time, or reject the duplicate." : "Could not create the listings." });
     }
-    await supabase.from("listing_private").insert({
-      listing_id: id,
-      admin_notes: `Found by the discovery agent on ${new Date().toLocaleDateString()} (confidence ${c.confidence}%). ${c.notes ?? ""} Verify every detail on the business's own website before publishing.`.trim(),
-    });
-    await supabase.from("listing_candidates").delete().eq("id", c.id);
-    navigate(`/admin/listings/${id}`);
+    const date = new Date().toLocaleDateString();
+    await supabase.from("listing_private").insert(
+      rows.map(({ candidate: c, row }) => ({
+        listing_id: row.id,
+        admin_notes: `Found by the discovery agent on ${date} (confidence ${c.confidence}%). ${c.notes ?? ""} Verify every detail on the business's own website before publishing.`.trim(),
+      })),
+    );
+    await supabase.from("listing_candidates").delete().in("id", list.map((c) => c.id));
+    removeLocally(list.map((c) => c.id));
+    setBusyId(null);
+    setMsg({ ok: true, text: `${list.length} business${list.length === 1 ? "" : "es"} added to the directory as pending. Review and publish them in the Listings tab.` });
   }
 
   return (
@@ -244,6 +273,19 @@ export function DiscoveryAdmin() {
               {jobsQ.data.map((j) => <option key={j.id} value={j.id}>{j.location}</option>)}
             </select>
           </div>
+          {candidates.length > 0 && (
+            <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl bg-slate-50 px-4 py-3">
+              <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                <input type="checkbox" checked={allSelected} onChange={() => setSelected(allSelected ? new Set() : new Set(candidates.map((c) => c.id)))} className="size-4 accent-[var(--color-primary)]" />
+                Select all ({candidates.length})
+              </label>
+              <span className="text-sm text-slate-500">{selectedList.length} selected</span>
+              <div className="ml-auto flex gap-2">
+                <Button onClick={() => importMany(selectedList)} disabled={selectedList.length === 0 || busyId !== null} className="!rounded-full !px-4 !py-1.5 text-sm"><Plus className="size-4" aria-hidden /> Import selected as pending</Button>
+                <Button variant="secondary" onClick={() => reject(selectedList)} disabled={selectedList.length === 0 || busyId !== null} className="!rounded-full !px-4 !py-1.5 text-sm"><X className="size-4" aria-hidden /> Reject selected</Button>
+              </div>
+            </div>
+          )}
           {candidates.length === 0 ? (
             <p className="rounded-xl bg-slate-50 p-6 text-center text-sm text-slate-600">No candidates waiting. Run a search to find businesses.</p>
           ) : (
@@ -253,7 +295,9 @@ export function DiscoveryAdmin() {
                 const source = safeUrl(c.source_url);
                 return (
                   <li key={c.id} className="rounded-xl border border-slate-200 p-4">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                      <input type="checkbox" checked={selected.has(c.id)} onChange={() => toggle(c.id)} aria-label={`Select ${c.name}`} className="mt-1.5 size-4 shrink-0 accent-[var(--color-primary)]" />
+                      <div className="flex min-w-0 flex-1 flex-wrap items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="flex flex-wrap items-center gap-2 font-semibold text-navy">
                           {c.name}
@@ -277,10 +321,11 @@ export function DiscoveryAdmin() {
                         <p className="text-lg font-bold text-navy">{c.confidence}%</p>
                         <p>{c.origin === "osm" ? "OpenStreetMap" : "Web search"}</p>
                       </div>
+                      </div>
                     </div>
-                    <div className="mt-3 flex gap-2">
-                      <Button onClick={() => importCandidate(c)} disabled={busyId === c.id} className="!rounded-full !px-4 !py-1.5 text-sm"><Plus className="size-4" aria-hidden /> Import as pending</Button>
-                      <Button variant="secondary" onClick={() => reject(c)} disabled={busyId === c.id} className="!rounded-full !px-4 !py-1.5 text-sm"><X className="size-4" aria-hidden /> Reject</Button>
+                    <div className="mt-3 flex gap-2 pl-7">
+                      <Button onClick={() => importMany([c])} disabled={busyId !== null} className="!rounded-full !px-4 !py-1.5 text-sm"><Plus className="size-4" aria-hidden /> Import as pending</Button>
+                      <Button variant="secondary" onClick={() => reject([c])} disabled={busyId !== null} className="!rounded-full !px-4 !py-1.5 text-sm"><X className="size-4" aria-hidden /> Reject</Button>
                     </div>
                   </li>
                 );
