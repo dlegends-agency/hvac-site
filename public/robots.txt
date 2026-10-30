@@ -1,5 +1,6 @@
 User-agent: *
 Allow: /
 Disallow: /admin
+Disallow: /contractor
 
 Sitemap: https://REPLACE-WITH-YOUR-DOMAIN/sitemap.xml

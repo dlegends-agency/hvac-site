@@ -9,6 +9,7 @@ import { inputClass } from "@/components/ui/Field";
 import { services } from "@/config/services";
 import { breadcrumbLd, webPageLd } from "@/lib/schema";
 import { usePublishedListings } from "@/lib/directory";
+import { isFeatured } from "@/lib/plans";
 import { usePageMeta } from "@/lib/use-page-meta";
 
 export default function DirectoryPage() {
@@ -103,6 +104,7 @@ export default function DirectoryPage() {
 
           <div role="status" aria-live="polite" className="mt-5 text-sm text-slate-600">
             {!loading && !error && `${shown.length} ${shown.length === 1 ? "business" : "businesses"} found`}
+            {!loading && !error && shown.some(isFeatured) && <span className="ml-2 text-slate-500">Businesses marked Featured pay for placement.</span>}
           </div>
 
           <div className="mt-3">
@@ -129,7 +131,10 @@ export default function DirectoryPage() {
           <aside className="mt-10 rounded-2xl bg-navy p-6 text-center">
             <p className="text-xl font-bold text-white">Are you an HVAC contractor?</p>
             <p className="mt-2 text-blue-100">Submit your business for review. Approved listings appear in the directory.</p>
-            <Link to="/directory/add" className={buttonClass("accent", "mt-4")}>List your business</Link>
+            <div className="mt-4 flex flex-wrap justify-center gap-3">
+              <Link to="/directory/add" className={buttonClass("accent")}>List your business</Link>
+              <Link to="/pricing" className={buttonClass("secondary", "!border-white/30 !bg-transparent !text-white hover:!bg-white/10")}>See plans and pricing</Link>
+            </div>
           </aside>
         </div>
       </main>

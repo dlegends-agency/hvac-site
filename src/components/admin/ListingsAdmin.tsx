@@ -1,3 +1,4 @@
+import { activePlan } from "@/lib/plans";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Check, ChevronRight, Download, EyeOff, Plus, Search, Siren, Trash2 } from "lucide-react";
@@ -205,6 +206,7 @@ export function ListingsAdmin() {
                     <span className="block truncate text-sm text-slate-500">{l.city}, {l.state} · {l.phone ?? "no phone"} · {l.services.length} {l.services.length === 1 ? "service" : "services"}</span>
                   </Link>
                   <span className="hidden rounded-full bg-slate-100 px-2.5 py-0.5 text-xs text-slate-600 md:inline">{sourceLabel[l.source ?? "submitted"]}</span>
+                  {activePlan(l) !== "free" && <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold capitalize text-amber-900">{activePlan(l)}</span>}
                   <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ${statusBadge[l.status]}`}>{l.status}</span>
                   <div className="hidden gap-1.5 sm:flex">
                     {l.status !== "published" && <Button onClick={() => setStatuses([l.id], "published")} className="!rounded-full !px-3 !py-1 text-xs" aria-label={`Publish ${l.business_name}`}>Publish</Button>}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getSupabaseBrowser, isSupabaseConfigured } from "@/lib/supabase";
 import { locations, type ServiceLocation } from "@/config/locations";
+import { sortByPlan } from "@/lib/plans";
 import type { Listing } from "@/lib/types";
 
 export function usePublishedListings() {
@@ -16,7 +17,7 @@ export function usePublishedListings() {
       .select("*")
       .eq("status", "published")
       .order("business_name")
-      .then(({ data, error }) => setState({ data: (data as Listing[] | null) ?? [], loading: false, error: Boolean(error) }));
+      .then(({ data, error }) => setState({ data: sortByPlan((data as Listing[] | null) ?? []), loading: false, error: Boolean(error) }));
   }, []);
   return state;
 }
@@ -103,5 +104,5 @@ export function listingsForLocation(all: Listing[], loc: ServiceLocation): Listi
   const sameState = all.filter((l) => norm(l.state) === norm(loc.state));
   const inCity = sameState.filter((l) => norm(l.city) === norm(loc.name));
   const servesCity = sameState.filter((l) => norm(l.city) !== norm(loc.name) && serves(l));
-  return [...inCity, ...servesCity];
+  return [...sortByPlan(inCity), ...sortByPlan(servesCity)];
 }

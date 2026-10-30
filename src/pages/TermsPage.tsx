@@ -33,6 +33,16 @@ export default function TermsPage() {
       ),
     },
     {
+      id: "contractor-plans", heading: "Contractor accounts and paid plans",
+      content: (
+        <>
+          <p>Contractors may create an account to manage a directory listing. We review each request to manage a listing and may decline or remove access, and you must have authority to act for the business you claim. You are responsible for keeping your login secure and for the accuracy of what you publish, including your contact details and any Google star rating or review count you enter. Ratings you enter must match your own Google Business Profile, and we may label them as reported by the business.</p>
+          <p>Featured and Premium plans are paid advertising for visibility in the directory and are labeled as such. Plans are billed monthly through Stripe, renew automatically until cancelled, and can be cancelled at any time in the billing portal; cancellation takes effect at the end of the paid period. Fees are not refundable except where the law requires. We do not guarantee any number of customer requests, calls, jobs, rankings or revenue.</p>
+          <p>Premium contractors may be assigned customer requests at our discretion. Customer details are provided only so you can respond to that request: do not sell them, add them to unrelated marketing lists or share them, and follow the laws that apply to calls, texts and emails. We may suspend or end a plan, or stop assigning requests, if you break these terms or receive repeated customer complaints.</p>
+        </>
+      ),
+    },
+    {
       id: "directory", heading: "Directory listings and contractor information",
       content: (
         <>

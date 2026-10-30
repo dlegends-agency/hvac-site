@@ -6,7 +6,7 @@ import { Field, inputClass } from "@/components/ui/Field";
 import { services } from "@/config/services";
 import { safeUrl, slugify } from "@/lib/directory";
 import { getSupabaseBrowser } from "@/lib/supabase";
-import { LISTING_STATUSES, type Listing, type ListingPrivate, type ListingStatus } from "@/lib/types";
+import { LISTING_STATUSES, type Listing, type ListingPrivate, type ListingStatus, type PlanId } from "@/lib/types";
 import { Panel, QueryState } from "./widgets";
 
 interface Draft {
@@ -24,11 +24,13 @@ interface Draft {
   state: string;
   postal_code: string;
   service_areas: string;
+  plan: PlanId;
+  plan_until: string;
 }
 
 const empty: Draft = {
   business_name: "", slug: "", status: "published", description: "", services: [], emergency_service: false,
-  phone: "", email: "", website: "", address: "", city: "", state: "", postal_code: "", service_areas: "",
+  phone: "", email: "", website: "", address: "", city: "", state: "", postal_code: "", service_areas: "", plan: "free", plan_until: "",
 };
 
 export function ListingEditor() {
@@ -38,6 +40,8 @@ export function ListingEditor() {
   const [priv, setPriv] = useState<ListingPrivate | null>(null);
   const [meta, setMeta] = useState<{ source: string; sourceUrl: string | null; attribution: string | null } | null>(null);
   const [notes, setNotes] = useState("");
+  // False until contractor SQL has been run (the plan columns do not exist yet), so saving keeps working before then.
+  const [planColumn, setPlanColumn] = useState(false);
   const [slugTouched, setSlugTouched] = useState(false);
   const [loading, setLoading] = useState(Boolean(id));
   const [missing, setMissing] = useState(false);
@@ -52,6 +56,7 @@ export function ListingEditor() {
       supabase.from("listing_private").select("*").eq("listing_id", id).maybeSingle(),
     ]).then(([l, p]) => {
       const row = l.data as Listing | null;
+      if (row) setPlanColumn(row.plan !== undefined);
       if (row) setMeta({ source: row.source ?? "submitted", sourceUrl: row.source_url ?? null, attribution: row.attribution ?? null });
       if (!row) setMissing(true);
       else {
@@ -61,6 +66,7 @@ export function ListingEditor() {
           services: row.services, emergency_service: row.emergency_service, phone: row.phone ?? "", email: row.email ?? "",
           website: row.website ?? "", address: row.address ?? "", city: row.city, state: row.state,
           postal_code: row.postal_code ?? "", service_areas: row.service_areas ?? "",
+          plan: row.plan ?? "free", plan_until: row.plan_until ? row.plan_until.slice(0, 10) : "",
         });
       }
       const pr = p.data as ListingPrivate | null;
@@ -94,6 +100,7 @@ export function ListingEditor() {
       phone: draft.phone.trim() || null, email: draft.email.trim() || null, website: draft.website.trim() || null,
       address: draft.address.trim() || null, city: draft.city.trim(), state: draft.state.trim(),
       postal_code: draft.postal_code.trim() || null, service_areas: draft.service_areas.trim() || null,
+      ...(planColumn || draft.plan !== "free" ? { plan: draft.plan, plan_until: draft.plan_until ? new Date(`${draft.plan_until}T23:59:59Z`).toISOString() : null } : {}),
     };
     const supabase = getSupabaseBrowser();
     const res = id
@@ -178,6 +185,15 @@ export function ListingEditor() {
                   {LISTING_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
                 <p className="mt-2 text-xs text-slate-500">Only &quot;published&quot; listings are public. Review the details before publishing, since the directory doesn&apos;t verify credentials.</p>
+              </Panel>
+              <Panel title="Plan (advertising)">
+                <label htmlFor="plan" className="sr-only">Plan</label>
+                <select id="plan" value={draft.plan} onChange={(e) => set("plan", e.target.value as PlanId)} className={`${inputClass} capitalize`}>
+                  <option value="free">Basic (free)</option><option value="featured">Featured</option><option value="premium">Premium</option>
+                </select>
+                <label htmlFor="plan_until" className="mt-3 mb-1 block text-sm font-semibold text-navy">Paid until <span className="font-normal text-slate-500">(optional)</span></label>
+                <input id="plan_until" type="date" value={draft.plan_until} onChange={(e) => set("plan_until", e.target.value)} className={inputClass} />
+                <p className="mt-2 text-xs text-slate-500">Stripe subscriptions set this automatically. Use it to give a manual or free trial plan; it reverts to Basic after the date.</p>
               </Panel>
               {meta && (
                 <Panel title="Source">

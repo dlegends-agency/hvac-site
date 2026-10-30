@@ -5,7 +5,8 @@ import { ArrowLeft, Mail, Phone } from "lucide-react";
 import { Button, buttonClass } from "@/components/ui/Button";
 import { inputClass } from "@/components/ui/Field";
 import { getSupabaseBrowser } from "@/lib/supabase";
-import { LEAD_STATUSES, type Lead, type LeadStatus } from "@/lib/types";
+import { activePlan } from "@/lib/plans";
+import { LEAD_STATUSES, type Lead, type LeadStatus, type Listing } from "@/lib/types";
 import { Panel, QueryState, StatusBadge } from "./widgets";
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
@@ -25,6 +26,18 @@ export function LeadDetail() {
   const [notes, setNotes] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [owned, setOwned] = useState<Listing[]>([]);
+
+  // Listings that have a contractor account attached (only these can receive assigned leads).
+  useEffect(() => {
+    const supabase = getSupabaseBrowser();
+    supabase.from("listing_owners").select("listing_id").then(async ({ data }) => {
+      const ids = ((data as { listing_id: string }[] | null) ?? []).map((r) => r.listing_id);
+      if (ids.length === 0) return;
+      const { data: rows } = await supabase.from("listings").select("id,business_name,city,state,plan,plan_until").in("id", ids).order("business_name");
+      setOwned((rows as Listing[] | null) ?? []);
+    });
+  }, []);
 
   useEffect(() => {
     getSupabaseBrowser()
@@ -48,6 +61,19 @@ export function LeadDetail() {
     if (error) return setMsg("Could not save. Please try again.");
     setLead((l) => (l ? { ...l, ...patch } : l));
     setMsg("Saved.");
+  }
+
+  async function assign(listingId: string) {
+    setSaving(true);
+    setMsg(null);
+    const patch = listingId
+      ? { assigned_listing_id: listingId, assigned_at: new Date().toISOString(), contractor_status: "new" as const }
+      : { assigned_listing_id: null, assigned_at: null, contractor_status: "new" as const };
+    const { error } = await getSupabaseBrowser().from("leads").update(patch).eq("id", id);
+    setSaving(false);
+    if (error) return setMsg("Could not assign. Make sure the latest contractor SQL has been run.");
+    setLead((l) => (l ? { ...l, ...patch } : l));
+    setMsg(listingId ? "Assigned. The contractor can see it in their dashboard." : "Unassigned.");
   }
 
   return (
@@ -111,6 +137,15 @@ export function LeadDetail() {
                     className={`${inputClass} capitalize`}>
                     {LEAD_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
                   </select>
+                </Panel>
+                <Panel title="Assign to a contractor">
+                  <label htmlFor="assign" className="sr-only">Contractor</label>
+                  <select id="assign" value={lead.assigned_listing_id ?? ""} disabled={saving} onChange={(e) => assign(e.target.value)} className={inputClass}>
+                    <option value="">Not assigned</option>
+                    {owned.map((l) => <option key={l.id} value={l.id}>{l.business_name} ({l.city}) · {activePlan(l)}</option>)}
+                  </select>
+                  {owned.length === 0 && <p className="mt-2 text-xs text-slate-500">No contractor accounts yet. Approve a claim in Directory &gt; Claims first.</p>}
+                  <p className="mt-2 text-xs text-slate-500">The contractor sees this customer&apos;s name, phone, email and request. Premium contractors are the ones who should receive requests.</p>
                 </Panel>
                 <Panel title="Internal notes">
                   <label htmlFor="notes" className="sr-only">Internal notes</label>

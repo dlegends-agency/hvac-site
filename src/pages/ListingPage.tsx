@@ -4,6 +4,7 @@ import { ArrowLeft, Globe, Mail, MapPin, Phone, Siren } from "lucide-react";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { telHref } from "@/components/directory/ListingCard";
+import { FeaturedBadge, GoogleRating } from "@/components/directory/Rating";
 import { buttonClass } from "@/components/ui/Button";
 import { siteConfig } from "@/config/site";
 import { safeUrl, usePublishedListing } from "@/lib/directory";
@@ -58,7 +59,9 @@ export default function ListingPage() {
             </div>
           ) : (
             <article className="mt-5 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-              <h1 className="text-3xl font-extrabold tracking-tight text-navy">{l.business_name}</h1>
+              <FeaturedBadge listing={l} />
+              <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-navy">{l.business_name}</h1>
+              <GoogleRating listing={l} detailed />
               <p className="mt-2 flex items-center gap-1.5 text-slate-600">
                 <MapPin className="size-4" aria-hidden />
                 {[l.address, `${l.city}, ${l.state}`, l.postal_code].filter(Boolean).join(" · ")}

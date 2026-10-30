@@ -17,6 +17,7 @@ import PrivacyPage from "@/pages/PrivacyPage";
 import TermsPage from "@/pages/TermsPage";
 import ServicePage from "@/pages/ServicePage";
 import ServicesIndexPage from "@/pages/ServicesIndexPage";
+import PricingPage from "@/pages/PricingPage";
 import { locations } from "@/config/locations";
 import { servicePages } from "@/config/serviceContent";
 
@@ -32,6 +33,14 @@ const DiscoveryAdmin = lazy(() => import("@/components/admin/DiscoveryAdmin").th
 const ListingEditor = lazy(() => import("@/components/admin/ListingEditor").then((m) => ({ default: m.ListingEditor })));
 const MessagesAdmin = lazy(() => import("@/components/admin/MessagesAdmin").then((m) => ({ default: m.MessagesAdmin })));
 const SeoAudit = lazy(() => import("@/components/admin/SeoAudit").then((m) => ({ default: m.SeoAudit })));
+// The contractor dashboard is its own chunk too.
+const ContractorLoginPage = lazy(() => import("@/components/contractor/ContractorLoginPage"));
+const ContractorLayout = lazy(() => import("@/components/contractor/ContractorLayout"));
+const ContractorHome = lazy(() => import("@/components/contractor/ContractorHome"));
+const ContractorLeads = lazy(() => import("@/components/contractor/ContractorLeads"));
+const ContractorProfile = lazy(() => import("@/components/contractor/ContractorProfile"));
+const ContractorBilling = lazy(() => import("@/components/contractor/ContractorBilling"));
+const ClaimsAdmin = lazy(() => import("@/components/admin/ClaimsAdmin").then((m) => ({ default: m.ClaimsAdmin })));
 const AnalyticsReport = lazy(() => import("@/components/admin/AnalyticsReport").then((m) => ({ default: m.AnalyticsReport })));
 
 export default function App() {
@@ -54,6 +63,14 @@ export default function App() {
           <Route path="/directory" element={<DirectoryPage />} />
           <Route path="/directory/add" element={<AddBusinessPage />} />
           <Route path="/directory/:slug" element={<ListingPage />} />
+          <Route path="/pricing" element={<PricingPage />} />
+          <Route path="/contractor/login" element={<ContractorLoginPage />} />
+          <Route path="/contractor" element={<ContractorLayout />}>
+            <Route index element={<ContractorHome />} />
+            <Route path="leads" element={<ContractorLeads />} />
+            <Route path="profile" element={<ContractorProfile />} />
+            <Route path="billing" element={<ContractorBilling />} />
+          </Route>
           <Route path="/admin/login" element={<AdminLoginPage />} />
           <Route path="/admin" element={<PanelLayout />}>
             <Route index element={<OverviewDashboard />} />
@@ -64,6 +81,7 @@ export default function App() {
             <Route path="blog/:id" element={<PostEditor />} />
             <Route path="listings" element={<ListingsAdmin />} />
             <Route path="listings/discover" element={<DiscoveryAdmin />} />
+            <Route path="listings/claims" element={<ClaimsAdmin />} />
             <Route path="listings/new" element={<ListingEditor />} />
             <Route path="listings/:id" element={<ListingEditor />} />
             <Route path="messages" element={<MessagesAdmin />} />

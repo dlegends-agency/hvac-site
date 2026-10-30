@@ -10,6 +10,7 @@ export const staticRoutes: string[] = [
   "/blog",
   "/directory",
   "/directory/add",
+  "/pricing",
   "/contact",
   "/privacy-policy",
   "/terms-of-use",

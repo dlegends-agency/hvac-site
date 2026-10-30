@@ -19,13 +19,13 @@ function sessionId(): string {
 
 /**
  * Privacy-light page view counter. Stores only the path, referrer host, UTM source, device class and a random
- * per-browser id. No IP, no user agent, no cookies. Skips /admin and browsers sending Do Not Track.
+ * per-browser id. No IP, no user agent, no cookies. Skips /admin, /contractor and browsers sending Do Not Track.
  */
 export function PageViewTracker() {
   const { pathname } = useLocation();
 
   useEffect(() => {
-    if (!isSupabaseConfigured || pathname.startsWith("/admin") || location.search.includes("seo_audit=1") || navigator.doNotTrack === "1") return;
+    if (!isSupabaseConfigured || pathname.startsWith("/admin") || pathname.startsWith("/contractor") || location.search.includes("seo_audit=1") || navigator.doNotTrack === "1") return;
     if (lastTracked === pathname) return;
     lastTracked = pathname;
 

@@ -57,7 +57,7 @@ Replace the domain in `public/robots.txt` with your real one.
 
 ## Supabase setup
 
-1. Run, in order, in the SQL Editor: `supabase/schema.sql`, `supabase/schema-blog-analytics.sql`, `supabase/schema-directory.sql`, `supabase/schema-contact.sql` (Contact page messages), `supabase/schema-discovery.sql` (business discovery), then (optional) `supabase/seed-blog-posts.sql` for 9 starter articles and `supabase/seed-listings.sql` for 24 starter directory listings.
+1. Run, in order, in the SQL Editor: `supabase/schema.sql`, `supabase/schema-blog-analytics.sql`, `supabase/schema-directory.sql`, `supabase/schema-contact.sql` (Contact page messages), `supabase/schema-discovery.sql` (business discovery), `supabase/schema-contractors.sql` (contractor accounts, plans, assigned leads), then (optional) `supabase/seed-blog-posts.sql` for 9 starter articles and `supabase/seed-listings.sql` for 24 starter directory listings.
 2. Authentication > Users > Add user (auto-confirm), then run the `insert into admin_users` snippet at the bottom of `schema.sql`.
 3. Sign in at `/admin/login`. The Overview (`/admin`) auto-refreshes every 30 seconds (Live toggle), shows KPIs vs the previous period, most-viewed cities, and business registrations with Approve / Decline actions. Leads: `/admin/leads`. Blog: `/admin/blog`. Analytics: `/admin/analytics`.
 
@@ -82,6 +82,26 @@ They are stock images, not photos of this business or its contractors.
 `/admin/listings/discover` ("Find businesses") lets you define searches by location (for example "Austin, TX"), run them, and review the results as candidates with a confidence score and a Verified badge.
 A free **discovery agent** (`scripts/discovery-agent`, run by the GitHub Actions workflow `.github/workflows/discovery-agent.yml` every 6 hours) finds HVAC businesses on OpenStreetMap (plus optional web search), visits each business's **own website** to confirm the phone, address and services (robots.txt respected), and drops directories, suppliers and non-contractors. No Google Cloud account or paid API is involved, and Google Maps is not scraped.
 Importing a candidate creates a **pending** listing that you review and publish yourself. Setup (GitHub secrets, optional free keys, optional instant "Run now") is in `scripts/discovery-agent/README.md`.
+
+## Contractor accounts, pricing and payments
+
+`/pricing` lists three plans (Basic free, Featured, Premium; edit names, prices and features in `src/config/pricing.ts`, the prices there are placeholders). Contractors sign up at `/contractor/login`, then **claim** their listing (or add their business). An admin approves each claim in **Admin > Directory > Claims** before the account can edit anything.
+
+- **Dashboard** (`/contractor`): profile editor (description, services, areas, contact details), assigned customer requests with status and notes, plan and billing.
+- **Featured placement**: Featured and Premium listings get a badge, sort above Basic listings (Premium first) in the directory and on city pages, and are labeled as paid. A paid plan only counts while `plan_until` is empty or in the future.
+- **Google stars**: the contractor enters their rating, review count and Google reviews link. It is shown only on paid plans, labeled "Rating reported by the business" with the date it was last updated. It is not verified and is deliberately not added to structured data. Fetching ratings from Google automatically would need the paid Places API, so it is not done.
+- **Leads**: you assign a request to a contractor in **Admin > Leads > (a lead) > Assign to a contractor**. Contractors read only their own assigned leads, through database functions, and never the leads table itself.
+
+### Turning on payments (Stripe)
+
+1. Create a Stripe account. In **Product catalogue** create two recurring monthly prices that match `src/config/pricing.ts` (Featured, Premium) and copy their price IDs (`price_...`). Start in **test mode**.
+2. In Cloudflare Pages > Settings > Variables and Secrets add (as **Secrets**): `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`; and as variables `STRIPE_PRICE_FEATURED`, `STRIPE_PRICE_PREMIUM`. Redeploy afterwards.
+   The service role key is used only by the server functions in `functions/api/stripe/` and is never sent to the browser.
+3. In Stripe > Developers > Webhooks add the endpoint `https://YOUR-SITE/api/stripe/webhook` with events `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`. Copy its signing secret into `STRIPE_WEBHOOK_SECRET`.
+4. In Stripe > Settings > Billing > Customer portal enable cancelling and plan changes (this is what the "Open billing portal" button uses).
+5. Test with card `4242 4242 4242 4242`, then switch Stripe to live mode and replace the keys and price IDs.
+
+Until these are set the Billing page says payments are not switched on yet, and you can still give a listing a plan by hand in **Admin > Directory > (a listing) > Plan**. `npm run test:stripe` checks the webhook signature and plan logic offline.
 
 ## Contact, Privacy Policy and Terms
 

@@ -26,6 +26,37 @@ export interface Lead {
   preferred_contact_time: string | null;
   referral_acknowledgment: boolean;
   marketing_consent: boolean;
+  assigned_listing_id?: string | null;
+  assigned_at?: string | null;
+  contractor_status?: ContractorLeadStatus;
+}
+
+export const CONTRACTOR_LEAD_STATUSES = ["new", "contacted", "won", "lost"] as const;
+export type ContractorLeadStatus = (typeof CONTRACTOR_LEAD_STATUSES)[number];
+
+/** A lead as a contractor sees it (returned by the my_leads() database function). */
+export interface ContractorLead {
+  id: string;
+  created_at: string;
+  assigned_at: string | null;
+  issue: string;
+  urgency: string;
+  city: string;
+  state: string;
+  postal_code: string;
+  street: string;
+  unit: string | null;
+  first_name: string;
+  last_name: string;
+  phone: string;
+  email: string;
+  contact_method: string;
+  description: string | null;
+  property_type: string;
+  property_status: string;
+  preferred_contact_time: string | null;
+  contractor_status: ContractorLeadStatus;
+  contractor_notes: string | null;
 }
 
 export interface Post {
@@ -75,6 +106,35 @@ export interface Listing {
   source?: "submitted" | "seed" | "agent" | "manual";
   source_url?: string | null;
   attribution?: string | null;
+  plan?: PlanId;
+  plan_until?: string | null;
+  google_rating?: number | null;
+  google_review_count?: number | null;
+  google_reviews_url?: string | null;
+  rating_updated_at?: string | null;
+}
+
+export type PlanId = "free" | "featured" | "premium";
+
+export interface ListingClaim {
+  id: string;
+  created_at: string;
+  user_id: string;
+  user_email: string | null;
+  listing_id: string;
+  contact_name: string;
+  contact_phone: string | null;
+  note: string | null;
+  status: "pending" | "approved" | "rejected";
+}
+
+export interface ListingBilling {
+  listing_id: string;
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
+  plan: string | null;
+  status: string | null;
+  current_period_end: string | null;
 }
 
 /** Admin-only details stored in a separate table. */
