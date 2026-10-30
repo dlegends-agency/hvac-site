@@ -28,6 +28,7 @@ const LeadDetail = lazy(() => import("@/components/admin/LeadDetail").then((m) =
 const PostsList = lazy(() => import("@/components/admin/PostsList").then((m) => ({ default: m.PostsList })));
 const PostEditor = lazy(() => import("@/components/admin/PostEditor").then((m) => ({ default: m.PostEditor })));
 const ListingsAdmin = lazy(() => import("@/components/admin/ListingsAdmin").then((m) => ({ default: m.ListingsAdmin })));
+const DiscoveryAdmin = lazy(() => import("@/components/admin/DiscoveryAdmin").then((m) => ({ default: m.DiscoveryAdmin })));
 const ListingEditor = lazy(() => import("@/components/admin/ListingEditor").then((m) => ({ default: m.ListingEditor })));
 const MessagesAdmin = lazy(() => import("@/components/admin/MessagesAdmin").then((m) => ({ default: m.MessagesAdmin })));
 const SeoAudit = lazy(() => import("@/components/admin/SeoAudit").then((m) => ({ default: m.SeoAudit })));
@@ -62,6 +63,7 @@ export default function App() {
             <Route path="blog/new" element={<PostEditor />} />
             <Route path="blog/:id" element={<PostEditor />} />
             <Route path="listings" element={<ListingsAdmin />} />
+            <Route path="listings/discover" element={<DiscoveryAdmin />} />
             <Route path="listings/new" element={<ListingEditor />} />
             <Route path="listings/:id" element={<ListingEditor />} />
             <Route path="messages" element={<MessagesAdmin />} />

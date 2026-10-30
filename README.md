@@ -57,7 +57,7 @@ Replace the domain in `public/robots.txt` with your real one.
 
 ## Supabase setup
 
-1. Run, in order, in the SQL Editor: `supabase/schema.sql`, `supabase/schema-blog-analytics.sql`, `supabase/schema-directory.sql`, `supabase/schema-contact.sql` (Contact page messages), then (optional) `supabase/seed-blog-posts.sql` for 9 starter articles and `supabase/seed-listings.sql` for 24 starter directory listings.
+1. Run, in order, in the SQL Editor: `supabase/schema.sql`, `supabase/schema-blog-analytics.sql`, `supabase/schema-directory.sql`, `supabase/schema-contact.sql` (Contact page messages), `supabase/schema-discovery.sql` (business discovery), then (optional) `supabase/seed-blog-posts.sql` for 9 starter articles and `supabase/seed-listings.sql` for 24 starter directory listings.
 2. Authentication > Users > Add user (auto-confirm), then run the `insert into admin_users` snippet at the bottom of `schema.sql`.
 3. Sign in at `/admin/login`. The Overview (`/admin`) auto-refreshes every 30 seconds (Live toggle), shows KPIs vs the previous period, most-viewed cities, and business registrations with Approve / Decline actions. Leads: `/admin/leads`. Blog: `/admin/blog`. Analytics: `/admin/analytics`.
 
@@ -75,6 +75,15 @@ The directory only shows businesses you publish. `supabase/seed-listings.sql` ad
 Photos in `public/images/` are free-license stock photos from Pexels, cropped and compressed (about 1 MB total). Credits and source pages are in `docs/image-credits.md`.
 To swap one, replace the file with the same name and keep its aspect ratio (hero 1400x1186, form-tech 1000x667, faq-family 900x1350, dir-van 800x727, svc-* 800x500).
 They are stock images, not photos of this business or its contractors.
+
+## Directory admin and business discovery
+
+`/admin/listings` has search, status/city/source filters, sorting, bulk publish/hide/delete, CSV export and a source badge (submitted, seeded, Google discovery, added by admin).
+`/admin/listings/discover` ("Find businesses") lets you define searches by location (for example "Austin, TX"), run them now, and review the results as candidates.
+Searches use the **official Google Places API** (Text Search, new) through the Edge Function `supabase/functions/discover-listings`, scheduled by pg_cron (`supabase/cron-discovery.sql`).
+Setup steps (API key, secrets, deploy, cron) are in `supabase/functions/discover-listings/README.md`.
+Google's terms limit storing Places data, so candidates are deleted after 30 days and importing creates a **pending** listing (with the Google place ID) that must be verified on the business's own website before publishing.
+Scraping Google Maps pages directly is not supported: it violates Google's terms and gets blocked.
 
 ## Contact, Privacy Policy and Terms
 

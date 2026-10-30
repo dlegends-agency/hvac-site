@@ -72,6 +72,8 @@ export interface Listing {
   state: string;
   postal_code: string | null;
   service_areas: string | null;
+  source?: "submitted" | "seed" | "google" | "manual";
+  google_place_id?: string | null;
 }
 
 /** Admin-only details stored in a separate table. */
@@ -80,4 +82,33 @@ export interface ListingPrivate {
   submitter_name: string | null;
   submitter_email: string | null;
   admin_notes: string | null;
+}
+
+export interface DiscoveryJob {
+  id: string;
+  created_at: string;
+  label: string;
+  query: string;
+  location: string;
+  max_results: number;
+  frequency: "daily" | "weekly" | "manual";
+  enabled: boolean;
+  last_run_at: string | null;
+  last_status: string | null;
+  last_found: number | null;
+}
+
+export interface ListingCandidate {
+  id: string;
+  fetched_at: string;
+  job_id: string | null;
+  place_id: string;
+  name: string;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  postal_code: string | null;
+  phone: string | null;
+  website: string | null;
+  maps_url: string | null;
 }

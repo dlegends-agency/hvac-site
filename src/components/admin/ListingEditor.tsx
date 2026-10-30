@@ -36,6 +36,7 @@ export function ListingEditor() {
   const navigate = useNavigate();
   const [draft, setDraft] = useState<Draft>(empty);
   const [priv, setPriv] = useState<ListingPrivate | null>(null);
+  const [meta, setMeta] = useState<{ source: string; placeId: string | null } | null>(null);
   const [notes, setNotes] = useState("");
   const [slugTouched, setSlugTouched] = useState(false);
   const [loading, setLoading] = useState(Boolean(id));
@@ -51,6 +52,7 @@ export function ListingEditor() {
       supabase.from("listing_private").select("*").eq("listing_id", id).maybeSingle(),
     ]).then(([l, p]) => {
       const row = l.data as Listing | null;
+      if (row) setMeta({ source: row.source ?? "submitted", placeId: row.google_place_id ?? null });
       if (!row) setMissing(true);
       else {
         setSlugTouched(true);
@@ -177,6 +179,17 @@ export function ListingEditor() {
                 </select>
                 <p className="mt-2 text-xs text-slate-500">Only &quot;published&quot; listings are public. Review the details before publishing, since the directory doesn&apos;t verify credentials.</p>
               </Panel>
+              {meta && (
+                <Panel title="Source">
+                  <p className="text-sm capitalize text-slate-700">{meta.source === "google" ? "Found via Google Places" : meta.source}</p>
+                  {meta.placeId && (
+                    <a href={`https://www.google.com/maps/place/?q=place_id:${encodeURIComponent(meta.placeId)}`} target="_blank" rel="noreferrer" className="mt-1 inline-block text-sm font-medium text-primary hover:underline">
+                      View on Google Maps
+                    </a>
+                  )}
+                  {meta.source === "google" && <p className="mt-2 text-xs text-slate-500">Verify every detail on the business&apos;s own website before publishing.</p>}
+                </Panel>
+              )}
               {priv && (
                 <Panel title="Submitted by (private)">
                   <p className="text-sm text-slate-700">{priv.submitter_name}</p>
