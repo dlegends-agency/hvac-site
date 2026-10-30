@@ -1,0 +1,35 @@
+name: Send pending lead alerts
+
+# Safety net for the new-lead emails. The database already pings the site the moment a lead is sent to a contractor;
+# this re-checks every 10 minutes so an email is never lost if that ping failed. Safe to run any time: nothing is sent twice.
+# Needs the repository secrets NOTIFY_SECRET and SITE_URL (see "Turning on email alerts" in the README). Does nothing without them.
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: notify-flush
+  cancel-in-progress: false
+
+jobs:
+  flush:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Ask the site to send pending alerts
+        env:
+          NOTIFY_SECRET: ${{ secrets.NOTIFY_SECRET }}
+          SITE_URL: ${{ secrets.SITE_URL }}
+        run: |
+          if [ -z "$NOTIFY_SECRET" ] || [ -z "$SITE_URL" ]; then
+            echo "NOTIFY_SECRET or SITE_URL is not set; skipping."
+            exit 0
+          fi
+          status=$(curl -sS -o /tmp/out.json -w "%{http_code}" -X POST -H "X-Notify-Secret: $NOTIFY_SECRET" "${SITE_URL%/}/api/notify/send" || true)
+          echo "HTTP $status: $(cat /tmp/out.json 2>/dev/null)"
+          # 501 means email is not configured on the site yet; that is not a failure of this job.
+          if [ "$status" != "200" ] && [ "$status" != "501" ]; then exit 1; fi

@@ -93,6 +93,7 @@ Importing a candidate creates a **pending** listing that you review and publish 
 - **Leads (automatic)**: every new lead is routed by the database the moment it is saved (`route_lead()` in `supabase/schema-contractors.sql`). It goes to **Featured and Premium** contractors whose listing is published, owned by an approved account, and serves the customer's city (the listing's city, or a city named in its "areas you serve"; the state must match). Up to **3** contractors get each lead: Premium first, then whoever received a lead longest ago, so leads rotate fairly. To change the limit, edit the `p_max` default (3) in that function. If no contractor matches, the lead stays unassigned for you to handle.
   Contractors read only leads sent to them, through database functions, and never the leads table. Each contractor keeps their own status (new, contacted, won, lost) and notes, and sees how many other contractors got the same request.
   In **Admin > Leads > (a lead)** you can see who received it, remove a contractor, add one by hand, or click **Send to matching contractors** (useful for leads that arrived before this was switched on). A routing error never stops a lead from being saved.
+  Contractors are emailed when a lead reaches them (see "Turning on email alerts" below).
   `supabase/tests/routing.test.mjs` runs the SQL in an in-memory Postgres and checks the rules (`npm i --no-save @electric-sql/pglite && node supabase/tests/routing.test.mjs`).
 
 ### Turning on payments (Stripe)
@@ -113,6 +114,26 @@ Until these are set the Billing page says payments are not switched on yet, and 
 3. **Cap the cost**: in Google Cloud > APIs & Services > Places API (New) > Quotas, set a low per-day request limit (for example 100 to 300). When the limit is reached the stars simply hide and the reviews link shows instead. Also create a budget alert under Billing > Budgets.
 4. Add the key to Cloudflare Pages as a **Secret** named `GOOGLE_PLACES_API_KEY` and redeploy. Run `supabase/schema-contractors.sql` again so the `google_place_id` column exists.
 5. Each paid, connected listing costs one Places API request each time it is viewed: on its own page, and on a directory card once the card scrolls into view. Basic listings never call Google. The business is found by searching Google for its saved name, city and state. `npm run test:google` checks the helper logic offline.
+
+### Turning on email alerts for new leads
+
+When a lead reaches a contractor, the database queues an email and pings `/api/notify/send`, which sends it through [Resend](https://resend.com) (free tier: 100 emails a day, 3,000 a month). The email is a short heads-up with a link to the dashboard; the customer's name, phone and address are never put in an email. Contractors can switch alerts off on their dashboard.
+
+1. In Resend, add and verify your sending domain (it gives you DNS records to add), then create an API key with "Sending access". Without a verified domain Resend only delivers to your own address.
+2. Make up a long random secret (for example run `openssl rand -hex 24`). It is shared by the database, the site and the scheduled workflow so that only they can trigger sending.
+3. Cloudflare Pages > Settings > Variables and Secrets: add `RESEND_API_KEY` (Secret), `NOTIFY_SECRET` (Secret) and `NOTIFY_FROM_EMAIL` (for example `HVACHelp <leads@yourdomain.com>`; the domain must be the one verified in Resend). `SUPABASE_SERVICE_ROLE_KEY` must be there too. Redeploy afterwards.
+4. Run `supabase/schema-contractors.sql` again, then run this once in the SQL Editor, with your own address and the same secret:
+
+```sql
+insert into public.notification_settings (id, endpoint, secret)
+values (1, 'https://YOUR-SITE/api/notify/send', 'THE-SAME-SECRET')
+on conflict (id) do update set endpoint = excluded.endpoint, secret = excluded.secret;
+```
+
+5. GitHub > Settings > Secrets and variables > Actions: add `NOTIFY_SECRET` (the same secret) and make sure `SITE_URL` is your site address. The workflow `.github/workflows/notify-flush.yml` then re-checks every 10 minutes, so no alert is lost if the instant ping fails.
+6. Test it: `curl -s -X POST -H "X-Notify-Secret: THE-SAME-SECRET" https://YOUR-SITE/api/notify/send` should answer `{"sent":0,"failed":0,"more":false}`. Then submit a test request for a city that has a Featured or Premium contractor and check their inbox.
+
+Failed sends are retried up to 5 times and the reason is stored in `lead_notifications.last_error`. `npm run test:notify` checks the email code offline, and the SQL checks in `supabase/tests/routing.test.mjs` cover queueing and retries.
 
 ## Contact, Privacy Policy and Terms
 

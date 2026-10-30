@@ -9,6 +9,9 @@ export interface Env {
   STRIPE_WEBHOOK_SECRET?: string;
   STRIPE_PRICE_FEATURED?: string;
   STRIPE_PRICE_PREMIUM?: string;
+  RESEND_API_KEY?: string; // email alerts (resend.com), encrypted secret
+  NOTIFY_FROM_EMAIL?: string; // for example "HVACHelp <leads@yourdomain.com>" (a domain verified in Resend)
+  NOTIFY_SECRET?: string; // shared with the database and the scheduled workflow so only they can trigger sending
   GOOGLE_PLACES_API_KEY?: string; // encrypted Cloudflare secret, restricted to the Places API and given a daily quota in Google Cloud
 }
 

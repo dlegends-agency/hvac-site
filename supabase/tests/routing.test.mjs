@@ -32,6 +32,13 @@ create table public.leads (
 );
 `);
 
+// Stand-in for the pg_net extension: records the calls the database would make.
+await db.exec(`
+create schema net;
+create table net.calls (url text, headers jsonb, body jsonb);
+create function net.http_post(url text, headers jsonb, body jsonb) returns bigint language sql as $$ insert into net.calls values (url, headers, body) returning 1::bigint $$;
+`);
+
 await db.exec(SQL);
 await db.exec(SQL); // must be safe to run twice
 
@@ -141,10 +148,87 @@ await db.exec(SQL);
 const migrated = (await db.query("select source, contractor_status s, contractor_notes n from public.lead_assignments where lead_id=$1 and listing_id=$2", [old, StL.id])).rows[0];
 assert.deepEqual(migrated, { source: "manual", s: "contacted", n: "old note" });
 
+
+// 10. Email alerts: a notification is queued for every contractor a lead reaches, and the sender is pinged.
+await db.exec("update public.lead_notifications set sent_at = now()"); // leads from the routing checks above are not part of this section
+await db.exec("insert into public.notification_settings (id, endpoint, secret) values (1, 'https://example.test/api/notify/send', 's3cret')");
+const callsBefore = (await db.query("select count(*)::int n from net.calls")).rows[0].n;
+const n1 = await lead("Austin", "Texas");
+const gotN1 = await assigned(n1);
+const queued = (await db.query("select count(*)::int n from public.lead_notifications where lead_id=$1", [n1])).rows[0].n;
+assert.equal(queued, gotN1.length, "one alert queued per contractor");
+const calls = (await db.query("select * from net.calls offset $1", [callsBefore])).rows;
+assert.equal(calls.length, gotN1.length, "sender pinged for each");
+assert.equal(calls[0].url, "https://example.test/api/notify/send");
+assert.equal(calls[0].headers["X-Notify-Secret"], "s3cret");
+
+// Claim returns what the email needs (and the owner's login email), once.
+await db.exec("set role service_role");
+const claimed = (await db.query("select * from public.claim_lead_notifications(50)")).rows.filter((r) => r.city === "Austin");
+await db.exec("reset role");
+assert.ok(claimed.length >= gotN1.length);
+const mineClaimed = claimed.filter((r) => gotN1.some((g) => g.n === r.business_name));
+assert.equal(mineClaimed.length, gotN1.length);
+for (const r of mineClaimed) assert.equal(r.email, `${r.business_name}@x.com`, "email is the owner's account email");
+assert.ok(mineClaimed.every((r) => r.issue && r.urgency && r.state));
+await db.exec("set role service_role");
+assert.equal((await db.query("select * from public.claim_lead_notifications(50)")).rows.length, 0, "a second sender gets nothing while the first holds the claim");
+
+// Failure releases the claim for retry; success is final; attempts are capped.
+const one = mineClaimed[0];
+await db.query("select public.finish_lead_notifications($1::uuid[], $2::jsonb)", [[mineClaimed[1].id], JSON.stringify({ [one.id]: "Resend 500" })]);
+await db.exec("reset role");
+const st = (await db.query("select id, sent_at, last_error, claimed_at, attempts from public.lead_notifications where id = any($1)", [[one.id, mineClaimed[1].id]])).rows;
+const failed = st.find((r) => r.id === one.id), ok = st.find((r) => r.id === mineClaimed[1].id);
+assert.ok(ok.sent_at && ok.last_error === null);
+assert.ok(!failed.sent_at && failed.last_error === "Resend 500" && failed.claimed_at === null && failed.attempts === 1);
+await db.exec("set role service_role");
+const retry = (await db.query("select id from public.claim_lead_notifications(50)")).rows.map((r) => r.id);
+assert.deepEqual(retry, [one.id], "only the failed one is retried");
+await db.exec("reset role");
+await db.query("update public.lead_notifications set attempts = 5, claimed_at = null where id = $1", [one.id]);
+await db.exec("set role service_role");
+assert.equal((await db.query("select * from public.claim_lead_notifications(50)")).rows.length, 0, "gives up after 5 attempts");
+await db.exec("reset role");
+
+// A contractor can switch alerts off for their own account only; no email is sent to them afterwards.
+await as(B.user, () => db.query("select public.set_my_email_alerts(false)"));
+assert.equal((await db.query("select notify_email from public.listing_owners where listing_id=$1", [B.id])).rows[0].notify_email, false);
+assert.equal((await db.query("select notify_email from public.listing_owners where listing_id=$1", [A.id])).rows[0].notify_email, true, "other contractors unaffected");
+const n2 = await lead("Austin", "Texas");
+const g2 = await assigned(n2);
+await db.exec("set role service_role");
+const claimed2 = (await db.query("select business_name from public.claim_lead_notifications(50)")).rows.map((r) => r.business_name);
+await db.exec("reset role");
+if (g2.some((g) => g.n === "Bravo Featured")) {
+  assert.ok(!claimed2.includes("Bravo Featured"), "opted-out contractor gets no email");
+  assert.equal((await db.query("select last_error from public.lead_notifications where lead_id=$1 and listing_id=$2", [n2, B.id])).rows[0].last_error, "alerts switched off");
+}
+assert.ok(claimed2.length >= 1);
+
+// Clients cannot read the queue or the secret, and cannot call the sender functions.
+for (const role of ["anon", "authenticated"]) {
+  await db.exec(`set role ${role}`);
+  await assert.rejects(() => db.query("select * from public.notification_settings"), /permission denied/);
+  await assert.rejects(() => db.query("select * from public.lead_notifications"), /permission denied/);
+  await assert.rejects(() => db.query("select * from public.claim_lead_notifications(5)"), /permission denied/);
+  await assert.rejects(() => db.query("select public.finish_lead_notifications('{}'::uuid[])"), /permission denied/);
+  await db.exec("reset role");
+}
+
+// A failing ping or missing settings never blocks assigning a lead.
+await db.exec("update public.notification_settings set endpoint = null");
+assert.ok(await lead("Austin", "Texas"));
+await db.exec("drop function net.http_post(text, jsonb, jsonb)");
+await db.exec("update public.notification_settings set endpoint = 'https://example.test/x'");
+const n3 = await lead("Austin", "Texas");
+assert.ok((await assigned(n3)).length > 0, "assignment still created when the ping fails");
+assert.ok((await db.query("select count(*)::int n from public.lead_notifications where lead_id=$1", [n3])).rows[0].n > 0, "and the alert is still queued for the fallback");
+
 // 9. A routing failure must never block saving the lead.
 await db.exec("alter table public.lead_assignments rename to lead_assignments_x");
 const safe = await lead("Austin", "TX");
 assert.ok(safe, "lead still saved when routing breaks");
 await db.exec("alter table public.lead_assignments_x rename to lead_assignments");
 
-console.log("routing SQL: all checks passed");
+console.log("routing + alert SQL: all checks passed");

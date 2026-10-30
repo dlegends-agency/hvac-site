@@ -366,3 +366,137 @@ revoke all on function public.update_my_lead(uuid, text, text) from public, anon
 grant execute on function public.admin_route_lead(uuid) to authenticated;
 grant execute on function public.my_leads() to authenticated;
 grant execute on function public.update_my_lead(uuid, text, text) to authenticated;
+
+-- 8. Email alerts for new leads -----------------------------------------------------------------------
+-- When a lead is sent to a contractor, a row is queued here and a server function (/api/notify/send) is pinged to email them.
+-- The email is only a heads-up with a link to the dashboard; the customer's contact details are never put in the email.
+alter table public.listing_owners add column if not exists notify_email boolean not null default true;
+
+create table if not exists public.lead_notifications (
+  id         uuid primary key default gen_random_uuid(),
+  lead_id    uuid not null references public.leads (id) on delete cascade,
+  listing_id uuid not null references public.listings (id) on delete cascade,
+  created_at timestamptz not null default now(),
+  claimed_at timestamptz,
+  sent_at    timestamptz,
+  attempts   int not null default 0,
+  last_error text,
+  unique (lead_id, listing_id)
+);
+create index if not exists lead_notifications_pending_idx on public.lead_notifications (created_at) where sent_at is null;
+alter table public.lead_notifications enable row level security; -- no policies: only server code and the functions below can touch it
+
+-- Where to ping when something is queued. Set once with the SQL in the README ("Turning on email alerts"). Never readable by clients.
+create table if not exists public.notification_settings (
+  id       int primary key default 1 check (id = 1),
+  endpoint text,
+  secret   text
+);
+alter table public.notification_settings enable row level security;
+
+-- pg_net lets the database call a URL. It is available on Supabase; if it is missing, emails are still sent by the scheduled fallback.
+do $$
+begin
+  create extension if not exists pg_net with schema extensions;
+exception when others then
+  raise notice 'pg_net is not available; alerts will be sent by the scheduled fallback only';
+end $$;
+
+create or replace function public.queue_lead_notification()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  cfg public.notification_settings;
+begin
+  begin
+    insert into public.lead_notifications (lead_id, listing_id) values (new.lead_id, new.listing_id) on conflict do nothing;
+    select * into cfg from public.notification_settings where id = 1;
+    if cfg.endpoint is not null and cfg.secret is not null then
+      begin
+        execute 'select net.http_post(url := $1, headers := $2, body := $3)'
+          using cfg.endpoint, jsonb_build_object('Content-Type', 'application/json', 'X-Notify-Secret', cfg.secret), '{"kick": true}'::jsonb;
+      exception when others then
+        null; -- the scheduled fallback will pick it up
+      end;
+    end if;
+  exception when others then
+    null; -- never block assigning a lead
+  end;
+  return null;
+end;
+$$;
+
+drop trigger if exists lead_assignments_queue_notification on public.lead_assignments;
+create trigger lead_assignments_queue_notification after insert on public.lead_assignments for each row execute function public.queue_lead_notification();
+
+-- Server code claims a batch of pending alerts (safe if two senders run at once) and gets what it needs to write each email.
+create or replace function public.claim_lead_notifications(p_limit int default 20)
+returns table (
+  id uuid, email text, business_name text, issue text, urgency text, city text, state text, lead_created_at timestamptz
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  -- Contractors who switched alerts off are marked done without sending.
+  update public.lead_notifications n
+     set sent_at = now(), last_error = 'alerts switched off'
+    from public.listing_owners o
+   where o.listing_id = n.listing_id and not o.notify_email and n.sent_at is null;
+
+  return query
+  with picked as (
+    select n.id from public.lead_notifications n
+     where n.sent_at is null and n.attempts < 5 and (n.claimed_at is null or n.claimed_at < now() - interval '5 minutes')
+     order by n.created_at
+     limit greatest(p_limit, 0)
+     for update skip locked
+  ), marked as (
+    update public.lead_notifications n set attempts = n.attempts + 1, claimed_at = now()
+      from picked where n.id = picked.id
+    returning n.id, n.lead_id, n.listing_id
+  )
+  select m.id, u.email::text, li.business_name, l.issue, l.urgency, l.city, l.state, l.created_at
+    from marked m
+    join public.leads l on l.id = m.lead_id
+    join public.listings li on li.id = m.listing_id
+    join public.listing_owners o on o.listing_id = m.listing_id
+    join auth.users u on u.id = o.user_id;
+end;
+$$;
+
+create or replace function public.finish_lead_notifications(p_sent uuid[], p_failed jsonb default '{}'::jsonb)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update public.lead_notifications set sent_at = now(), last_error = null where id = any (coalesce(p_sent, '{}'));
+  update public.lead_notifications n set last_error = left(f.value, 300), claimed_at = null
+    from jsonb_each_text(coalesce(p_failed, '{}'::jsonb)) f
+   where n.id::text = f.key and n.sent_at is null;
+end;
+$$;
+
+-- A contractor can switch their own alerts on or off.
+create or replace function public.set_my_email_alerts(p_on boolean)
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  update public.listing_owners set notify_email = p_on where user_id = auth.uid();
+$$;
+
+revoke all on function public.queue_lead_notification() from public, anon, authenticated;
+revoke all on function public.claim_lead_notifications(int) from public, anon, authenticated;
+revoke all on function public.finish_lead_notifications(uuid[], jsonb) from public, anon, authenticated;
+revoke all on function public.set_my_email_alerts(boolean) from public, anon;
+grant execute on function public.claim_lead_notifications(int) to service_role;
+grant execute on function public.finish_lead_notifications(uuid[], jsonb) to service_role;
+grant execute on function public.set_my_email_alerts(boolean) to authenticated;

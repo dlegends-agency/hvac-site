@@ -29,8 +29,9 @@ export default function ContractorLayout() {
     const user = data.session?.user;
     if (!user) return navigate("/contractor/login", { replace: true });
 
-    const { data: owner } = await supabase.from("listing_owners").select("listing_id").limit(1).maybeSingle();
-    const listingId = (owner as { listing_id: string } | null)?.listing_id;
+    const { data: owner } = await supabase.from("listing_owners").select("listing_id, notify_email").limit(1).maybeSingle();
+    const ownerRow = owner as { listing_id: string; notify_email?: boolean } | null;
+    const listingId = ownerRow?.listing_id;
     const [listing, billing, claims] = await Promise.all([
       listingId ? supabase.from("listings").select("*").eq("id", listingId).maybeSingle() : Promise.resolve({ data: null }),
       listingId ? supabase.from("listing_billing").select("*").eq("listing_id", listingId).maybeSingle() : Promise.resolve({ data: null }),
@@ -38,6 +39,7 @@ export default function ContractorLayout() {
     ]);
     setState({
       email: user.email ?? "",
+      notifyEmail: ownerRow?.notify_email ?? true,
       listing: (listing.data as Listing | null) ?? null,
       billing: (billing.data as ListingBilling | null) ?? null,
       claim: ((claims.data as ListingClaim[] | null) ?? [])[0] ?? null,

@@ -8,6 +8,8 @@ export interface ContractorState {
   /** Most recent claim request (pending, approved or rejected). */
   claim: ListingClaim | null;
   billing: ListingBilling | null;
+  /** Whether new-request emails are switched on for this account. */
+  notifyEmail: boolean;
   reload: () => Promise<void>;
 }
 
