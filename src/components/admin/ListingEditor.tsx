@@ -128,8 +128,8 @@ export function ListingEditor() {
         {missing ? (
           <p className="rounded-2xl border border-slate-200 bg-white p-8 text-slate-600">Listing not found.</p>
         ) : (
-          <form onSubmit={save} className="grid max-w-5xl gap-6 lg:grid-cols-3">
-            <div className="space-y-5 lg:col-span-2">
+          <form onSubmit={save} className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+            <div className="space-y-5">
               <div className="flex items-center justify-between gap-3">
                 <h1 className="text-2xl font-bold text-navy">{id ? "Edit listing" : "New listing"}</h1>
                 {id && draft.status === "published" && (
