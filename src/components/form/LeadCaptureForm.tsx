@@ -124,7 +124,7 @@ export function LeadCaptureForm({
             <span className="anim-pop mx-auto grid size-14 place-items-center rounded-full bg-green-600 text-white"><CheckCircle2 className="size-8" aria-hidden /></span>
             <h3 ref={headingRef} tabIndex={-1} className="mt-4 text-xl font-bold text-green-900 outline-none">Your request was submitted</h3>
             <p className="mx-auto mt-2 max-w-md text-sm text-green-900">
-              We&apos;ll review your details and help look for a suitable local contractor. We can&apos;t guarantee availability or a response time.
+              We&apos;ll review your details and help look for a suitable local contractor. Up to three contractors that serve your area may contact you directly. We can&apos;t guarantee availability or a response time.
               If you smell gas or suspect carbon monoxide, leave the area and contact emergency services.
             </p>
           </div>

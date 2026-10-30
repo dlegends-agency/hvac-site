@@ -38,7 +38,13 @@ export type ContractorLeadStatus = (typeof CONTRACTOR_LEAD_STATUSES)[number];
 export interface ContractorLead {
   id: string;
   created_at: string;
-  assigned_at: string | null;
+  /** When this lead was sent to the contractor. */
+  assigned_at: string;
+  /** "auto" = routed by the system, "manual" = added by an admin. */
+  source: "auto" | "manual";
+  /** How many contractors received this same request (including this one). */
+  recipient_count: number;
+  contacted_at: string | null;
   issue: string;
   urgency: string;
   city: string;

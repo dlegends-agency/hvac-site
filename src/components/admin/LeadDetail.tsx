@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useParams } from "react-router-dom";
 import { ArrowLeft, Mail, Phone } from "lucide-react";
@@ -6,7 +6,16 @@ import { Button, buttonClass } from "@/components/ui/Button";
 import { inputClass } from "@/components/ui/Field";
 import { getSupabaseBrowser } from "@/lib/supabase";
 import { activePlan } from "@/lib/plans";
-import { LEAD_STATUSES, type Lead, type LeadStatus, type Listing } from "@/lib/types";
+import { LEAD_STATUSES, type Lead, type LeadStatus, type Listing, type PlanId } from "@/lib/types";
+
+interface Assignment {
+  listing_id: string;
+  assigned_at: string;
+  source: "auto" | "manual";
+  contractor_status: string;
+  contacted_at: string | null;
+  listings: { business_name: string; city: string; plan: PlanId; plan_until: string | null } | null;
+}
 import { Panel, QueryState, StatusBadge } from "./widgets";
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
@@ -28,7 +37,33 @@ export function LeadDetail() {
   const [saving, setSaving] = useState(false);
   const [owned, setOwned] = useState<Listing[]>([]);
 
-  // Listings that have a contractor account attached (only these can receive assigned leads).
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+
+  // Listings that have a contractor account attached (only these can receive leads).
+  useEffect(() => {
+    const supabase = getSupabaseBrowser();
+    supabase.from("listing_owners").select("listing_id").then(async ({ data }) => {
+      const ids = ((data as { listing_id: string }[] | null) ?? []).map((r) => r.listing_id);
+      if (ids.length === 0) return;
+      const { data: rows } = await supabase.from("listings").select("id,business_name,city,state,plan,plan_until").in("id", ids).order("business_name");
+      setOwned((rows as Listing[] | null) ?? []);
+    });
+  }, []);
+
+  const loadAssignments = useCallback(async () => {
+    const { data } = await getSupabaseBrowser()
+      .from("lead_assignments")
+      .select("listing_id, assigned_at, source, contractor_status, contacted_at, listings(business_name, city, plan, plan_until)")
+      .eq("lead_id", id)
+      .order("assigned_at");
+    setAssignments((data as unknown as Assignment[] | null) ?? []);
+  }, [id]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial data load
+    void loadAssignments();
+  }, [loadAssignments]);
+
   useEffect(() => {
     const supabase = getSupabaseBrowser();
     supabase.from("listing_owners").select("listing_id").then(async ({ data }) => {
@@ -63,17 +98,36 @@ export function LeadDetail() {
     setMsg("Saved.");
   }
 
-  async function assign(listingId: string) {
+  async function addContractor(listingId: string) {
+    if (!listingId) return;
     setSaving(true);
     setMsg(null);
-    const patch = listingId
-      ? { assigned_listing_id: listingId, assigned_at: new Date().toISOString(), contractor_status: "new" as const }
-      : { assigned_listing_id: null, assigned_at: null, contractor_status: "new" as const };
-    const { error } = await getSupabaseBrowser().from("leads").update(patch).eq("id", id);
+    const { error } = await getSupabaseBrowser().from("lead_assignments").insert({ lead_id: id, listing_id: listingId, source: "manual" });
     setSaving(false);
-    if (error) return setMsg("Could not assign. Make sure the latest contractor SQL has been run.");
-    setLead((l) => (l ? { ...l, ...patch } : l));
-    setMsg(listingId ? "Assigned. The contractor can see it in their dashboard." : "Unassigned.");
+    if (error) return setMsg("Could not add. Make sure the latest contractor SQL has been run.");
+    setMsg("Sent. The contractor can see it in their dashboard.");
+    void loadAssignments();
+  }
+
+  async function removeContractor(listingId: string) {
+    setSaving(true);
+    setMsg(null);
+    const { error } = await getSupabaseBrowser().from("lead_assignments").delete().eq("lead_id", id).eq("listing_id", listingId);
+    setSaving(false);
+    if (error) return setMsg("Could not remove.");
+    setMsg("Removed.");
+    void loadAssignments();
+  }
+
+  async function routeNow() {
+    setSaving(true);
+    setMsg(null);
+    const { data, error } = await getSupabaseBrowser().rpc("admin_route_lead", { p_lead: id });
+    setSaving(false);
+    if (error) return setMsg("Could not route. Make sure the latest contractor SQL has been run.");
+    const n = Number(data ?? 0);
+    setMsg(n > 0 ? `Sent to ${n} more matching contractor${n === 1 ? "" : "s"}.` : "No more matching contractors (they may already have it, or none cover this city).");
+    void loadAssignments();
   }
 
   return (
@@ -138,14 +192,33 @@ export function LeadDetail() {
                     {LEAD_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </Panel>
-                <Panel title="Assign to a contractor">
-                  <label htmlFor="assign" className="sr-only">Contractor</label>
-                  <select id="assign" value={lead.assigned_listing_id ?? ""} disabled={saving} onChange={(e) => assign(e.target.value)} className={inputClass}>
-                    <option value="">Not assigned</option>
-                    {owned.map((l) => <option key={l.id} value={l.id}>{l.business_name} ({l.city}) · {activePlan(l)}</option>)}
+                <Panel title={`Sent to contractors (${assignments.length})`}>
+                  {assignments.length === 0 ? (
+                    <p className="text-sm text-slate-600">Not sent to anyone yet. New leads go automatically to Featured and Premium contractors that serve the customer&apos;s city.</p>
+                  ) : (
+                    <ul className="divide-y divide-slate-100">
+                      {assignments.map((a) => (
+                        <li key={a.listing_id} className="flex items-start justify-between gap-2 py-2.5">
+                          <span className="min-w-0 text-sm">
+                            <Link to={`/admin/listings/${a.listing_id}`} className="font-semibold text-navy hover:text-primary hover:underline">{a.listings?.business_name ?? "Listing"}</Link>
+                            <span className="block text-xs text-slate-500">
+                              {a.listings?.city} · {a.listings ? activePlan(a.listings) : ""} · {a.source === "auto" ? "automatic" : "added by you"}
+                            </span>
+                            <span className="block text-xs capitalize text-slate-600">Status: {a.contractor_status}{a.contacted_at ? ` (contacted ${new Date(a.contacted_at).toLocaleDateString()})` : ""}</span>
+                          </span>
+                          <button type="button" disabled={saving} onClick={() => removeContractor(a.listing_id)} className="shrink-0 text-xs font-semibold text-red-700 hover:underline disabled:opacity-60">Remove</button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <label htmlFor="assign" className="mt-3 mb-1 block text-sm font-semibold text-navy">Add a contractor</label>
+                  <select id="assign" value="" disabled={saving} onChange={(e) => addContractor(e.target.value)} className={inputClass}>
+                    <option value="">Choose…</option>
+                    {owned.filter((l) => !assignments.some((a) => a.listing_id === l.id)).map((l) => <option key={l.id} value={l.id}>{l.business_name} ({l.city}) · {activePlan(l)}</option>)}
                   </select>
                   {owned.length === 0 && <p className="mt-2 text-xs text-slate-500">No contractor accounts yet. Approve a claim in Directory &gt; Claims first.</p>}
-                  <p className="mt-2 text-xs text-slate-500">The contractor sees this customer&apos;s name, phone, email and request. Premium contractors are the ones who should receive requests.</p>
+                  <Button variant="secondary" onClick={routeNow} disabled={saving} className="mt-3 w-full !py-2 text-sm">Send to matching contractors</Button>
+                  <p className="mt-2 text-xs text-slate-500">Contractors see the customer&apos;s name, phone, email and request, and each keeps their own status and notes.</p>
                 </Panel>
                 <Panel title="Internal notes">
                   <label htmlFor="notes" className="sr-only">Internal notes</label>

@@ -136,26 +136,204 @@ alter table public.leads add constraint leads_contractor_status_check check (con
 alter table public.leads add column if not exists contractor_notes text check (char_length(contractor_notes) <= 2000);
 create index if not exists leads_assigned_idx on public.leads (assigned_listing_id);
 
--- Contractors never get direct access to the leads table (it holds admin notes and every lead).
--- They read only the leads assigned to their own listing, and only the fields they need, through these functions.
+-- 7. Automatic lead routing ---------------------------------------------------------------------------
+-- Every new lead is sent to Featured and Premium contractors that serve the customer's city. One lead goes to up to 3
+-- contractors (Premium first, then whoever received a lead longest ago, so leads rotate fairly). Admins can add or remove
+-- contractors by hand on a lead. Contractors never read the leads table: they see only leads sent to them, through the
+-- functions below.
+create table if not exists public.lead_assignments (
+  lead_id           uuid not null references public.leads (id) on delete cascade,
+  listing_id        uuid not null references public.listings (id) on delete cascade,
+  assigned_at       timestamptz not null default now(),
+  source            text not null default 'auto' check (source in ('auto', 'manual')),
+  contractor_status text not null default 'new' check (contractor_status in ('new', 'contacted', 'won', 'lost')),
+  contractor_notes  text check (char_length(contractor_notes) <= 2000),
+  contacted_at      timestamptz,
+  primary key (lead_id, listing_id)
+);
+create index if not exists lead_assignments_listing_idx on public.lead_assignments (listing_id, assigned_at desc);
+alter table public.lead_assignments enable row level security;
+
+drop policy if exists "Admins manage lead assignments" on public.lead_assignments;
+create policy "Admins manage lead assignments" on public.lead_assignments for all to authenticated
+  using (public.is_admin()) with check (public.is_admin());
+
+-- Carry over leads that an earlier version assigned by hand.
+insert into public.lead_assignments (lead_id, listing_id, assigned_at, source, contractor_status, contractor_notes)
+select l.id, l.assigned_listing_id, coalesce(l.assigned_at, now()), 'manual', l.contractor_status, l.contractor_notes
+from public.leads l
+where l.assigned_listing_id is not null
+on conflict do nothing;
+
+-- "TX", "tx" and "Texas" all compare equal.
+create or replace function public.norm_state(s text)
+returns text
+language sql
+immutable
+as $$
+  select coalesce(
+    (select v.name from (values
+    ('al', 'alabama'),
+    ('ak', 'alaska'),
+    ('az', 'arizona'),
+    ('ar', 'arkansas'),
+    ('ca', 'california'),
+    ('co', 'colorado'),
+    ('ct', 'connecticut'),
+    ('de', 'delaware'),
+    ('fl', 'florida'),
+    ('ga', 'georgia'),
+    ('hi', 'hawaii'),
+    ('id', 'idaho'),
+    ('il', 'illinois'),
+    ('in', 'indiana'),
+    ('ia', 'iowa'),
+    ('ks', 'kansas'),
+    ('ky', 'kentucky'),
+    ('la', 'louisiana'),
+    ('me', 'maine'),
+    ('md', 'maryland'),
+    ('ma', 'massachusetts'),
+    ('mi', 'michigan'),
+    ('mn', 'minnesota'),
+    ('ms', 'mississippi'),
+    ('mo', 'missouri'),
+    ('mt', 'montana'),
+    ('ne', 'nebraska'),
+    ('nv', 'nevada'),
+    ('nh', 'new hampshire'),
+    ('nj', 'new jersey'),
+    ('nm', 'new mexico'),
+    ('ny', 'new york'),
+    ('nc', 'north carolina'),
+    ('nd', 'north dakota'),
+    ('oh', 'ohio'),
+    ('ok', 'oklahoma'),
+    ('or', 'oregon'),
+    ('pa', 'pennsylvania'),
+    ('ri', 'rhode island'),
+    ('sc', 'south carolina'),
+    ('sd', 'south dakota'),
+    ('tn', 'tennessee'),
+    ('tx', 'texas'),
+    ('ut', 'utah'),
+    ('vt', 'vermont'),
+    ('va', 'virginia'),
+    ('wa', 'washington'),
+    ('wv', 'west virginia'),
+    ('wi', 'wisconsin'),
+    ('wy', 'wyoming'),
+    ('dc', 'district of columbia')
+    ) as v(abbr, name) where lower(btrim(s)) in (v.abbr, v.name) limit 1),
+    lower(btrim(s))
+  );
+$$;
+
+-- Sends one lead to matching paid contractors. Returns how many contractors it was sent to.
+create or replace function public.route_lead(p_lead uuid, p_max int default 3)
+returns int
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  l public.leads;
+  n int := 0;
+begin
+  select * into l from public.leads where id = p_lead;
+  if not found or l.status = 'spam' then
+    return 0;
+  end if;
+
+  insert into public.lead_assignments (lead_id, listing_id, source)
+  select l.id, c.id, 'auto'
+  from (
+    select li.id,
+           (li.plan = 'premium') as is_premium,
+           (select max(a.assigned_at) from public.lead_assignments a where a.listing_id = li.id) as last_at,
+           li.created_at
+    from public.listings li
+    join public.listing_owners o on o.listing_id = li.id
+    where li.status = 'published'
+      and li.plan in ('featured', 'premium')
+      and (li.plan_until is null or li.plan_until > now())
+      and public.norm_state(li.state) = public.norm_state(l.state)
+      and (
+        lower(btrim(li.city)) = lower(btrim(l.city))
+        or (li.service_areas is not null
+            and li.service_areas ~* ('\m' || regexp_replace(btrim(l.city), '([^a-zA-Z0-9 ])', '\\\1', 'g') || '\M'))
+      )
+    order by is_premium desc, last_at asc nulls first, li.created_at
+    limit greatest(p_max, 0)
+  ) c
+  on conflict do nothing;
+
+  get diagnostics n = row_count;
+  return n;
+end;
+$$;
+
+-- Route every new lead as it arrives. A routing problem must never stop the lead being saved.
+create or replace function public.leads_auto_route()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  begin
+    perform public.route_lead(new.id);
+  exception when others then
+    null;
+  end;
+  return null;
+end;
+$$;
+
+drop trigger if exists leads_route_after_insert on public.leads;
+create trigger leads_route_after_insert after insert on public.leads for each row execute function public.leads_auto_route();
+
+-- Admin button: send an existing lead (for example one that arrived before this was set up) to matching contractors.
+create or replace function public.admin_route_lead(p_lead uuid)
+returns int
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.is_admin() then
+    raise exception 'Admins only';
+  end if;
+  return public.route_lead(p_lead);
+end;
+$$;
+
+-- What a contractor sees: only leads sent to their own listing, only the fields they need.
+drop function if exists public.my_leads();
 create or replace function public.my_leads()
 returns table (
-  id uuid, created_at timestamptz, assigned_at timestamptz, issue text, urgency text, city text, state text, postal_code text,
-  street text, unit text, first_name text, last_name text, phone text, email text, contact_method text, description text,
-  property_type text, property_status text, preferred_contact_time text, contractor_status text, contractor_notes text
+  id uuid, created_at timestamptz, assigned_at timestamptz, source text, recipient_count int,
+  issue text, urgency text, city text, state text, postal_code text, street text, unit text,
+  first_name text, last_name text, phone text, email text, contact_method text, description text,
+  property_type text, property_status text, preferred_contact_time text,
+  contractor_status text, contractor_notes text, contacted_at timestamptz
 )
 language sql
 security definer
 set search_path = public
 stable
 as $$
-  select l.id, l.created_at, l.assigned_at, l.issue, l.urgency, l.city, l.state, l.postal_code,
-         l.street, l.unit, l.first_name, l.last_name, l.phone, l.email, l.contact_method, l.description,
-         l.property_type, l.property_status, l.preferred_contact_time, l.contractor_status, l.contractor_notes
-  from public.leads l
-  join public.listing_owners o on o.listing_id = l.assigned_listing_id
+  select l.id, l.created_at, a.assigned_at, a.source,
+         (select count(*)::int from public.lead_assignments x where x.lead_id = l.id),
+         l.issue, l.urgency, l.city, l.state, l.postal_code, l.street, l.unit,
+         l.first_name, l.last_name, l.phone, l.email, l.contact_method, l.description,
+         l.property_type, l.property_status, l.preferred_contact_time,
+         a.contractor_status, a.contractor_notes, a.contacted_at
+  from public.lead_assignments a
+  join public.leads l on l.id = a.lead_id
+  join public.listing_owners o on o.listing_id = a.listing_id
   where o.user_id = auth.uid() and l.status <> 'spam'
-  order by l.assigned_at desc nulls last, l.created_at desc;
+  order by a.assigned_at desc;
 $$;
 
 create or replace function public.update_my_lead(p_id uuid, p_status text, p_notes text)
@@ -168,17 +346,23 @@ begin
   if p_status not in ('new', 'contacted', 'won', 'lost') then
     raise exception 'Invalid status';
   end if;
-  update public.leads l
-     set contractor_status = p_status, contractor_notes = nullif(left(p_notes, 2000), '')
-   where l.id = p_id
-     and exists (select 1 from public.listing_owners o where o.listing_id = l.assigned_listing_id and o.user_id = auth.uid());
+  update public.lead_assignments a
+     set contractor_status = p_status,
+         contractor_notes = nullif(left(p_notes, 2000), ''),
+         contacted_at = case when p_status = 'new' then null when a.contacted_at is null then now() else a.contacted_at end
+   where a.lead_id = p_id
+     and exists (select 1 from public.listing_owners o where o.listing_id = a.listing_id and o.user_id = auth.uid());
   if not found then
     raise exception 'Lead not found';
   end if;
 end;
 $$;
 
+revoke all on function public.route_lead(uuid, int) from public, anon, authenticated;
+revoke all on function public.leads_auto_route() from public, anon, authenticated;
+revoke all on function public.admin_route_lead(uuid) from public, anon;
 revoke all on function public.my_leads() from public, anon;
 revoke all on function public.update_my_lead(uuid, text, text) from public, anon;
+grant execute on function public.admin_route_lead(uuid) to authenticated;
 grant execute on function public.my_leads() to authenticated;
 grant execute on function public.update_my_lead(uuid, text, text) to authenticated;

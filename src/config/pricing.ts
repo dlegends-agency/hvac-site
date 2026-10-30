@@ -32,20 +32,20 @@ export const plans: Plan[] = [
     features: [
       "Everything in Basic",
       "Featured badge and placement above Basic listings",
+      "Customer requests from your area sent to you automatically",
+      "Contact customers and track each request as contacted, won or lost, with notes",
       "Your Google star rating and review count, shown live on your listing and in the directory",
-      "Longer description and highlighted services",
     ],
   },
   {
     id: "premium",
     name: "Premium",
     price: 99,
-    blurb: "Top placement plus customer referrals.",
+    blurb: "Top placement and first in line for requests.",
     features: [
       "Everything in Featured",
       "Top-of-list placement ahead of Featured listings",
-      "Eligible for customer requests, shown in your dashboard",
-      "Mark leads contacted, won or lost and keep notes",
+      "First in line when a request is shared between contractors",
     ],
   },
 ];
@@ -55,7 +55,7 @@ export const planName = (id: PlanId | undefined) => plans.find((p) => p.id === i
 export const pricingFaq: { question: string; answer: string }[] = [
   {
     question: "Are customer requests guaranteed?",
-    answer: "No. Requests come from people who use our service request form and depend on demand in your area. We assign requests to eligible Premium contractors at our discretion, and we cannot promise any number of requests or jobs.",
+    answer: "No. Requests come from people who use our service request form and depend on demand in your area. Each new request is sent automatically to Featured and Premium contractors that serve the customer's city, up to three of them, Premium first and then in turn. We cannot promise any number of requests or jobs, and a request may be shared with other contractors.",
   },
   {
     question: "Is Featured placement advertising?",

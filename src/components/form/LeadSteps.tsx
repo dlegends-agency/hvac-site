@@ -164,7 +164,7 @@ export function ReviewStep({ form, goTo, devMode }: { form: F; goTo: (step: numb
               aria-invalid={Boolean(errors.referralAcknowledgment)} {...register("referralAcknowledgment")} />
             <span>
               I understand this website facilitates referrals and may share the information I submitted with suitable
-              independent contractors so they can respond to my request. <span className="font-semibold">(Required)</span>
+              independent contractors (up to three) so they can respond to my request. <span className="font-semibold">(Required)</span>
             </span>
           </label>
           {errors.referralAcknowledgment && (
