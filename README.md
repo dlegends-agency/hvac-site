@@ -87,10 +87,10 @@ Importing a candidate creates a **pending** listing that you review and publish 
 
 `/pricing` lists three plans (Basic free, Featured, Premium; edit names, prices and features in `src/config/pricing.ts`, the prices there are placeholders). Contractors sign up at `/contractor/login`, then **claim** their listing (or add their business). An admin approves each claim in **Admin > Directory > Claims** before the account can edit anything.
 
-- **Dashboard** (`/contractor`): profile editor (description, services, areas, contact details), assigned customer requests with status and notes, plan and billing.
+- **Dashboard** (`/contractor`): request stats and delivery status; **My business** (description, services, ZIP code, travel distance, other cities, contact details, Google connection); **Leads** with status and notes; **Plan & billing**; and **Account settings** (change sign-in email and password, email alerts on/off, the card on file with an "Update card" button, and the payment history with receipts, read from Stripe).
 - **Featured placement**: Featured and Premium listings get a badge, sort above Basic listings (Premium first) in the directory and on city pages, and are labeled as paid. A paid plan only counts while `plan_until` is empty or in the future.
-- **Google reviews**: the contractor picks their business from Google's search results (**My profile > Connect your Google listing**); only Google's place ID is stored. On a paid listing's page and directory card the site asks Google for the current star rating and review count each time the page is viewed (Google's terms do not allow storing ratings), with a "See reviews on Google" link as the fallback. Nothing is typed in by hand. Setup is below.
-- **Leads (automatic)**: every new lead is routed by the database the moment it is saved (`route_lead()` in `supabase/schema-contractors.sql`). It goes to **Featured and Premium** contractors whose listing is published, owned by an approved account, and serves the customer's city (the listing's city, or a city named in its "areas you serve"; the state must match). Up to **3** contractors get each lead: Premium first, then whoever received a lead longest ago, so leads rotate fairly. To change the limit, edit the `p_max` default (3) in that function. If no contractor matches, the lead stays unassigned for you to handle.
+- **Google reviews**: the contractor picks their business from Google's search results (**My business > Connect your Google listing**); only Google's place ID is stored. On a paid listing's page and directory card the site asks Google for the current star rating and review count each time the page is viewed (Google's terms do not allow storing ratings), with a "See reviews on Google" link as the fallback. Nothing is typed in by hand. Setup is below.
+- **Leads (automatic)**: every new lead is routed by the database the moment it is saved (`route_lead()` in `supabase/schema-contractors.sql`). It goes to **Featured and Premium** contractors whose listing is published, owned by an approved account, and **near the customer**: either the lead is in the listing's city (or a city in its "other cities you serve" and the state matches), or the customer's **ZIP code is within the contractor's travel distance** of the contractor's own ZIP code (each contractor sets 5 to 150 miles in **My business**; default 30). The customer's ZIP code is used rather than the typed city, so a mistyped city can't hide a lead. Up to **3** contractors get each lead: Premium first, then local ones, then whoever received a lead longest ago (so leads rotate fairly), then the nearest. To change the limit, edit the `p_max` default (3) in that function. If no contractor matches, the lead stays unassigned for you to handle.
   Contractors read only leads sent to them, through database functions, and never the leads table. Each contractor keeps their own status (new, contacted, won, lost) and notes, and sees how many other contractors got the same request.
   In **Admin > Leads > (a lead)** you can see who received it, remove a contractor, add one by hand, or click **Send to matching contractors** (useful for leads that arrived before this was switched on). A routing error never stops a lead from being saved.
   Contractors are emailed when a lead reaches them (see "Turning on email alerts" below).
@@ -114,6 +114,17 @@ Until these are set the Billing page says payments are not switched on yet, and 
 3. **Cap the cost**: in Google Cloud > APIs & Services > Places API (New) > Quotas, set a low per-day request limit (for example 100 to 300). When the limit is reached the stars simply hide and the reviews link shows instead. Also create a budget alert under Billing > Budgets.
 4. Add the key to Cloudflare Pages as a **Secret** named `GOOGLE_PLACES_API_KEY` and redeploy. Run `supabase/schema-contractors.sql` again so the `google_place_id` column exists.
 5. Each paid, connected listing costs one Places API request each time it is viewed: on its own page, and on a directory card once the card scrolls into view. Basic listings never call Google. The business is found by searching Google for its saved name, city and state. `npm run test:google` checks the helper logic offline.
+
+### Turning on nearby matching (one-time ZIP code data)
+
+Distance matching needs the location of each US ZIP code. The data is the US Census Bureau's public-domain ZIP Code Tabulation Area centroids, stored in `supabase/data/zip-centroids.csv.gz`.
+
+1. Run the latest `supabase/schema-contractors.sql` in the Supabase SQL Editor.
+2. GitHub > **Actions > Load ZIP code data > Run workflow**. It uses the `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` secrets you already added for the discovery agent and loads about 33,800 ZIP codes. Safe to run again.
+3. Contractors need a ZIP code on their listing to be matched by distance: they enter it in **My business** (the dashboard reminds them), and you can set it on any listing in **Admin > Directory**. Listings without a ZIP code are still matched by city and "other cities you serve".
+4. For a lead that arrived before this was set up (or that nobody received), open **Admin > Leads > (the lead) > Send to matching contractors**.
+
+Without the ZIP data nothing breaks: routing simply falls back to city matching.
 
 ### Turning on email alerts for new leads
 

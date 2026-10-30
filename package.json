@@ -11,7 +11,8 @@
     "discover:test": "node scripts/discovery-agent/test.mjs",
     "test:stripe": "node scripts/test-stripe.mjs",
     "test:google": "node scripts/test-google.mjs",
-    "test:notify": "node --import ./scripts/ts-resolve.mjs scripts/test-notify.mjs"
+    "test:notify": "node --import ./scripts/ts-resolve.mjs scripts/test-notify.mjs",
+    "test:account": "node --import ./scripts/ts-resolve.mjs scripts/test-account.mjs"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.3.0",

@@ -1,0 +1,27 @@
+name: Load ZIP code data
+
+# One-time setup for "nearby" lead matching. Run it once from the Actions tab (Run workflow); it is safe to run again.
+# Needs the repository secrets SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (the same ones the discovery agent uses), and the latest
+# supabase/schema-contractors.sql to have been run.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  load:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: node scripts/load-zip-centroids.mjs
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}

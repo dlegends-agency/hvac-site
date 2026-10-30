@@ -28,12 +28,17 @@ function ProfileForm({ listing, reload }: { listing: Listing; reload: () => Prom
     const state = text(f.get("state"));
     if (name.length < 2 || !city || !state) return setMsg({ ok: false, text: "Business name, city and state are required." });
 
+    const zip = text(f.get("postal_code"));
+    if (zip && !/^\d{5}(-\d{4})?$/.test(zip)) return setMsg({ ok: false, text: "Enter a valid 5-digit ZIP code." });
+    const radius = Number(text(f.get("service_radius_miles")) || 30);
+    if (!Number.isInteger(radius) || radius < 5 || radius > 150) return setMsg({ ok: false, text: "Travel distance must be a whole number from 5 to 150 miles." });
+
     setSaving(true);
     setMsg(null);
     const { error } = await getSupabaseBrowser().from("listings").update({
       business_name: name, description: text(f.get("description")) || null, services: selected, emergency_service: emergency,
       phone: text(f.get("phone")) || null, email: text(f.get("email")) || null, website: text(f.get("website")) || null,
-      address: text(f.get("address")) || null, city, state, postal_code: text(f.get("postal_code")) || null, service_areas: text(f.get("service_areas")) || null,
+      address: text(f.get("address")) || null, city, state, postal_code: zip || null, service_areas: text(f.get("service_areas")) || null, service_radius_miles: radius,
     }).eq("id", listing.id);
     setSaving(false);
     if (error) return setMsg({ ok: false, text: "Could not save. Please check your entries and try again." });
@@ -65,9 +70,10 @@ function ProfileForm({ listing, reload }: { listing: Listing; reload: () => Prom
           <div className="grid gap-4 sm:grid-cols-3">
             {input("city", "City", listing.city)}
             {input("state", "State", listing.state)}
-            {input("postal_code", "ZIP", listing.postal_code, { optional: true })}
+            {input("postal_code", "ZIP code", listing.postal_code, { hint: "Needed to send you nearby customer requests." })}
           </div>
-          {input("service_areas", "Areas you serve", listing.service_areas, { optional: true, hint: "Cities or counties, separated by commas. Used to show you on nearby city pages." })}
+          {input("service_radius_miles", "How far will you travel? (miles)", listing.service_radius_miles ?? 30, { type: "number", hint: "Featured and Premium: customers whose ZIP code is within this distance of yours are sent to you. 5 to 150 miles." })}
+          {input("service_areas", "Other cities you serve", listing.service_areas, { optional: true, hint: "Cities or counties, separated by commas. Requests from these cities are sent to you too, and you show up on their city pages." })}
         </div>
       </Panel>
 
@@ -107,11 +113,11 @@ function ProfileForm({ listing, reload }: { listing: Listing; reload: () => Prom
   );
 }
 
-export default function ContractorProfile() {
+export default function ContractorBusiness() {
   const { listing, reload } = useContractor();
   return (
     <>
-      <PageTitle title="My profile" />
+      <PageTitle title="My business" />
       {!listing ? (
         <Panel title="Not connected yet"><p className="text-sm text-slate-700">Connect your business on the <Link to="/contractor" className="font-semibold text-primary underline">dashboard</Link> first.</p></Panel>
       ) : (

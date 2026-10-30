@@ -137,7 +137,8 @@ alter table public.leads add column if not exists contractor_notes text check (c
 create index if not exists leads_assigned_idx on public.leads (assigned_listing_id);
 
 -- 7. Automatic lead routing ---------------------------------------------------------------------------
--- Every new lead is sent to Featured and Premium contractors that serve the customer's city. One lead goes to up to 3
+-- Every new lead is sent to Featured and Premium contractors that serve the customer's area (their city, or within their
+-- travel radius of the customer's ZIP code). One lead goes to up to 3
 -- contractors (Premium first, then whoever received a lead longest ago, so leads rotate fairly). Admins can add or remove
 -- contractors by hand on a lead. Contractors never read the leads table: they see only leads sent to them, through the
 -- functions below.
@@ -229,7 +230,43 @@ as $$
   );
 $$;
 
+-- How far a contractor will travel, and where ZIP codes are (US Census data loaded once by scripts/load-zip-centroids.mjs).
+alter table public.listings add column if not exists service_radius_miles int not null default 30;
+alter table public.listings drop constraint if exists listings_service_radius_check;
+alter table public.listings add constraint listings_service_radius_check check (service_radius_miles between 5 and 150);
+
+create table if not exists public.zip_centroids (
+  zip text primary key check (zip ~ '^[0-9]{5}$'),
+  lat double precision not null,
+  lng double precision not null
+);
+alter table public.zip_centroids enable row level security; -- no policies: read only by the routing function
+
+-- First five digits of a US ZIP, or null ("78701-1234" and "78701" both give 78701).
+create or replace function public.zip5(s text)
+returns text
+language sql
+immutable
+as $$
+  select case when length(regexp_replace(coalesce(s, ''), '[^0-9]', '', 'g')) >= 5
+              then left(regexp_replace(s, '[^0-9]', '', 'g'), 5) end;
+$$;
+
+-- Straight-line distance in miles.
+create or replace function public.miles_between(lat1 double precision, lng1 double precision, lat2 double precision, lng2 double precision)
+returns double precision
+language sql
+immutable
+as $$
+  select 3958.8 * 2 * asin(least(1, sqrt(
+    power(sin(radians(lat2 - lat1) / 2), 2) + cos(radians(lat1)) * cos(radians(lat2)) * power(sin(radians(lng2 - lng1) / 2), 2)
+  )));
+$$;
+
 -- Sends one lead to matching paid contractors. Returns how many contractors it was sent to.
+-- A contractor matches when the lead is in their city or a city they list, OR when the customer's ZIP code is within the
+-- contractor's own travel radius of the contractor's ZIP code. The customer's ZIP is used, not the typed city, so a mistyped city
+-- cannot hide a lead. Order: Premium first, then local, then whoever received a lead longest ago, then nearest.
 create or replace function public.route_lead(p_lead uuid, p_max int default 3)
 returns int
 language plpgsql
@@ -238,6 +275,8 @@ set search_path = public
 as $$
 declare
   l public.leads;
+  v_lat double precision;
+  v_lng double precision;
   n int := 0;
 begin
   select * into l from public.leads where id = p_lead;
@@ -245,25 +284,30 @@ begin
     return 0;
   end if;
 
+  select z.lat, z.lng into v_lat, v_lng from public.zip_centroids z where z.zip = public.zip5(l.postal_code);
+
   insert into public.lead_assignments (lead_id, listing_id, source)
   select l.id, c.id, 'auto'
   from (
-    select li.id,
-           (li.plan = 'premium') as is_premium,
-           (select max(a.assigned_at) from public.lead_assignments a where a.listing_id = li.id) as last_at,
-           li.created_at
-    from public.listings li
-    join public.listing_owners o on o.listing_id = li.id
-    where li.status = 'published'
-      and li.plan in ('featured', 'premium')
-      and (li.plan_until is null or li.plan_until > now())
-      and public.norm_state(li.state) = public.norm_state(l.state)
-      and (
-        lower(btrim(li.city)) = lower(btrim(l.city))
-        or (li.service_areas is not null
-            and li.service_areas ~* ('\m' || regexp_replace(btrim(l.city), '([^a-zA-Z0-9 ])', '\\\1', 'g') || '\M'))
-      )
-    order by is_premium desc, last_at asc nulls first, li.created_at
+    select q.id
+    from (
+      select li.id, li.created_at, (li.plan = 'premium') as is_premium, li.service_radius_miles as radius,
+             (select max(a.assigned_at) from public.lead_assignments a where a.listing_id = li.id) as last_at,
+             (public.norm_state(li.state) = public.norm_state(l.state) and (
+                lower(btrim(li.city)) = lower(btrim(l.city))
+                or (li.service_areas is not null
+                    and li.service_areas ~* ('\m' || regexp_replace(btrim(l.city), '([^a-zA-Z0-9 ])', '\\\1', 'g') || '\M'))
+              )) as is_local,
+             case when v_lat is not null and z.lat is not null then public.miles_between(v_lat, v_lng, z.lat, z.lng) end as miles
+      from public.listings li
+      join public.listing_owners o on o.listing_id = li.id
+      left join public.zip_centroids z on z.zip = public.zip5(li.postal_code)
+      where li.status = 'published'
+        and li.plan in ('featured', 'premium')
+        and (li.plan_until is null or li.plan_until > now())
+    ) q
+    where q.is_local or (q.miles is not null and q.miles <= q.radius)
+    order by q.is_premium desc, q.is_local desc, q.last_at asc nulls first, q.miles asc nulls last, q.created_at
     limit greatest(p_max, 0)
   ) c
   on conflict do nothing;

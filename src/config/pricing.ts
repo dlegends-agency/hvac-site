@@ -20,7 +20,7 @@ export const plans: Plan[] = [
     features: [
       "Listing page with your contact details and services",
       "Appears in the directory and on service-area pages",
-      "Contractor login to edit your profile",
+      "Contractor login to edit your business details",
     ],
   },
   {
@@ -32,7 +32,7 @@ export const plans: Plan[] = [
     features: [
       "Everything in Basic",
       "Featured badge and placement above Basic listings",
-      "Customer requests from your area sent to you automatically",
+      "Customer requests from your area, within the distance you set, sent to you automatically",
       "Contact customers and track each request as contacted, won or lost, with notes",
       "Your Google star rating and review count, shown live on your listing and in the directory",
     ],
@@ -55,7 +55,7 @@ export const planName = (id: PlanId | undefined) => plans.find((p) => p.id === i
 export const pricingFaq: { question: string; answer: string }[] = [
   {
     question: "Are customer requests guaranteed?",
-    answer: "No. Requests come from people who use our service request form and depend on demand in your area. Each new request is sent automatically to Featured and Premium contractors that serve the customer's city, up to three of them, Premium first and then in turn. We cannot promise any number of requests or jobs, and a request may be shared with other contractors.",
+    answer: "No. Requests come from people who use our service request form and depend on demand in your area. Each new request is sent automatically to Featured and Premium contractors that work near the customer (in their city, or within the travel distance the contractor sets), up to three of them, Premium first and then in turn. We cannot promise any number of requests or jobs, and a request may be shared with other contractors.",
   },
   {
     question: "Is Featured placement advertising?",

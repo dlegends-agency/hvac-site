@@ -128,7 +128,7 @@ export default function ContractorLeads() {
     <>
       <PageTitle title="Customer requests" />
       <p className="mb-5 max-w-3xl text-sm text-slate-700">
-        New requests from customers in your area are sent to you automatically while you&apos;re on a Featured or Premium plan. Contact the customer yourself, then
+        New requests from customers near you are sent to you automatically while you&apos;re on a Featured or Premium plan. Contact the customer yourself, then
         update the status so you can keep track.
       </p>
 

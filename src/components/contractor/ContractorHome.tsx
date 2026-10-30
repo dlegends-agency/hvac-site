@@ -27,7 +27,7 @@ export default function ContractorHome() {
             <Panel title="Request received">
               <p className="flex items-start gap-2 text-sm text-slate-700">
                 <Clock className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
-                We&apos;re reviewing your request. Once it&apos;s approved you&apos;ll be able to edit your profile, choose a plan and see customer requests here.
+                We&apos;re reviewing your request. Once it&apos;s approved you&apos;ll be able to edit your business details, choose a plan and see customer requests here.
               </p>
             </Panel>
           ) : (
@@ -62,12 +62,13 @@ export default function ContractorHome() {
   const areas = [...new Set([listing.city, ...(listing.service_areas ?? "").split(",").map((a) => a.trim())].filter(Boolean))];
   const endsSoon = plan !== "free" && Boolean(listing.plan_until) && new Date(listing.plan_until as string).getTime() - now < 7 * 864e5;
   const checklist = [
-    { done: Boolean(listing.description && listing.description.length >= 40), label: "Write a description of your business", to: "/contractor/profile" },
-    { done: listing.services.length > 0, label: "Choose the services you offer", to: "/contractor/profile" },
-    { done: Boolean(listing.phone), label: "Add a phone number", to: "/contractor/profile" },
-    { done: Boolean(listing.service_areas), label: "List the other cities you serve, so you get requests there too", to: "/contractor/profile" },
+    { done: Boolean(listing.description && listing.description.length >= 40), label: "Write a description of your business", to: "/contractor/business" },
+    { done: listing.services.length > 0, label: "Choose the services you offer", to: "/contractor/business" },
+    { done: Boolean(listing.phone), label: "Add a phone number", to: "/contractor/business" },
+    { done: Boolean(listing.postal_code), label: "Add your ZIP code and how far you travel, so nearby requests reach you", to: "/contractor/business" },
+    { done: Boolean(listing.service_areas), label: "List the other cities you serve, so you get requests there too", to: "/contractor/business" },
     { done: plan !== "free", label: "Choose a Featured or Premium plan to receive requests", to: "/contractor/billing" },
-    { done: Boolean(listing.google_place_id), label: "Connect your Google listing to show stars (Featured and Premium)", to: "/contractor/profile" },
+    { done: Boolean(listing.google_place_id), label: "Connect your Google listing to show stars (Featured and Premium)", to: "/contractor/business" },
   ];
 
   return (
@@ -113,10 +114,18 @@ export default function ContractorHome() {
                 {areas.map((a) => (
                   <li key={a} className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-800"><MapPin className="size-3.5 text-primary" aria-hidden /> {a}</li>
                 ))}
+                {listing.postal_code && (
+                  <li className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1 text-sm text-slate-800"><MapPin className="size-3.5 text-primary" aria-hidden /> within {listing.service_radius_miles ?? 30} miles of {listing.postal_code}</li>
+                )}
               </ul>
+              {!listing.postal_code && (
+                <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
+                  Add your ZIP code in <Link to="/contractor/business" className="font-semibold underline">My business</Link> so we can also send you requests from customers nearby, not just in your own city.
+                </p>
+              )}
               <p className="mt-3 text-xs text-slate-500">
-                Each request goes to up to 3 contractors in the customer&apos;s area, Premium first, then in turn. Not every request will reach you, and we can&apos;t promise any number of requests or jobs.
-                {!listing.service_areas && <> Add the other cities you serve in <Link to="/contractor/profile" className="font-semibold text-primary underline">My profile</Link> to receive requests there too.</>}
+                Each request goes to up to 3 contractors near the customer, Premium first, then in turn. Not every request will reach you, and we can&apos;t promise any number of requests or jobs.
+                
               </p>
             </>
           )}

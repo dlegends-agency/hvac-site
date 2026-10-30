@@ -116,6 +116,8 @@ export interface Listing {
   plan_until?: string | null;
   google_reviews_url?: string | null;
   google_place_id?: string | null;
+  /** How far the business travels for customers, in miles (used to match nearby requests). */
+  service_radius_miles?: number;
 }
 
 export type PlanId = "free" | "featured" | "premium";

@@ -33,12 +33,13 @@ export function planForPrice(env: Env, priceId: string | undefined): Plan | null
   return null;
 }
 
-/** Calls the Stripe REST API with a form-encoded body. */
+/** Calls the Stripe REST API: a form-encoded body for POST, the query string for GET. */
 export async function stripe<T>(env: Env, method: "GET" | "POST", path: string, params?: Record<string, string>): Promise<T> {
-  const res = await fetch(`https://api.stripe.com/v1${path}`, {
+  const query = method === "GET" && params ? `?${new URLSearchParams(params).toString()}` : "";
+  const res = await fetch(`https://api.stripe.com/v1${path}${query}`, {
     method,
     headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}`, "Content-Type": "application/x-www-form-urlencoded" },
-    body: params ? new URLSearchParams(params).toString() : undefined,
+    body: method === "POST" && params ? new URLSearchParams(params).toString() : undefined,
   });
   const data = (await res.json()) as T & { error?: { message?: string } };
   if (!res.ok) throw new Error(`Stripe ${res.status}: ${data.error?.message ?? "request failed"}`);
@@ -71,10 +72,16 @@ export async function ownedListingId(env: Env, userId: string): Promise<string |
   return rows[0]?.listing_id ?? null;
 }
 
-export async function billingFor(env: Env, listingId: string): Promise<{ stripe_customer_id: string | null; status: string | null } | null> {
-  const res = await db(env, `listing_billing?listing_id=eq.${encodeURIComponent(listingId)}&select=stripe_customer_id,status&limit=1`);
+export interface BillingRow {
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
+  status: string | null;
+}
+
+export async function billingFor(env: Env, listingId: string): Promise<BillingRow | null> {
+  const res = await db(env, `listing_billing?listing_id=eq.${encodeURIComponent(listingId)}&select=stripe_customer_id,stripe_subscription_id,status&limit=1`);
   if (!res.ok) return null;
-  return ((await res.json()) as { stripe_customer_id: string | null; status: string | null }[])[0] ?? null;
+  return ((await res.json()) as BillingRow[])[0] ?? null;
 }
 
 export const siteOrigin = (env: Env, request: Request) => (env.VITE_SITE_URL || new URL(request.url).origin).replace(/\/+$/, "");

@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router-dom";
 import { PageViewTracker } from "@/components/PageViewTracker";
 import { ScrollManager } from "@/components/ScrollManager";
 import { RevealManager } from "@/components/RevealManager";
@@ -38,8 +38,9 @@ const ContractorLoginPage = lazy(() => import("@/components/contractor/Contracto
 const ContractorLayout = lazy(() => import("@/components/contractor/ContractorLayout"));
 const ContractorHome = lazy(() => import("@/components/contractor/ContractorHome"));
 const ContractorLeads = lazy(() => import("@/components/contractor/ContractorLeads"));
-const ContractorProfile = lazy(() => import("@/components/contractor/ContractorProfile"));
+const ContractorBusiness = lazy(() => import("@/components/contractor/ContractorBusiness"));
 const ContractorBilling = lazy(() => import("@/components/contractor/ContractorBilling"));
+const ContractorAccount = lazy(() => import("@/components/contractor/ContractorAccount"));
 const ClaimsAdmin = lazy(() => import("@/components/admin/ClaimsAdmin").then((m) => ({ default: m.ClaimsAdmin })));
 const AnalyticsReport = lazy(() => import("@/components/admin/AnalyticsReport").then((m) => ({ default: m.AnalyticsReport })));
 
@@ -68,8 +69,10 @@ export default function App() {
           <Route path="/contractor" element={<ContractorLayout />}>
             <Route index element={<ContractorHome />} />
             <Route path="leads" element={<ContractorLeads />} />
-            <Route path="profile" element={<ContractorProfile />} />
+            <Route path="business" element={<ContractorBusiness />} />
+            <Route path="profile" element={<Navigate to="/contractor/business" replace />} />
             <Route path="billing" element={<ContractorBilling />} />
+            <Route path="account" element={<ContractorAccount />} />
           </Route>
           <Route path="/admin/login" element={<AdminLoginPage />} />
           <Route path="/admin" element={<PanelLayout />}>

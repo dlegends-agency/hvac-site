@@ -225,6 +225,57 @@ const n3 = await lead("Austin", "Texas");
 assert.ok((await assigned(n3)).length > 0, "assignment still created when the ping fails");
 assert.ok((await db.query("select count(*)::int n from public.lead_notifications where lead_id=$1", [n3])).rows[0].n > 0, "and the alert is still queued for the fallback");
 
+
+// 11. Nearby matching by ZIP code and each contractor's travel radius.
+await db.exec(`insert into public.zip_centroids values
+  ('78701', 30.2706, -97.7426), ('78626', 30.6600, -97.6900), ('76701', 31.5539, -97.1458), ('77002', 29.7568, -95.3657), ('19103', 39.9534, -75.1742)`);
+assert.equal((await db.query("select public.zip5('78701-1234') a, public.zip5('K1A 0B1') b, public.zip5(null) c, public.zip5(' 7870 ') d")).rows[0].b, null);
+assert.deepEqual((await db.query("select public.zip5('78701-1234') a, public.zip5(null) c, public.zip5('7870') d")).rows[0], { a: "78701", c: null, d: null });
+const dist = (await db.query("select public.miles_between(30.2706,-97.7426,29.7568,-95.3657) m")).rows[0].m;
+assert.ok(dist > 140 && dist < 152, `Austin to Houston is about 146 miles (got ${Math.round(dist)})`);
+assert.equal((await db.query("select public.miles_between(30,-97,30,-97) m")).rows[0].m, 0);
+
+const zl = async (name, city, state, plan, zip, radius, extra = {}) => {
+  const x = await listing(name, city, state, plan, extra);
+  await db.query("update public.listings set postal_code=$1, service_radius_miles=$2 where id=$3", [zip, radius, x.id]);
+  return x;
+};
+await zl("Zulu Georgetown", "Georgetown", "TX", "featured", "78626", 30);       // about 27 miles from downtown Austin
+await zl("Yankee Waco", "Waco", "TX", "premium", "76701", 30);                   // about 94 miles: too far for its 30 mile radius
+await zl("Xray Waco Far", "Waco", "TX", "featured", "76701", 100);               // same place, but happy to travel 100 miles
+await zl("Whiskey Houston", "Houston", "TX", "premium", "77002", 100);           // about 146 miles
+await zl("Tango Free", "Austin", "TX", "free", "78701", 50);                     // free plans never receive leads
+await zl("Sierra Expired", "Austin", "TX", "premium", "78701", 50, { until: past });
+
+const mk = async (city, state, zip) => (await db.query("insert into public.leads (city, state, postal_code) values ($1,$2,$3) returning id", [city, state, zip])).rows[0].id;
+
+// The situation from real life: the customer typed a wrong city but gave a valid ZIP code.
+const garbled = await mk("Pennsylvania", "Texas", "78701");
+assert.deepEqual(names(await assigned(garbled)), ["Xray Waco Far", "Zulu Georgetown"], "matched by distance and each contractor's own radius");
+
+// Premium contractors right at the customer's ZIP come first; the cap of 3 keeps the nearest featured ones.
+await zl("Victor Premium", "Austin", "TX", "premium", "78701", 20);
+await zl("Uniform Featured", "Austin", "TX", "featured", "78701", 5);
+const garbled2 = await mk("Pennsylvania", "Texas", "78701-4321");
+assert.deepEqual(names(await assigned(garbled2)), ["Uniform Featured", "Victor Premium", "Zulu Georgetown"], "ZIP+4 works; premium first, then nearest featured; capped at 3");
+
+// A contractor's radius is respected; a ZIP we do not know falls back to city matching only.
+const unknownZip = await mk("Austin", "Texas", "00000");
+const got0 = names(await assigned(unknownZip));
+assert.equal(got0.length, 3, "still routed by city");
+assert.ok(!got0.includes("Zulu Georgetown") && !got0.includes("Xray Waco Far"), "unknown ZIP: contractors that match only by distance are not used");
+const far = await mk("Philadelphia", "Pennsylvania", "19103");
+assert.equal((await assigned(far)).length, 0, "nobody within range of Philadelphia");
+await assert.rejects(() => db.query("update public.listings set service_radius_miles = 3 where business_name = 'Zulu Georgetown'"), /service_radius/);
+await assert.rejects(() => db.query("update public.listings set service_radius_miles = 500 where business_name = 'Zulu Georgetown'"), /service_radius/);
+
+// ZIP data is not readable by clients.
+for (const role of ["anon", "authenticated"]) {
+  await db.exec(`set role ${role}`);
+  await assert.rejects(() => db.query("select * from public.zip_centroids"), /permission denied/);
+  await db.exec("reset role");
+}
+
 // 9. A routing failure must never block saving the lead.
 await db.exec("alter table public.lead_assignments rename to lead_assignments_x");
 const safe = await lead("Austin", "TX");
