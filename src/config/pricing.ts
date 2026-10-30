@@ -32,7 +32,7 @@ export const plans: Plan[] = [
     features: [
       "Everything in Basic",
       "Featured badge and placement above Basic listings",
-      "Your Google star rating and review count, shown live from Google",
+      "Your Google star rating and review count, shown live on your listing and in the directory",
       "Longer description and highlighted services",
     ],
   },

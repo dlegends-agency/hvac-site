@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Star } from "lucide-react";
 import { safeGoogleUrl } from "@/lib/directory";
 import { isFeatured } from "@/lib/plans";
@@ -13,12 +13,14 @@ export function FeaturedBadge({ listing }: { listing: Listing }) {
   );
 }
 
-/** Link to the business's own Google reviews. Shown on paid listings only; we don't copy or display Google's ratings. */
-export function GoogleReviewsLink({ listing }: { listing: Listing }) {
-  const url = safeGoogleUrl(listing.google_reviews_url);
-  if (!isFeatured(listing) || !url) return null;
+/** Google's own page for the connected business (used when the live rating isn't available). */
+const mapsUrl = (placeId: string) => `https://www.google.com/maps/place/?q=place_id:${encodeURIComponent(placeId)}`;
+
+/** Fallback link to the business's Google reviews. Paid listings connected to Google only. */
+function ReviewsLink({ listing }: { listing: Listing }) {
+  if (!isFeatured(listing) || !listing.google_place_id) return null;
   return (
-    <a href={url} target="_blank" rel="noopener nofollow" className="mt-2 inline-flex w-fit items-center gap-1.5 text-sm font-semibold text-primary hover:underline">
+    <a href={mapsUrl(listing.google_place_id)} target="_blank" rel="noopener nofollow" className="mt-2 inline-flex w-fit items-center gap-1.5 text-sm font-semibold text-primary hover:underline">
       <Star className="size-4 fill-amber-400 text-amber-400" aria-hidden /> See reviews on Google
     </a>
   );
@@ -31,15 +33,36 @@ interface LiveRating {
 }
 
 /**
- * Live Google star rating and review count for a paid listing connected to Google. Fetched from our server (which asks Google
- * when the page is viewed, as Google's terms require). If it isn't available we fall back to the plain reviews link.
+ * Live Google star rating and review count for a paid listing connected to Google. Our server asks Google when this is
+ * shown (Google's terms do not allow storing ratings). On directory cards the request waits until the card is on screen,
+ * so a long list does not call Google for cards nobody scrolls to. If the rating isn't available we show the plain reviews link.
  */
-export function GoogleReviews({ listing }: { listing: Listing }) {
-  const [live, setLive] = useState<{ slug: string; data: LiveRating | null } | null>(null);
+export function GoogleReviews({ listing, compact = false }: { listing: Listing; compact?: boolean }) {
   const wanted = isFeatured(listing) && Boolean(listing.google_place_id);
+  const box = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(!compact);
+  const [live, setLive] = useState<{ slug: string; data: LiveRating | null } | null>(null);
 
   useEffect(() => {
-    if (!wanted) return;
+    const el = box.current;
+    if (!wanted || visible || !el) return;
+    if (typeof IntersectionObserver === "undefined") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- old browsers: just load it
+      setVisible(true);
+      return;
+    }
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) {
+        setVisible(true);
+        io.disconnect();
+      }
+    }, { rootMargin: "200px" });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [wanted, visible]);
+
+  useEffect(() => {
+    if (!wanted || !visible) return;
     let cancelled = false;
     fetch(`/api/google/rating?slug=${encodeURIComponent(listing.slug)}`)
       .then((r) => (r.ok ? r.json() : null))
@@ -52,29 +75,25 @@ export function GoogleReviews({ listing }: { listing: Listing }) {
     return () => {
       cancelled = true;
     };
-  }, [wanted, listing.slug]);
+  }, [wanted, visible, listing.slug]);
 
+  if (!wanted) return null;
   const data = live?.slug === listing.slug ? live.data : null;
-  if (!data) return <GoogleReviewsLink listing={listing} />;
+  // Show nothing while waiting for Google (no flash of the fallback); the link appears only if Google could not answer.
+  if (!data) return <div ref={box}>{live?.slug === listing.slug ? <ReviewsLink listing={listing} /> : null}</div>;
 
-  const url = safeGoogleUrl(data.url) ?? safeGoogleUrl(listing.google_reviews_url);
-  const body = (
-    <>
-      <span className="flex" role="img" aria-label={`${data.rating} out of 5 stars`}>
-        {[1, 2, 3, 4, 5].map((n) => <Star key={n} className={`size-5 ${n <= Math.round(data.rating) ? "fill-amber-400 text-amber-400" : "text-slate-300"}`} aria-hidden />)}
-      </span>
-      <span className="font-semibold text-navy">{data.rating.toFixed(1)}</span>
-      <span className="text-slate-700">({data.count.toLocaleString()} Google reviews)</span>
-    </>
-  );
+  const url = safeGoogleUrl(data.url) ?? mapsUrl(listing.google_place_id as string);
+  const star = compact ? "size-4" : "size-5";
   return (
-    <div className="mt-2">
-      {url ? (
-        <a href={url} target="_blank" rel="noopener nofollow" className="inline-flex flex-wrap items-center gap-x-2 text-sm hover:underline">{body}</a>
-      ) : (
-        <p className="inline-flex flex-wrap items-center gap-x-2 text-sm">{body}</p>
-      )}
-      <p className="mt-0.5 text-xs text-slate-500">Rating and reviews from Google, shown live.</p>
+    <div ref={box} className="mt-2">
+      <a href={url} target="_blank" rel="noopener nofollow" className="inline-flex flex-wrap items-center gap-x-1.5 text-sm hover:underline" aria-label={`${data.rating.toFixed(1)} out of 5 stars from ${data.count.toLocaleString()} Google reviews`}>
+        <span className="flex" aria-hidden>
+          {[1, 2, 3, 4, 5].map((n) => <Star key={n} className={`${star} ${n <= Math.round(data.rating) ? "fill-amber-400 text-amber-400" : "text-slate-300"}`} />)}
+        </span>
+        <span className="font-semibold text-navy">{data.rating.toFixed(1)}</span>
+        <span className="text-slate-700">({data.count.toLocaleString()}{compact ? "" : " Google reviews"})</span>
+      </a>
+      <p className="mt-0.5 text-xs text-slate-500">{compact ? "Google reviews, shown live" : "Rating and reviews from Google, shown live."}</p>
     </div>
   );
 }

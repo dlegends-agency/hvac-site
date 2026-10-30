@@ -89,7 +89,7 @@ Importing a candidate creates a **pending** listing that you review and publish 
 
 - **Dashboard** (`/contractor`): profile editor (description, services, areas, contact details), assigned customer requests with status and notes, plan and billing.
 - **Featured placement**: Featured and Premium listings get a badge, sort above Basic listings (Premium first) in the directory and on city pages, and are labeled as paid. A paid plan only counts while `plan_until` is empty or in the future.
-- **Google reviews**: the contractor picks their business from Google's search results (**My profile > Connect your Google listing**); only Google's place ID is stored. On a paid listing's page the site asks Google for the current star rating and review count each time the page is viewed (Google's terms do not allow storing ratings), with a "See reviews on Google" link as the fallback. Nothing is typed in by hand. Setup is below.
+- **Google reviews**: the contractor picks their business from Google's search results (**My profile > Connect your Google listing**); only Google's place ID is stored. On a paid listing's page and directory card the site asks Google for the current star rating and review count each time the page is viewed (Google's terms do not allow storing ratings), with a "See reviews on Google" link as the fallback. Nothing is typed in by hand. Setup is below.
 - **Leads**: you assign a request to a contractor in **Admin > Leads > (a lead) > Assign to a contractor**. Contractors read only their own assigned leads, through database functions, and never the leads table itself.
 
 ### Turning on payments (Stripe)
@@ -109,7 +109,7 @@ Until these are set the Billing page says payments are not switched on yet, and 
 2. Restrict the key: **API restrictions > Places API (New) only**.
 3. **Cap the cost**: in Google Cloud > APIs & Services > Places API (New) > Quotas, set a low per-day request limit (for example 100 to 300). When the limit is reached the stars simply hide and the reviews link shows instead. Also create a budget alert under Billing > Budgets.
 4. Add the key to Cloudflare Pages as a **Secret** named `GOOGLE_PLACES_API_KEY` and redeploy. Run `supabase/schema-contractors.sql` again so the `google_place_id` column exists.
-5. Each view of a paid, connected listing page costs one Places API request. Directory cards do not call Google. `npm run test:google` checks the helper logic offline.
+5. Each paid, connected listing costs one Places API request each time it is viewed: on its own page, and on a directory card once the card scrolls into view. Basic listings never call Google. The business is found by searching Google for its saved name, city and state. `npm run test:google` checks the helper logic offline.
 
 ## Contact, Privacy Policy and Terms
 
