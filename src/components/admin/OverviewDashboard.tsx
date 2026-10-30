@@ -3,9 +3,11 @@ import { Link } from "react-router-dom";
 import { ArrowDownRight, ArrowUpRight, Building2, Check, ExternalLink, EyeOff, MapPin, Minus, RefreshCw, Users } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { locations } from "@/config/locations";
+import { plans } from "@/config/pricing";
+import { activePlan } from "@/lib/plans";
 import { countBy, dailyCounts, useCountUp, useLiveQuery, useNow } from "@/lib/admin-hooks";
 import { getSupabaseBrowser } from "@/lib/supabase";
-import { LEAD_STATUSES, LISTING_STATUSES, type Lead, type Listing, type ListingPrivate, type ListingStatus, type PageView } from "@/lib/types";
+import { LEAD_STATUSES, LISTING_STATUSES, type Lead, type Listing, type ListingBilling, type ListingPrivate, type ListingStatus, type PageView } from "@/lib/types";
 import { BarList, DailyChart, PageTitle, Panel, StatusBadge } from "./widgets";
 
 const DAY = 86_400_000;
@@ -53,13 +55,13 @@ function Delta({ now, prev }: { now: number; prev: number }) {
 }
 
 function Kpi({ label, value, suffix = "", prev, spark, tone = "blue", children }: {
-  label: string; value: number; suffix?: string; prev?: number; spark?: number[]; tone?: "blue" | "orange"; children?: React.ReactNode;
+  label: string; value: number; suffix?: string; prev?: number; spark?: number[]; tone?: "blue" | "orange" | "green"; children?: React.ReactNode;
 }) {
   const shown = useCountUp(value);
   return (
-    <div className={`rounded-2xl border bg-white p-5 shadow-sm ${tone === "orange" ? "border-orange-200" : "border-slate-200"}`}>
+    <div className={`rounded-2xl border bg-white p-5 shadow-sm ${tone === "orange" ? "border-orange-200" : tone === "green" ? "border-green-200" : "border-slate-200"}`}>
       <p className="text-sm font-medium text-slate-600">{label}</p>
-      <p className={`mt-1 text-3xl font-bold tabular-nums ${tone === "orange" ? "text-emergency" : "text-navy"}`}>{shown.toLocaleString()}{suffix}</p>
+      <p className={`mt-1 text-3xl font-bold tabular-nums ${tone === "orange" ? "text-emergency" : tone === "green" ? "text-green-700" : "text-navy"}`}>{shown.toLocaleString()}{suffix}</p>
       <div className="mt-1 min-h-5">{prev !== undefined ? <Delta now={value} prev={prev} /> : children}</div>
       {spark && <div className={`mt-2 ${tone === "orange" ? "text-emergency" : "text-primary"}`}><Sparkline data={spark} /></div>}
     </div>
@@ -93,6 +95,7 @@ export function OverviewDashboard() {
     { key: `views-${days}`, intervalMs },
   );
   const listingsQ = useLiveQuery<Listing[]>([], () => supabase.from("listings").select("*").order("created_at", { ascending: false }).limit(500), { key: "listings", intervalMs });
+  const billingQ = useLiveQuery<ListingBilling[]>([], () => supabase.from("listing_billing").select("*"), { key: "billing", intervalMs });
   const privateQ = useLiveQuery<ListingPrivate[]>([], () => supabase.from("listing_private").select("*"), { key: "private", intervalMs });
 
   const [listingOverrides, setListingOverrides] = useState<Record<string, ListingStatus>>({});
@@ -150,6 +153,16 @@ export function OverviewDashboard() {
     for (const l of listings) c[l.status]++;
     return c;
   }, [listings]);
+  // Businesses on a paid plan right now (a plan only counts until its paid-until date).
+  const paying = useMemo(() => {
+    const billingById = new Map(billingQ.data.map((b) => [b.listing_id, b]));
+    const rows = listings
+      .filter((l) => activePlan(l) !== "free")
+      .map((l) => ({ l, plan: activePlan(l), billing: billingById.get(l.id) }))
+      .sort((a, b) => (a.plan === b.plan ? a.l.business_name.localeCompare(b.l.business_name) : a.plan === "premium" ? -1 : 1));
+    const monthly = rows.reduce((sum, r) => sum + (plans.find((p) => p.id === r.plan)?.price ?? 0), 0);
+    return { rows, monthly };
+  }, [listings, billingQ.data]);
   const shownListings = listings.filter((l) => listingTab === "all" || l.status === listingTab).slice(0, 12);
 
   async function setStatus(id: string, status: ListingStatus) {
@@ -169,7 +182,7 @@ export function OverviewDashboard() {
   }
 
   function refreshAll() {
-    void Promise.all([leadsQ.reload(), viewsQ.reload(), listingsQ.reload(), privateQ.reload()]);
+    void Promise.all([leadsQ.reload(), viewsQ.reload(), listingsQ.reload(), privateQ.reload(), billingQ.reload()]);
   }
 
   return (
@@ -215,13 +228,16 @@ export function OverviewDashboard() {
         </button>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
         <Kpi label="Page views" value={stats.cur.length} prev={stats.prev.length} spark={stats.viewsSpark} />
         <Kpi label="Visitors" value={stats.visitors} prev={stats.prevVisitors} />
         <Kpi label="Leads" value={stats.curLeads.length} prev={stats.prevLeads.length} spark={stats.leadsSpark} />
         <Kpi label="Visitor → lead rate" value={stats.conversion} suffix="%"><span className="text-xs text-slate-500">Leads ÷ visitors</span></Kpi>
         <Kpi label="Listings to review" value={counts.pending} tone={counts.pending > 0 ? "orange" : "blue"}>
           <span className="text-xs text-slate-500">{counts.published} published · {counts.hidden} hidden</span>
+        </Kpi>
+        <Kpi label="Paying businesses" value={paying.rows.length} tone="green">
+          <span className="text-xs text-slate-500">≈ ${paying.monthly.toLocaleString()} / month at list price</span>
         </Kpi>
       </div>
 
@@ -276,6 +292,38 @@ export function OverviewDashboard() {
         <Panel title={`Page views per day (${days} days)`}><DailyChart data={dailyCounts(stats.cur.map((v) => v.created_at), days)} label="Page views per day" /></Panel>
         <Panel title={`Leads per day (${days} days)`}><DailyChart data={dailyCounts(stats.curLeads.map((l) => l.created_at), days)} label="Leads per day" /></Panel>
       </div>
+
+      <section id="paying" aria-labelledby="paying-title" className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 id="paying-title" className="font-semibold text-navy">Businesses that paid ({paying.rows.length})</h2>
+          <p className="text-xs text-slate-500">Revenue is an estimate from plan list prices. Stripe has the exact figures, including coupons and taxes.</p>
+        </div>
+        {paying.rows.length === 0 ? (
+          <p className="mt-4 rounded-xl bg-slate-50 p-6 text-center text-sm text-slate-600">No paying businesses yet. Paid plans appear here once a contractor subscribes or you set a plan by hand.</p>
+        ) : (
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full min-w-[40rem] text-left text-sm">
+              <thead className="text-xs text-slate-500 uppercase">
+                <tr><th className="pb-2 font-semibold">Business</th><th className="pb-2 font-semibold">Plan</th><th className="pb-2 font-semibold">Paid through</th><th className="pb-2 font-semibold">Billing</th><th className="pb-2 font-semibold">Listing</th></tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {paying.rows.map(({ l, plan, billing }) => (
+                  <tr key={l.id}>
+                    <td className="py-2.5 pr-3">
+                      <Link to={`/admin/listings/${l.id}`} className="font-semibold text-navy hover:text-primary hover:underline">{l.business_name}</Link>
+                      <span className="block text-xs text-slate-500">{l.city}, {l.state}</span>
+                    </td>
+                    <td className="py-2.5 pr-3"><span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-900 capitalize">{plan}</span></td>
+                    <td className="py-2.5 pr-3 text-slate-700">{l.plan_until ? new Date(l.plan_until).toLocaleDateString() : "No end date"}</td>
+                    <td className="py-2.5 pr-3 text-slate-700">{billing?.stripe_subscription_id ? <>Stripe · <span className="capitalize">{billing.status?.replace("_", " ")}</span></> : "Set by hand"}</td>
+                    <td className="py-2.5 text-slate-700 capitalize">{l.status}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
 
       <section id="registrations" aria-labelledby="reg-title" className="mt-6 scroll-mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
