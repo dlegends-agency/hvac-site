@@ -29,16 +29,14 @@ export function LeadCaptureForm({
 }: Props) {
   const { form, step, setStep, status, setStatus, next, back, submit } = useLeadForm(source);
   const headingRef = useRef<HTMLHeadingElement>(null);
-  const mounted = useRef(false);
+  const seen = useRef({ step: 0, status: "idle" as string });
   const last = stepTitles.length - 1;
   const submitting = status === "submitting";
 
   // Move focus to the step heading when the step changes, for keyboard and screen reader users.
   useEffect(() => {
-    if (!mounted.current) {
-      mounted.current = true;
-      return;
-    }
+    if (seen.current.step === step && seen.current.status === status) return;
+    seen.current = { step, status };
     headingRef.current?.focus();
   }, [step, status]);
 

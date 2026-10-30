@@ -15,7 +15,6 @@ export function openLeadForm(issue?: HvacIssue) {
     return;
   }
   el.scrollIntoView({ behavior: "smooth", block: "start" });
-  window.history.replaceState(null, "", `#${LEAD_FORM_ID}`);
 }
 
 export function onPreselectIssue(handler: (issue: HvacIssue) => void) {
