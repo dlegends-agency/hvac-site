@@ -72,8 +72,9 @@ export interface Listing {
   state: string;
   postal_code: string | null;
   service_areas: string | null;
-  source?: "submitted" | "seed" | "google" | "manual";
-  google_place_id?: string | null;
+  source?: "submitted" | "seed" | "agent" | "manual";
+  source_url?: string | null;
+  attribution?: string | null;
 }
 
 /** Admin-only details stored in a separate table. */
@@ -93,6 +94,7 @@ export interface DiscoveryJob {
   max_results: number;
   frequency: "daily" | "weekly" | "manual";
   enabled: boolean;
+  run_requested: boolean;
   last_run_at: string | null;
   last_status: string | null;
   last_found: number | null;
@@ -102,7 +104,8 @@ export interface ListingCandidate {
   id: string;
   fetched_at: string;
   job_id: string | null;
-  place_id: string;
+  external_id: string;
+  origin: "web" | "osm";
   name: string;
   address: string | null;
   city: string | null;
@@ -110,5 +113,20 @@ export interface ListingCandidate {
   postal_code: string | null;
   phone: string | null;
   website: string | null;
-  maps_url: string | null;
+  source_url: string | null;
+  services: string[];
+  emergency: boolean;
+  verified: boolean;
+  confidence: number;
+  notes: string | null;
+}
+
+export interface DiscoveryRun {
+  id: string;
+  job_id: string | null;
+  started_at: string;
+  finished_at: string | null;
+  status: string | null;
+  found: number;
+  log: string[];
 }

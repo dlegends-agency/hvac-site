@@ -4,7 +4,7 @@ import { ArrowLeft, ExternalLink, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Field, inputClass } from "@/components/ui/Field";
 import { services } from "@/config/services";
-import { slugify } from "@/lib/directory";
+import { safeUrl, slugify } from "@/lib/directory";
 import { getSupabaseBrowser } from "@/lib/supabase";
 import { LISTING_STATUSES, type Listing, type ListingPrivate, type ListingStatus } from "@/lib/types";
 import { Panel, QueryState } from "./widgets";
@@ -36,7 +36,7 @@ export function ListingEditor() {
   const navigate = useNavigate();
   const [draft, setDraft] = useState<Draft>(empty);
   const [priv, setPriv] = useState<ListingPrivate | null>(null);
-  const [meta, setMeta] = useState<{ source: string; placeId: string | null } | null>(null);
+  const [meta, setMeta] = useState<{ source: string; sourceUrl: string | null; attribution: string | null } | null>(null);
   const [notes, setNotes] = useState("");
   const [slugTouched, setSlugTouched] = useState(false);
   const [loading, setLoading] = useState(Boolean(id));
@@ -52,7 +52,7 @@ export function ListingEditor() {
       supabase.from("listing_private").select("*").eq("listing_id", id).maybeSingle(),
     ]).then(([l, p]) => {
       const row = l.data as Listing | null;
-      if (row) setMeta({ source: row.source ?? "submitted", placeId: row.google_place_id ?? null });
+      if (row) setMeta({ source: row.source ?? "submitted", sourceUrl: row.source_url ?? null, attribution: row.attribution ?? null });
       if (!row) setMissing(true);
       else {
         setSlugTouched(true);
@@ -181,13 +181,14 @@ export function ListingEditor() {
               </Panel>
               {meta && (
                 <Panel title="Source">
-                  <p className="text-sm capitalize text-slate-700">{meta.source === "google" ? "Found via Google Places" : meta.source}</p>
-                  {meta.placeId && (
-                    <a href={`https://www.google.com/maps/place/?q=place_id:${encodeURIComponent(meta.placeId)}`} target="_blank" rel="noreferrer" className="mt-1 inline-block text-sm font-medium text-primary hover:underline">
-                      View on Google Maps
+                  <p className="text-sm text-slate-700">{meta.source === "agent" ? "Found by the discovery agent" : <span className="capitalize">{meta.source}</span>}</p>
+                  {safeUrl(meta.sourceUrl) && (
+                    <a href={safeUrl(meta.sourceUrl)!} target="_blank" rel="noreferrer" className="mt-1 inline-block text-sm font-medium text-primary hover:underline">
+                      View source page
                     </a>
                   )}
-                  {meta.source === "google" && <p className="mt-2 text-xs text-slate-500">Verify every detail on the business&apos;s own website before publishing.</p>}
+                  {meta.attribution && <p className="mt-2 text-xs text-slate-500">{meta.attribution}</p>}
+                  {meta.source === "agent" && <p className="mt-2 text-xs text-slate-500">Verify every detail on the business&apos;s own website before publishing.</p>}
                 </Panel>
               )}
               {priv && (

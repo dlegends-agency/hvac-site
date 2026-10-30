@@ -78,12 +78,10 @@ They are stock images, not photos of this business or its contractors.
 
 ## Directory admin and business discovery
 
-`/admin/listings` has search, status/city/source filters, sorting, bulk publish/hide/delete, CSV export and a source badge (submitted, seeded, Google discovery, added by admin).
-`/admin/listings/discover` ("Find businesses") lets you define searches by location (for example "Austin, TX"), run them now, and review the results as candidates.
-Searches use the **official Google Places API** (Text Search, new) through the Edge Function `supabase/functions/discover-listings`, scheduled by pg_cron (`supabase/cron-discovery.sql`).
-Setup steps (API key, secrets, deploy, cron) are in `supabase/functions/discover-listings/README.md`.
-Google's terms limit storing Places data, so candidates are deleted after 30 days and importing creates a **pending** listing (with the Google place ID) that must be verified on the business's own website before publishing.
-Scraping Google Maps pages directly is not supported: it violates Google's terms and gets blocked.
+`/admin/listings` has search, status/city/source filters, sorting, bulk publish/hide/delete, CSV export and a source badge (submitted, seeded, found by agent, added by admin).
+`/admin/listings/discover` ("Find businesses") lets you define searches by location (for example "Austin, TX"), run them, and review the results as candidates with a confidence score and a Verified badge.
+A free **discovery agent** (`scripts/discovery-agent`, run by the GitHub Actions workflow `.github/workflows/discovery-agent.yml` every 6 hours) finds HVAC businesses on OpenStreetMap (plus optional web search), visits each business's **own website** to confirm the phone, address and services (robots.txt respected), and drops directories, suppliers and non-contractors. No Google Cloud account or paid API is involved, and Google Maps is not scraped.
+Importing a candidate creates a **pending** listing that you review and publish yourself. Setup (GitHub secrets, optional free keys, optional instant "Run now") is in `scripts/discovery-agent/README.md`.
 
 ## Contact, Privacy Policy and Terms
 

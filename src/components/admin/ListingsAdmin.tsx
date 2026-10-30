@@ -15,7 +15,7 @@ const statusBadge: Record<ListingStatus, string> = {
   published: "bg-green-100 text-green-800",
   hidden: "bg-slate-200 text-slate-700",
 };
-const sourceLabel: Record<string, string> = { submitted: "Submitted", seed: "Seeded", google: "Google discovery", manual: "Added by admin" };
+const sourceLabel: Record<string, string> = { submitted: "Submitted", seed: "Seeded", agent: "Found by agent", manual: "Added by admin" };
 type Sort = "newest" | "name" | "city";
 
 const csvCell = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;

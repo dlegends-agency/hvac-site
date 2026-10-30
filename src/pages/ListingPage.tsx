@@ -93,6 +93,7 @@ export default function ListingPage() {
                   </ul>
                 </section>
               )}
+              {l.attribution && <p className="mt-8 text-xs text-slate-500">{l.attribution}</p>}
               {l.service_areas && (
                 <section className="mt-8">
                   <h2 className="text-lg font-semibold text-navy">Service areas</h2>
