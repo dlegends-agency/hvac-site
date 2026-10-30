@@ -32,7 +32,6 @@ export const plans: Plan[] = [
     features: [
       "Everything in Basic",
       "Featured badge and placement above Basic listings",
-      "Show your Google star rating and review link",
       "Longer description and highlighted services",
     ],
   },
@@ -60,10 +59,6 @@ export const pricingFaq: { question: string; answer: string }[] = [
   {
     question: "Is Featured placement advertising?",
     answer: "Yes. Featured and Premium listings are paid placements and are labeled that way. They do not mean we have checked a contractor's licence, insurance or work quality.",
-  },
-  {
-    question: "Where does the star rating come from?",
-    answer: "You enter the rating and review count shown on your own Google Business Profile and link to it. We label it as reported by the business and show when it was last updated. We do not verify it automatically.",
   },
   {
     question: "Can I cancel?",

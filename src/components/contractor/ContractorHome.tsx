@@ -54,7 +54,6 @@ export default function ContractorHome() {
     { done: Boolean(listing.phone), label: "Add a phone number", to: "/contractor/profile" },
     { done: Boolean(listing.service_areas), label: "List the areas you serve", to: "/contractor/profile" },
     { done: plan !== "free", label: "Choose a Featured or Premium plan for top placement", to: "/contractor/billing" },
-    { done: Boolean(listing.google_rating), label: "Add your Google star rating (Featured and Premium)", to: "/contractor/profile" },
   ];
 
   return (

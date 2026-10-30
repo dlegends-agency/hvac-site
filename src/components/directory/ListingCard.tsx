@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { MapPin, Phone, Siren } from "lucide-react";
-import { FeaturedBadge, GoogleRating } from "@/components/directory/Rating";
+import { FeaturedBadge } from "@/components/directory/Rating";
 import { isFeatured } from "@/lib/plans";
 import type { Listing } from "@/lib/types";
 
@@ -16,7 +16,6 @@ export function ListingCard({ listing }: { listing: Listing }) {
       <p className="mt-1 flex items-center gap-1.5 text-sm text-slate-600">
         <MapPin className="size-4 shrink-0" aria-hidden /> {listing.city}, {listing.state}
       </p>
-      <GoogleRating listing={listing} />
       {listing.emergency_service && (
         <p className="mt-2 inline-flex w-fit items-center gap-1.5 rounded-full bg-emergency-soft px-2.5 py-0.5 text-xs font-semibold text-emergency">
           <Siren className="size-3.5" aria-hidden /> Offers emergency service

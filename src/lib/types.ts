@@ -108,10 +108,6 @@ export interface Listing {
   attribution?: string | null;
   plan?: PlanId;
   plan_until?: string | null;
-  google_rating?: number | null;
-  google_review_count?: number | null;
-  google_reviews_url?: string | null;
-  rating_updated_at?: string | null;
 }
 
 export type PlanId = "free" | "featured" | "premium";

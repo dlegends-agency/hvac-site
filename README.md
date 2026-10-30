@@ -89,7 +89,6 @@ Importing a candidate creates a **pending** listing that you review and publish 
 
 - **Dashboard** (`/contractor`): profile editor (description, services, areas, contact details), assigned customer requests with status and notes, plan and billing.
 - **Featured placement**: Featured and Premium listings get a badge, sort above Basic listings (Premium first) in the directory and on city pages, and are labeled as paid. A paid plan only counts while `plan_until` is empty or in the future.
-- **Google stars**: the contractor enters their rating, review count and Google reviews link. It is shown only on paid plans, labeled "Rating reported by the business" with the date it was last updated. It is not verified and is deliberately not added to structured data. Fetching ratings from Google automatically would need the paid Places API, so it is not done.
 - **Leads**: you assign a request to a contractor in **Admin > Leads > (a lead) > Assign to a contractor**. Contractors read only their own assigned leads, through database functions, and never the leads table itself.
 
 ### Turning on payments (Stripe)
