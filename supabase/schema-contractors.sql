@@ -15,6 +15,10 @@ alter table public.listings add column if not exists google_review_count int che
 alter table public.listings add column if not exists google_reviews_url text check (char_length(google_reviews_url) <= 500);
 alter table public.listings add column if not exists rating_updated_at timestamptz;
 
+-- Google's place ID (the only Google data we may store). It is set only by the server after the owner picks their business
+-- from Google's search results, and the live star rating is fetched with it when a listing page is viewed.
+alter table public.listings add column if not exists google_place_id text check (char_length(google_place_id) <= 300);
+
 -- 2. Who owns a listing (kept out of the public listings table so user ids are never exposed) -----
 create table if not exists public.listing_owners (
   listing_id uuid primary key references public.listings (id) on delete cascade,
@@ -81,6 +85,7 @@ begin
   new.plan_until := old.plan_until;
   new.source := old.source;
   new.source_url := old.source_url;
+  new.google_place_id := old.google_place_id;
   new.attribution := old.attribution;
   new.rating_updated_at := old.rating_updated_at;
   return new;

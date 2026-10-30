@@ -38,7 +38,7 @@ export function ListingEditor() {
   const navigate = useNavigate();
   const [draft, setDraft] = useState<Draft>(empty);
   const [priv, setPriv] = useState<ListingPrivate | null>(null);
-  const [meta, setMeta] = useState<{ source: string; sourceUrl: string | null; attribution: string | null } | null>(null);
+  const [meta, setMeta] = useState<{ source: string; sourceUrl: string | null; attribution: string | null; placeId: string | null } | null>(null);
   const [notes, setNotes] = useState("");
   // False until contractor SQL has been run (the plan columns do not exist yet), so saving keeps working before then.
   const [planColumn, setPlanColumn] = useState(false);
@@ -57,7 +57,7 @@ export function ListingEditor() {
     ]).then(([l, p]) => {
       const row = l.data as Listing | null;
       if (row) setPlanColumn(row.plan !== undefined);
-      if (row) setMeta({ source: row.source ?? "submitted", sourceUrl: row.source_url ?? null, attribution: row.attribution ?? null });
+      if (row) setMeta({ source: row.source ?? "submitted", sourceUrl: row.source_url ?? null, attribution: row.attribution ?? null, placeId: row.google_place_id ?? null });
       if (!row) setMissing(true);
       else {
         setSlugTouched(true);
@@ -204,6 +204,11 @@ export function ListingEditor() {
                     </a>
                   )}
                   {meta.attribution && <p className="mt-2 text-xs text-slate-500">{meta.attribution}</p>}
+                  {meta.placeId && (
+                    <a href={`https://www.google.com/maps/place/?q=place_id:${encodeURIComponent(meta.placeId)}`} target="_blank" rel="noreferrer" className="mt-2 inline-block text-sm font-medium text-primary hover:underline">
+                      Connected Google listing (check it is the right business)
+                    </a>
+                  )}
                   {meta.source === "agent" && <p className="mt-2 text-xs text-slate-500">Verify every detail on the business&apos;s own website before publishing.</p>}
                 </Panel>
               )}

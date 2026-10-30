@@ -5,24 +5,9 @@ import { PageTitle, Panel } from "@/components/admin/widgets";
 import { Button } from "@/components/ui/Button";
 import { planName, plans } from "@/config/pricing";
 import { activePlan } from "@/lib/plans";
-import { getSupabaseBrowser } from "@/lib/supabase";
 import type { PlanId } from "@/lib/types";
+import { callApi } from "./api";
 import { useContractor } from "./context";
-
-async function callApi(path: string, body: unknown): Promise<{ url?: string; error?: string; status: number }> {
-  const { data } = await getSupabaseBrowser().auth.getSession();
-  try {
-    const res = await fetch(path, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${data.session?.access_token ?? ""}` },
-      body: JSON.stringify(body),
-    });
-    const json = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
-    return { ...json, status: res.status };
-  } catch {
-    return { error: "network", status: 0 };
-  }
-}
 
 export default function ContractorBilling() {
   const { listing, billing } = useContractor();
@@ -46,7 +31,8 @@ export default function ContractorBilling() {
     setBusy(key);
     setError(null);
     const res = await callApi(path, body);
-    if (res.url) return void window.location.assign(res.url);
+    const url = (res.data as { url?: string }).url;
+    if (url) return void window.location.assign(url);
     setBusy(null);
     setError(
       res.status === 501

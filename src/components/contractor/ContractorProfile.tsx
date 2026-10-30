@@ -9,6 +9,7 @@ import { safeGoogleUrl } from "@/lib/directory";
 import { isFeatured } from "@/lib/plans";
 import { getSupabaseBrowser } from "@/lib/supabase";
 import type { Listing } from "@/lib/types";
+import { ConnectGoogle } from "./ConnectGoogle";
 import { useContractor } from "./context";
 
 const text = (v: FormDataEntryValue | null) => String(v ?? "").trim();
@@ -92,15 +93,16 @@ function ProfileForm({ listing, reload }: { listing: Listing; reload: () => Prom
 
       <Panel title="Google reviews">
         <p className="text-sm text-slate-600">
-          Paste the link to your Google Business Profile or your Google reviews. Your listing then shows a &quot;See reviews on Google&quot; button so customers can read your real reviews.
+          Show your Google star rating and review count on your listing page, taken live from Google. Or just add a link to your reviews.
         </p>
         {!isFeatured(listing) && (
           <p className="mt-3 flex items-start gap-2 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
             <Star className="mt-0.5 size-4 shrink-0" aria-hidden />
-            <span>The button is shown on Featured and Premium listings. Save your link now; it appears once you <Link to="/contractor/billing" className="font-semibold underline">choose a plan</Link>.</span>
+            <span>Stars and the reviews button are shown on Featured and Premium listings. You can set this up now; it appears once you <Link to="/contractor/billing" className="font-semibold underline">choose a plan</Link>.</span>
           </p>
         )}
-        <div className="mt-4">{input("google_reviews_url", "Google reviews link", listing.google_reviews_url, { optional: true, hint: "On Google Maps, open your business, choose Share, and paste the link." })}</div>
+        <ConnectGoogle listing={listing} reload={reload} />
+        <div className="mt-4">{input("google_reviews_url", "Google reviews link (optional)", listing.google_reviews_url, { optional: true, hint: "Used for the \"See reviews on Google\" button if you don't connect above." })}</div>
       </Panel>
 
       <div className="flex items-center gap-4">
@@ -119,7 +121,7 @@ export default function ContractorProfile() {
       {!listing ? (
         <Panel title="Not connected yet"><p className="text-sm text-slate-700">Connect your business on the <Link to="/contractor" className="font-semibold text-primary underline">dashboard</Link> first.</p></Panel>
       ) : (
-        <ProfileForm key={listing.updated_at} listing={listing} reload={reload} />
+        <ProfileForm key={listing.id} listing={listing} reload={reload} />
       )}
     </>
   );

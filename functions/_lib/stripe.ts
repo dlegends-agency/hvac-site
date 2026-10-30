@@ -9,6 +9,7 @@ export interface Env {
   STRIPE_WEBHOOK_SECRET?: string;
   STRIPE_PRICE_FEATURED?: string;
   STRIPE_PRICE_PREMIUM?: string;
+  GOOGLE_PLACES_API_KEY?: string; // encrypted Cloudflare secret, restricted to the Places API and given a daily quota in Google Cloud
 }
 
 export type Plan = "featured" | "premium";

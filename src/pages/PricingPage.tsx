@@ -13,7 +13,7 @@ import { usePageMeta } from "@/lib/use-page-meta";
 export default function PricingPage() {
   const { brand } = siteConfig;
   const title = `Pricing for HVAC Contractors | ${brand.name}`;
-  const description = `Plans for HVAC contractors: a free directory listing, Featured placement with a link to your Google reviews, and Premium with customer requests in your dashboard.`;
+  const description = `Plans for HVAC contractors: a free directory listing, Featured placement with your live Google star rating, and Premium with customer requests in your dashboard.`;
   const crumbs = [{ name: "Home", path: "/" }, { name: "Pricing", path: "/pricing" }];
   usePageMeta({
     title, description, path: "/pricing",

@@ -109,6 +109,7 @@ export interface Listing {
   plan?: PlanId;
   plan_until?: string | null;
   google_reviews_url?: string | null;
+  google_place_id?: string | null;
 }
 
 export type PlanId = "free" | "featured" | "premium";
