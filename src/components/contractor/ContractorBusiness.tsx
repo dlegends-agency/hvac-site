@@ -5,7 +5,8 @@ import { PageTitle, Panel } from "@/components/admin/widgets";
 import { Button, buttonClass } from "@/components/ui/Button";
 import { Field, inputClass } from "@/components/ui/Field";
 import { services } from "@/config/services";
-import { isFeatured } from "@/lib/plans";
+import { ListingCard } from "@/components/directory/ListingCard";
+import { isFeatured, publicView } from "@/lib/plans";
 import { getSupabaseBrowser } from "@/lib/supabase";
 import type { Listing } from "@/lib/types";
 import { ConnectGoogle } from "./ConnectGoogle";
@@ -32,6 +33,27 @@ function BusinessForm({ listing, reload }: { listing: Listing; reload: () => Pro
   const [emergency, setEmergency] = useState(listing.emergency_service);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  // What is typed in the form right now, for the live preview of the directory card.
+  const [typed, setTyped] = useState<Record<string, string>>({});
+  const onType = (e: React.FormEvent<HTMLFormElement>) =>
+    setTyped(Object.fromEntries([...new FormData(e.currentTarget).entries()].filter(([, v]) => typeof v === "string")) as Record<string, string>);
+  const t = (key: string, saved: string | null | undefined) => (key in typed ? typed[key].trim() || null : saved ?? null);
+
+  // The listing as customers will see it: the saved listing with the typed changes, then hidden fields removed for free accounts.
+  const preview = publicView({
+    ...listing,
+    business_name: t("business_name", listing.business_name) ?? listing.business_name,
+    phone: t("phone", listing.phone),
+    address: t("address", listing.address),
+    city: t("city", listing.city) ?? listing.city,
+    state: t("state", listing.state) ?? listing.state,
+    description: t("description", listing.description),
+    service_areas: t("service_areas", listing.service_areas),
+    email: t("email", listing.email),
+    website: t("website", listing.website),
+    services: selected,
+    emergency_service: emergency,
+  });
 
   async function save(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -73,7 +95,8 @@ function BusinessForm({ listing, reload }: { listing: Listing; reload: () => Pro
   );
 
   return (
-    <form onSubmit={save} noValidate className="max-w-3xl space-y-6">
+    <div className="grid items-start gap-8 xl:grid-cols-[minmax(0,48rem)_minmax(18rem,26rem)]">
+    <form onSubmit={save} onInput={onType} noValidate className="space-y-6">
       <Panel title="Your directory listing">
         <p className="mb-4 text-sm text-slate-600">
           {paid ? "This is what customers see in the directory, along with the sections below." : "Free listings show your business name, phone number and address in the directory."}
@@ -149,6 +172,26 @@ function BusinessForm({ listing, reload }: { listing: Listing; reload: () => Pro
         <p role="status" className={`text-sm font-medium ${msg?.ok ? "text-green-700" : "text-red-700"}`}>{msg?.text}</p>
       </div>
     </form>
+
+    <aside aria-label="Preview of your directory listing" className="xl:sticky xl:top-6">
+      <h2 className="mb-3 font-semibold text-navy">How customers see your listing</h2>
+      <ul>
+        <ListingCard listing={preview} />
+      </ul>
+      <p className="mt-3 text-xs text-slate-500">
+        {paid
+          ? "This is your listing card in the directory. It updates as you type; save to publish your changes."
+          : "This is your listing card in the directory. A free listing shows your name, phone number and address."}
+      </p>
+      {!paid && (
+        <p className="mt-3 rounded-xl bg-blue-50 p-3 text-sm text-slate-700">
+          Go Featured to add your About us, services and Google stars to this card and appear above free listings.{" "}
+          <Link to="/contractor/billing" className="font-semibold text-primary underline">See plans</Link>
+        </p>
+      )}
+      {listing.status !== "published" && <p className="mt-3 text-xs text-slate-500">Your listing is {listing.status}, so it is not in the public directory yet.</p>}
+    </aside>
+    </div>
   );
 }
 

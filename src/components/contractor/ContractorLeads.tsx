@@ -201,13 +201,13 @@ export default function ContractorLeads() {
   return (
     <>
       <PageTitle title="Customer requests" />
-      <p className="mb-5 max-w-3xl text-sm text-slate-700">
+      <p className="mb-5 text-sm text-slate-700">
         New requests from customers near you are sent to you automatically. You see the customer&apos;s name and the problem for free. Unlock a request for <strong>${price}</strong> to see how to
         reach them{!paid && <>, or <Link to="/contractor/billing" className="font-semibold text-primary underline">go Featured</Link> and pay ${leadPrice.paid} instead</>}.
       </p>
 
       {stillWaiting && (
-        <p role="status" className="mb-5 flex max-w-3xl items-center gap-2 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-900">
+        <p role="status" className="mb-5 flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-900">
           <Loader2 className="size-4 animate-spin" aria-hidden /> Payment received. Unlocking your request, this takes a few seconds…
         </p>
       )}
@@ -235,21 +235,21 @@ export default function ContractorLeads() {
           </div>
 
           {leads.length === 0 ? (
-            <div className="mt-6 max-w-2xl rounded-2xl border border-slate-200 bg-white p-8 text-center">
+            <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-8 text-center">
               <p className="text-lg font-semibold text-navy">No requests yet</p>
               <p className="mt-2 text-sm text-slate-600">When a customer asks for help near you, the request appears here. Make sure your listing is published and your ZIP code and travel distance are set in My business.</p>
             </div>
           ) : shown.length === 0 ? (
             <p className="mt-6 text-sm text-slate-600">No requests match your filters.</p>
           ) : (
-            <ul className="mt-5 max-w-4xl space-y-4">
+            <ul className="mt-5 space-y-4">
               {shown.map((l) => <LeadCard key={l.id} lead={l} price={price} onSaved={replace} />)}
             </ul>
           )}
         </>
       )}
 
-      <p className="mt-8 max-w-2xl text-xs text-slate-500">
+      <p className="mt-8 text-xs text-slate-500">
         A request can be sent to up to three contractors, and we can&apos;t guarantee any number of requests or jobs. Customer details are shared so you can respond to their request:
         use them only for that, and follow the rules that apply to calls, texts and emails. Unlocked requests are not refundable.
       </p>
