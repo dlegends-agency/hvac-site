@@ -24,6 +24,6 @@ const now = Date.parse("2026-06-01T00:00:00Z");
 assert.equal(isPaidNow({ plan: "free" }, now), false);
 assert.equal(isPaidNow({ plan: null }, now), false);
 assert.equal(isPaidNow({ plan: "featured", plan_until: null }, now), true);
-assert.equal(isPaidNow({ plan: "premium", plan_until: "2026-07-01T00:00:00Z" }, now), true);
-assert.equal(isPaidNow({ plan: "premium", plan_until: "2026-05-01T00:00:00Z" }, now), false);
+assert.equal(isPaidNow({ plan: "featured", plan_until: "2026-07-01T00:00:00Z" }, now), true);
+assert.equal(isPaidNow({ plan: "featured", plan_until: "2026-05-01T00:00:00Z" }, now), false);
 console.log("google helpers: all passed");

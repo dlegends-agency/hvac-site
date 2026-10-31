@@ -1,6 +1,6 @@
-// POST /api/stripe/checkout  { plan: "featured" | "premium" }  (Authorization: Bearer <Supabase access token>)
+// POST /api/stripe/checkout  { plan: "featured", interval: "month" | "year" }  (Authorization: Bearer <Supabase access token>)
 // Starts a Stripe Checkout subscription for the signed-in contractor's listing and returns { url }.
-import { billingFor, getUser, isPlan, json, ownedListingId, priceFor, siteOrigin, stripe, type Env } from "../../_lib/stripe";
+import { billingFor, getUser, isInterval, isPlan, json, ownedListingId, priceFor, siteOrigin, stripe, type Env } from "../../_lib/stripe";
 
 export const onRequestPost = async ({ env, request }: { env: Env; request: Request }) => {
   if (!env.STRIPE_SECRET_KEY || !env.SUPABASE_SERVICE_ROLE_KEY) return json({ error: "Payments are not configured" }, 501);
@@ -8,9 +8,11 @@ export const onRequestPost = async ({ env, request }: { env: Env; request: Reque
   const user = await getUser(env, request);
   if (!user) return json({ error: "Sign in required" }, 401);
 
-  const body = (await request.json().catch(() => ({}))) as { plan?: unknown };
-  if (!isPlan(body.plan)) return json({ error: "Unknown plan" }, 400);
-  const price = priceFor(env, body.plan);
+  const body = (await request.json().catch(() => ({}))) as { plan?: unknown; interval?: unknown };
+  const plan = body.plan ?? "featured";
+  const interval = body.interval ?? "month";
+  if (!isPlan(plan) || !isInterval(interval)) return json({ error: "Unknown plan" }, 400);
+  const price = priceFor(env, plan, interval);
   if (!price) return json({ error: "Payments are not configured" }, 501);
 
   const listingId = await ownedListingId(env, user.id);
@@ -30,9 +32,9 @@ export const onRequestPost = async ({ env, request }: { env: Env; request: Reque
     cancel_url: `${origin}/contractor/billing`,
     client_reference_id: listingId,
     "metadata[listing_id]": listingId,
-    "metadata[plan]": body.plan,
+    "metadata[plan]": plan,
     "subscription_data[metadata][listing_id]": listingId,
-    "subscription_data[metadata][plan]": body.plan,
+    "subscription_data[metadata][plan]": plan,
     allow_promotion_codes: "true",
   };
   if (billing?.stripe_customer_id) params.customer = billing.stripe_customer_id;

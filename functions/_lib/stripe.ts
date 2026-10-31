@@ -7,30 +7,39 @@ export interface Env {
   SUPABASE_SERVICE_ROLE_KEY?: string; // encrypted Cloudflare secret; used only here, never sent to the browser
   STRIPE_SECRET_KEY?: string;
   STRIPE_WEBHOOK_SECRET?: string;
-  STRIPE_PRICE_FEATURED?: string;
-  STRIPE_PRICE_PREMIUM?: string;
+  STRIPE_PRICE_FEATURED?: string; // the paid plan, billed monthly
+  STRIPE_PRICE_FEATURED_YEARLY?: string; // the same plan, billed yearly
   RESEND_API_KEY?: string; // email alerts (resend.com), encrypted secret
   NOTIFY_FROM_EMAIL?: string; // for example "HVACHelp <leads@yourdomain.com>" (a domain verified in Resend)
   NOTIFY_SECRET?: string; // shared with the database and the scheduled workflow so only they can trigger sending
   GOOGLE_PLACES_API_KEY?: string; // encrypted Cloudflare secret, restricted to the Places API and given a daily quota in Google Cloud
 }
 
-export type Plan = "featured" | "premium";
+export type Plan = "featured";
+export type Interval = "month" | "year";
+
+/** What a contractor pays to see one customer's full details, in US cents. Keep in step with leadPrice in src/config/pricing.ts. */
+export const LEAD_PRICE_CENTS = { free: 1000, paid: 500 } as const;
 
 export const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 
-export const isPlan = (v: unknown): v is Plan => v === "featured" || v === "premium";
+export const isPlan = (v: unknown): v is Plan => v === "featured";
+export const isInterval = (v: unknown): v is Interval => v === "month" || v === "year";
 
-export function priceFor(env: Env, plan: Plan): string | undefined {
-  return plan === "featured" ? env.STRIPE_PRICE_FEATURED : env.STRIPE_PRICE_PREMIUM;
+export function priceFor(env: Env, _plan: Plan, interval: Interval): string | undefined {
+  return interval === "year" ? env.STRIPE_PRICE_FEATURED_YEARLY : env.STRIPE_PRICE_FEATURED;
 }
 
 export function planForPrice(env: Env, priceId: string | undefined): Plan | null {
   if (!priceId) return null;
-  if (priceId === env.STRIPE_PRICE_FEATURED) return "featured";
-  if (priceId === env.STRIPE_PRICE_PREMIUM) return "premium";
-  return null;
+  return priceId === env.STRIPE_PRICE_FEATURED || priceId === env.STRIPE_PRICE_FEATURED_YEARLY ? "featured" : null;
+}
+
+export function intervalForPrice(env: Env, priceId: string | undefined): Interval | null {
+  if (!priceId) return null;
+  if (priceId === env.STRIPE_PRICE_FEATURED_YEARLY) return "year";
+  return priceId === env.STRIPE_PRICE_FEATURED ? "month" : null;
 }
 
 /** Calls the Stripe REST API: a form-encoded body for POST, the query string for GET. */
@@ -121,10 +130,10 @@ export interface StripeSubscription {
 const ENTITLED = new Set(["active", "trialing", "past_due"]);
 
 /** What a subscription entitles the listing to. past_due keeps the plan until the paid period ends. */
-export function entitlement(env: Env, sub: StripeSubscription): { plan: "free" | Plan; until: string | null } {
+export function entitlement(env: Env, sub: StripeSubscription): { plan: "free" | Plan; until: string | null; interval: Interval | null } {
   const item = sub.items?.data[0];
   const plan = planForPrice(env, item?.price?.id);
   const end = sub.current_period_end ?? item?.current_period_end;
-  if (!plan || !ENTITLED.has(sub.status) || !end) return { plan: "free", until: null };
-  return { plan, until: new Date(end * 1000).toISOString() };
+  if (!plan || !ENTITLED.has(sub.status) || !end) return { plan: "free", until: null, interval: null };
+  return { plan, until: new Date(end * 1000).toISOString(), interval: intervalForPrice(env, item?.price?.id) };
 }

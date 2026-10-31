@@ -156,13 +156,26 @@ export function OverviewDashboard() {
   // Businesses on a paid plan right now (a plan only counts until its paid-until date).
   const paying = useMemo(() => {
     const billingById = new Map(billingQ.data.map((b) => [b.listing_id, b]));
+    const featured = plans.find((p) => p.id === "featured")!.price;
     const rows = listings
       .filter((l) => activePlan(l) !== "free")
       .map((l) => ({ l, plan: activePlan(l), billing: billingById.get(l.id) }))
-      .sort((a, b) => (a.plan === b.plan ? a.l.business_name.localeCompare(b.l.business_name) : a.plan === "premium" ? -1 : 1));
-    const monthly = rows.reduce((sum, r) => sum + (plans.find((p) => p.id === r.plan)?.price ?? 0), 0);
-    return { rows, monthly };
+      .sort((a, b) => a.l.business_name.localeCompare(b.l.business_name));
+    // Yearly subscribers count as a twelfth of the yearly price each month.
+    const monthly = rows.reduce((sum, r) => sum + (r.billing?.billing_interval === "year" ? featured.year / 12 : featured.month), 0);
+    return { rows, monthly: Math.round(monthly) };
   }, [listings, billingQ.data]);
+  // Money from customers' requests that contractors paid to unlock (last 30 days).
+  const unlocksQ = useLiveQuery<{ unlocked_at: string; unlock_cents: number | null }[]>(
+    [],
+    () => supabase.from("lead_assignments").select("unlocked_at, unlock_cents").not("unlocked_at", "is", null).order("unlocked_at", { ascending: false }).limit(2000),
+    { key: "unlocks", intervalMs },
+  );
+  const unlocks = useMemo(() => {
+    const since = unlocksQ.updatedAt ? unlocksQ.updatedAt.getTime() - 30 * 864e5 : 0;
+    const recent = unlocksQ.data.filter((u) => new Date(u.unlocked_at).getTime() >= since);
+    return { count: recent.length, cents: recent.reduce((sum, u) => sum + (u.unlock_cents ?? 0), 0) };
+  }, [unlocksQ.data, unlocksQ.updatedAt]);
   const shownListings = listings.filter((l) => listingTab === "all" || l.status === listingTab).slice(0, 12);
 
   async function setStatus(id: string, status: ListingStatus) {
@@ -182,7 +195,7 @@ export function OverviewDashboard() {
   }
 
   function refreshAll() {
-    void Promise.all([leadsQ.reload(), viewsQ.reload(), listingsQ.reload(), privateQ.reload(), billingQ.reload()]);
+    void Promise.all([leadsQ.reload(), viewsQ.reload(), listingsQ.reload(), privateQ.reload(), billingQ.reload(), unlocksQ.reload()]);
   }
 
   return (
@@ -237,7 +250,7 @@ export function OverviewDashboard() {
           <span className="text-xs text-slate-500">{counts.published} published · {counts.hidden} hidden</span>
         </Kpi>
         <Kpi label="Paying businesses" value={paying.rows.length} tone="green">
-          <span className="text-xs text-slate-500">≈ ${paying.monthly.toLocaleString()} / month at list price</span>
+          <span className="text-xs text-slate-500">≈ ${paying.monthly.toLocaleString()} / month in plans</span>
         </Kpi>
       </div>
 
@@ -296,7 +309,8 @@ export function OverviewDashboard() {
       <section id="paying" aria-labelledby="paying-title" className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 id="paying-title" className="font-semibold text-navy">Businesses that paid ({paying.rows.length})</h2>
-          <p className="text-xs text-slate-500">Revenue is an estimate from plan list prices. Stripe has the exact figures, including coupons and taxes.</p>
+          <p className="w-full text-sm text-slate-700">Customer requests unlocked in the last 30 days: <strong>{unlocks.count}</strong> · <strong>${(unlocks.cents / 100).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</strong></p>
+          <p className="text-xs text-slate-500">Plan revenue is an estimate from list prices. Stripe has the exact figures, including coupons and taxes.</p>
         </div>
         {paying.rows.length === 0 ? (
           <p className="mt-4 rounded-xl bg-slate-50 p-6 text-center text-sm text-slate-600">No paying businesses yet. Paid plans appear here once a contractor subscribes or you set a plan by hand.</p>
@@ -313,7 +327,7 @@ export function OverviewDashboard() {
                       <Link to={`/admin/listings/${l.id}`} className="font-semibold text-navy hover:text-primary hover:underline">{l.business_name}</Link>
                       <span className="block text-xs text-slate-500">{l.city}, {l.state}</span>
                     </td>
-                    <td className="py-2.5 pr-3"><span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-900 capitalize">{plan}</span></td>
+                    <td className="py-2.5 pr-3"><span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-900 capitalize">{plan}{billing?.billing_interval ? ` · ${billing.billing_interval === "year" ? "yearly" : "monthly"}` : ""}</span></td>
                     <td className="py-2.5 pr-3 text-slate-700">{l.plan_until ? new Date(l.plan_until).toLocaleDateString() : "No end date"}</td>
                     <td className="py-2.5 pr-3 text-slate-700">{billing?.stripe_subscription_id ? <>Stripe · <span className="capitalize">{billing.status?.replace("_", " ")}</span></> : "Set by hand"}</td>
                     <td className="py-2.5 text-slate-700 capitalize">{l.status}</td>

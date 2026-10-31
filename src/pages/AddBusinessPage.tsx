@@ -6,25 +6,18 @@ import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/Button";
 import { Field, inputClass } from "@/components/ui/Field";
-import { services } from "@/config/services";
 import { breadcrumbLd, webPageLd } from "@/lib/schema";
 import { slugify } from "@/lib/directory";
 import { getSupabaseBrowser, isSupabaseConfigured } from "@/lib/supabase";
 import { usePageMeta } from "@/lib/use-page-meta";
 
-const optional = z.string().trim().max(300).optional();
-
 const schema = z.object({
   business_name: z.string().trim().min(2, "Enter your business name.").max(120),
+  phone: z.string().trim().min(7, "Enter a phone number customers can call.").max(40),
+  address: z.string().trim().min(3, "Enter your street address.").max(200),
   city: z.string().trim().min(1, "City is required.").max(100),
   state: z.string().trim().min(1, "State or province is required.").max(100),
-  postal_code: z.string().trim().max(20).optional(),
-  address: optional,
-  phone: z.string().trim().min(7, "Enter a phone number customers can call.").max(40),
-  email: z.string().trim().max(200).email("Enter a valid email address.").or(z.literal("")),
-  website: optional,
-  description: z.string().trim().max(2000, "Please keep this under 2,000 characters.").optional(),
-  service_areas: z.string().trim().max(500).optional(),
+  postal_code: z.string().trim().min(3, "Enter your ZIP or postal code.").max(20),
   submitter_name: z.string().trim().min(2, "Enter your name.").max(120),
   submitter_email: z.string().trim().email("Enter a valid email address.").max(200),
   consent: z.literal(true, { error: "Please confirm to continue." }),
@@ -34,17 +27,15 @@ type Errors = Partial<Record<string, string>>;
 
 export default function AddBusinessPage() {
   usePageMeta({
-    title: "List Your HVAC Business | HVACHelp",
-    description: "Submit your heating and cooling business for review. Approved listings appear in the HVAC contractor directory.",
+    title: "List Your HVAC Business Free | HVACHelp",
+    description: "List your heating and cooling business in the HVAC contractor directory for free: business name, phone number and address. Go Featured to show more.",
     path: "/directory/add",
     jsonLd: [
-      webPageLd("List Your HVAC Business", "Submit your heating and cooling business for review.", "/directory/add"),
+      webPageLd("List Your HVAC Business", "Add your heating and cooling business to the directory for free.", "/directory/add"),
       breadcrumbLd([{ name: "Home", path: "/" }, { name: "Directory", path: "/directory" }, { name: "List your business", path: "/directory/add" }]),
     ],
   });
   const [errors, setErrors] = useState<Errors>({});
-  const [picked, setPicked] = useState<string[]>([]);
-  const [emergency, setEmergency] = useState(false);
   const [status, setStatus] = useState<"idle" | "submitting" | "done" | "error">("idle");
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -74,17 +65,11 @@ export default function AddBusinessPage() {
       slug: `${slugify(`${d.business_name} ${d.city}`)}-${id.slice(0, 4)}`,
       status: "pending",
       business_name: d.business_name,
-      description: d.description || null,
-      services: picked,
-      emergency_service: emergency,
       phone: d.phone,
-      email: d.email || null,
-      website: d.website || null,
-      address: d.address || null,
+      address: d.address,
       city: d.city,
       state: d.state,
-      postal_code: d.postal_code || null,
-      service_areas: d.service_areas || null,
+      postal_code: d.postal_code,
     });
     if (error) return setStatus("error");
     // Private contact details go in an admin-only table.
@@ -92,8 +77,8 @@ export default function AddBusinessPage() {
     setStatus("done");
   }
 
-  const text = (id: string, label: string, extra: { optional?: boolean; hint?: string; type?: string; auto?: string; className?: string } = {}) => (
-    <Field id={id} label={label} optional={extra.optional} hint={extra.hint} error={errors[id]} className={extra.className}>
+  const text = (id: string, label: string, extra: { hint?: string; type?: string; auto?: string } = {}) => (
+    <Field id={id} label={label} hint={extra.hint} error={errors[id]}>
       {(a) => <input id={id} name={id} type={extra.type ?? "text"} autoComplete={extra.auto} className={inputClass} {...a} />}
     </Field>
   );
@@ -104,15 +89,23 @@ export default function AddBusinessPage() {
       <main className="bg-surface py-12">
         <div className="mx-auto max-w-2xl px-4 sm:px-6">
           <Link to="/directory" className="text-sm font-semibold text-primary">← Back to the directory</Link>
-          <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-navy">List your HVAC business</h1>
+          <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-navy">List your HVAC business for free</h1>
           <p className="mt-2 text-slate-600">
-            Submissions are reviewed before they appear. We don&apos;t verify licensing or insurance, and a listing isn&apos;t a guarantee of placement or leads.
+            A free listing shows your business name, phone number and address in the directory. Submissions are reviewed before they appear. We don&apos;t verify licensing or
+            insurance, and a listing isn&apos;t a guarantee of placement or leads.
+          </p>
+          <p className="mt-3 rounded-xl bg-blue-50 p-4 text-sm text-slate-700">
+            Want to show your About us, services, service areas and Google reviews too? Create a contractor account after your listing is approved and go
+            Featured. <Link to="/pricing" className="font-semibold text-primary underline">See plans</Link>.
           </p>
 
           {status === "done" ? (
             <div role="status" className="mt-8 rounded-2xl border border-green-200 bg-green-50 p-6">
               <h2 className="flex items-center gap-2 text-lg font-semibold text-green-900"><CheckCircle2 className="size-5" aria-hidden /> Submitted for review</h2>
               <p className="mt-2 text-sm text-green-900">Thanks. Once your listing is reviewed it may be published in the directory. We can&apos;t promise a review timeline.</p>
+              <p className="mt-2 text-sm text-green-900">
+                Next, <Link to="/contractor/login?mode=signup" className="font-semibold underline">create a contractor account</Link> to claim the listing, receive customer requests near you and manage your business.
+              </p>
             </div>
           ) : (
             <form onSubmit={onSubmit} noValidate className="mt-8 space-y-5 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
@@ -121,39 +114,15 @@ export default function AddBusinessPage() {
                 <label>Fax number<input name="fax_number" tabIndex={-1} autoComplete="off" /></label>
               </div>
 
-              <h2 className="font-semibold text-navy">Business details</h2>
+              <h2 className="font-semibold text-navy">Your business</h2>
               {text("business_name", "Business name", { auto: "organization" })}
-              <div className="grid gap-4 sm:grid-cols-2">
+              {text("phone", "Business phone number", { type: "tel", auto: "tel" })}
+              {text("address", "Street address", { auto: "street-address" })}
+              <div className="grid gap-4 sm:grid-cols-3">
                 {text("city", "City", { auto: "address-level2" })}
-                {text("state", "State or province", { auto: "address-level1" })}
-                {text("address", "Street address", { optional: true, auto: "street-address" })}
-                {text("postal_code", "ZIP or postal code", { optional: true, auto: "postal-code" })}
-                {text("phone", "Business phone", { type: "tel", auto: "tel" })}
-                {text("email", "Public business email", { optional: true, type: "email" })}
+                {text("state", "State", { auto: "address-level1" })}
+                {text("postal_code", "ZIP code", { auto: "postal-code" })}
               </div>
-              {text("website", "Website", { optional: true, hint: "For example: example.com" })}
-              {text("service_areas", "Areas you serve", { optional: true, hint: "Cities, counties or zip codes, separated by commas." })}
-
-              <fieldset>
-                <legend className="mb-2 text-sm font-semibold text-navy">Services you offer</legend>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {services.map((s) => (
-                    <label key={s.id} className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm">
-                      <input type="checkbox" className="size-4 accent-primary" checked={picked.includes(s.name)}
-                        onChange={(e) => setPicked((p) => (e.target.checked ? [...p, s.name] : p.filter((x) => x !== s.name)))} />
-                      {s.name}
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
-              <label className="flex items-center gap-2 text-sm text-slate-800">
-                <input type="checkbox" className="size-4 accent-primary" checked={emergency} onChange={(e) => setEmergency(e.target.checked)} />
-                We offer emergency service
-              </label>
-
-              <Field id="description" label="About your business" optional error={errors.description}>
-                {(a) => <textarea id="description" name="description" rows={4} className={inputClass} {...a} />}
-              </Field>
 
               <h2 className="pt-2 font-semibold text-navy">Your contact details (private)</h2>
               <p className="-mt-3 text-sm text-slate-600">Only our team can see these. They are used if we need to follow up about your listing.</p>

@@ -19,7 +19,7 @@ export default function ContractorLoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const after = plan === "featured" || plan === "premium" ? `/contractor/billing?plan=${plan}` : "/contractor";
+  const after = plan === "featured" ? `/contractor/billing?plan=featured&interval=${params.get("interval") === "month" ? "month" : "year"}` : "/contractor";
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();

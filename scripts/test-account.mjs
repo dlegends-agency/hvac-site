@@ -5,7 +5,7 @@ import { onRequestPost as portal } from "../functions/api/stripe/portal.ts";
 
 const env = {
   STRIPE_SECRET_KEY: "sk_test", SUPABASE_SERVICE_ROLE_KEY: "svc", VITE_SUPABASE_URL: "https://x.supabase.co", VITE_SUPABASE_PUBLISHABLE_KEY: "pub",
-  STRIPE_PRICE_FEATURED: "price_f", STRIPE_PRICE_PREMIUM: "price_p", VITE_SITE_URL: "https://site.test",
+  STRIPE_PRICE_FEATURED: "price_f", STRIPE_PRICE_FEATURED_YEARLY: "price_y", VITE_SITE_URL: "https://site.test",
 };
 const req = (body = {}, token = "tok") => new Request("https://site.test/api/stripe/x", { method: "POST", headers: token ? { Authorization: `Bearer ${token}` } : {}, body: JSON.stringify(body) });
 
@@ -30,7 +30,8 @@ const card = { brand: "visa", last4: "4242", exp_month: 4, exp_year: 2030 };
 const invoices = { data: [
   { id: "in_3", number: "A-0003", created: 1_790_000_000, total: 4900, amount_paid: 4900, currency: "usd", status: "paid", hosted_invoice_url: "https://stripe.test/i3", invoice_pdf: "https://stripe.test/i3.pdf", lines: { data: [{ price: { id: "price_f" } }] } },
   { id: "in_2", number: null, created: 1_780_000_000, total: 4900, amount_paid: 0, currency: "usd", status: "open", hosted_invoice_url: null, invoice_pdf: null, lines: { data: [{ price: { id: "price_f" } }] } },
-  { id: "in_1", number: "A-0001", created: 1_770_000_000, total: 9900, amount_paid: 9900, currency: "usd", status: "paid", hosted_invoice_url: "https://stripe.test/i1", invoice_pdf: null, lines: { data: [{ price: { id: "price_p" } }] } },
+  { id: "in_1", number: "A-0001", created: 1_770_000_000, total: 9900, amount_paid: 9900, currency: "usd", status: "paid", hosted_invoice_url: "https://stripe.test/i1", invoice_pdf: null, lines: { data: [{ price: { id: "price_y" } }] } },
+  { id: "in_lead", number: "A-0004", created: 1_795_000_000, total: 500, amount_paid: 500, currency: "usd", status: "paid", hosted_invoice_url: "https://stripe.test/i4", invoice_pdf: null, lines: { data: [{ description: "Customer request: AC Not Cooling", price: null }] } },
   { id: "in_draft", number: null, created: 1_760_000_000, total: 100, amount_paid: 0, currency: "usd", status: "draft", lines: { data: [] } },
 ] };
 const sub = { status: "active", cancel_at_period_end: true, current_period_end: 1_900_000_000, default_payment_method: { id: "pm_1", card }, items: { data: [{ price: { id: "price_f" } }] } };
@@ -51,7 +52,8 @@ stripeRoutes = { "GET /invoices": () => invoices, "GET /subscriptions/sub_1": ()
 let out = await (await account({ env, request: req() })).json();
 assert.deepEqual(out.card, card);
 assert.deepEqual(out.subscription, { status: "active", cancel_at_period_end: true, current_period_end: new Date(1_900_000_000 * 1000).toISOString(), plan: "featured" });
-assert.deepEqual(out.invoices.map((i) => [i.number, i.amount, i.status, i.plan]), [["A-0003", 4900, "paid", "featured"], [null, 4900, "open", "featured"], ["A-0001", 9900, "paid", "premium"]], "drafts hidden, plans named, unpaid shows the amount due");
+assert.deepEqual(out.invoices.map((i) => [i.number, i.amount, i.status, i.plan]), [["A-0003", 4900, "paid", "featured"], [null, 4900, "open", "featured"], ["A-0001", 9900, "paid", "featured"], ["A-0004", 500, "paid", null]], "drafts hidden, yearly and monthly both named, lead payments listed, unpaid shows the amount due");
+assert.equal(out.invoices.find((i) => i.number === "A-0004").description, "Customer request: AC Not Cooling", "lead payments say what they were for");
 assert.equal(out.invoices[0].url, "https://stripe.test/i3");
 const inv = log.find((l) => l.url.includes("/invoices"));
 assert.ok(inv.url.includes("customer=cus_1") && inv.url.includes("limit=24") && inv.body === undefined, "GET parameters go in the query string");

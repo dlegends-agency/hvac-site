@@ -14,7 +14,7 @@ export function ListingCard({ listing }: { listing: Listing }) {
         <Link to={`/directory/${listing.slug}`} className="hover:text-primary">{listing.business_name}</Link>
       </h2>
       <p className="mt-1 flex items-center gap-1.5 text-sm text-slate-600">
-        <MapPin className="size-4 shrink-0" aria-hidden /> {listing.city}, {listing.state}
+        <MapPin className="size-4 shrink-0" aria-hidden /> {[listing.address, listing.city, listing.state].filter(Boolean).join(", ")}
       </p>
       <GoogleReviews listing={listing} compact />
       {listing.emergency_service && (

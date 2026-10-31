@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
-import { verifyStripeSignature, entitlement, planForPrice, isPlan } from "../functions/_lib/stripe.ts";
+import { verifyStripeSignature, entitlement, intervalForPrice, planForPrice, priceFor, isPlan } from "../functions/_lib/stripe.ts";
 const secret = "whsec_test"; const body = '{"id":"evt_1","type":"customer.subscription.updated"}'; const now = 1_800_000_000;
 const sig = (t, b = body, s = secret) => `t=${t},v1=${createHmac("sha256", s).update(`${t}.${b}`).digest("hex")}`;
 assert.equal(await verifyStripeSignature(body, sig(now), secret, now), true, "valid");
@@ -9,13 +9,15 @@ assert.equal(await verifyStripeSignature(body, sig(now, body, "other"), secret, 
 assert.equal(await verifyStripeSignature(body, sig(now - 1000), secret, now), false, "stale timestamp");
 assert.equal(await verifyStripeSignature(body, null, secret, now), false, "missing header");
 assert.equal(await verifyStripeSignature(body, `${sig(now)},v1=deadbeef`, secret, now), true, "one of several v1");
-const env = { STRIPE_PRICE_FEATURED: "price_f", STRIPE_PRICE_PREMIUM: "price_p" };
-assert.equal(planForPrice(env, "price_p"), "premium"); assert.equal(planForPrice(env, "price_x"), null);
+const env = { STRIPE_PRICE_FEATURED: "price_f", STRIPE_PRICE_FEATURED_YEARLY: "price_y" };
+assert.equal(planForPrice(env, "price_f"), "featured"); assert.equal(planForPrice(env, "price_y"), "featured", "the yearly price is the same plan"); assert.equal(planForPrice(env, "price_x"), null);
+assert.equal(intervalForPrice(env, "price_f"), "month"); assert.equal(intervalForPrice(env, "price_y"), "year"); assert.equal(intervalForPrice(env, "price_x"), null);
+assert.equal(priceFor(env, "featured", "year"), "price_y"); assert.equal(priceFor(env, "featured", "month"), "price_f");
 const sub = (status, price = "price_f", end = 1_900_000_000) => ({ id: "sub_1", customer: "cus_1", status, items: { data: [{ price: { id: price }, current_period_end: end }] } });
-assert.deepEqual(entitlement(env, sub("active")), { plan: "featured", until: new Date(1_900_000_000 * 1000).toISOString() });
-assert.equal(entitlement(env, sub("past_due", "price_p")).plan, "premium");
+assert.deepEqual(entitlement(env, sub("active")), { plan: "featured", until: new Date(1_900_000_000 * 1000).toISOString(), interval: "month" });
+assert.deepEqual(entitlement(env, sub("past_due", "price_y")), { plan: "featured", until: new Date(1_900_000_000 * 1000).toISOString(), interval: "year" }, "yearly plan keeps access until the paid year ends");
 assert.equal(entitlement(env, sub("canceled")).plan, "free");
 assert.equal(entitlement(env, sub("unpaid")).plan, "free");
 assert.equal(entitlement(env, sub("active", "price_unknown")).plan, "free");
-assert.ok(isPlan("featured") && !isPlan("free") && !isPlan("admin"));
+assert.ok(isPlan("featured") && !isPlan("free") && !isPlan("premium") && !isPlan("admin"));
 console.log("stripe helpers: all passed");

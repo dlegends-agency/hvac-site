@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { getSupabaseBrowser, isSupabaseConfigured } from "@/lib/supabase";
 import { locations, type ServiceLocation } from "@/config/locations";
-import { sortByPlan } from "@/lib/plans";
+import { publicView, sortByPlan } from "@/lib/plans";
 import type { Listing } from "@/lib/types";
 
 export function usePublishedListings() {
@@ -17,7 +17,7 @@ export function usePublishedListings() {
       .select("*")
       .eq("status", "published")
       .order("business_name")
-      .then(({ data, error }) => setState({ data: sortByPlan((data as Listing[] | null) ?? []), loading: false, error: Boolean(error) }));
+      .then(({ data, error }) => setState({ data: sortByPlan(((data as Listing[] | null) ?? []).map(publicView)), loading: false, error: Boolean(error) }));
   }, []);
   return state;
 }
@@ -34,7 +34,7 @@ export function usePublishedListing(slug: string | undefined) {
       .eq("status", "published")
       .maybeSingle()
       .then(({ data }) => {
-        if (!cancelled) setState({ slug, data: (data as Listing | null) ?? null, loading: false });
+        if (!cancelled) setState({ slug, data: data ? publicView(data as Listing) : null, loading: false });
       });
     return () => {
       cancelled = true;

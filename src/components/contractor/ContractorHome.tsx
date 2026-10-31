@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Bell, BellOff, CheckCircle2, Circle, Clock, MapPin } from "lucide-react";
 import { PageTitle, Panel, StatCard } from "@/components/admin/widgets";
 import { buttonClass } from "@/components/ui/Button";
-import { planName } from "@/config/pricing";
+import { leadPrice, planName } from "@/config/pricing";
 import { useNow } from "@/lib/admin-hooks";
 import { activePlan } from "@/lib/plans";
 import { getSupabaseBrowser } from "@/lib/supabase";
@@ -58,17 +58,23 @@ export default function ContractorHome() {
   const count = (status: string) => leads?.filter((l) => l.contractor_status === status).length ?? "…";
   const waiting = (leads ?? []).filter((l) => l.contractor_status === "new");
   const published = listing.status === "published";
-  const receiving = plan !== "free" && published;
+  const receiving = published; // free and paid listings both receive requests
+  const locked = (leads ?? []).filter((l) => !l.unlocked).length;
+  const price = plan === "free" ? leadPrice.free : leadPrice.paid;
   const areas = [...new Set([listing.city, ...(listing.service_areas ?? "").split(",").map((a) => a.trim())].filter(Boolean))];
   const endsSoon = plan !== "free" && Boolean(listing.plan_until) && new Date(listing.plan_until as string).getTime() - now < 7 * 864e5;
   const checklist = [
-    { done: Boolean(listing.description && listing.description.length >= 40), label: "Write a description of your business", to: "/contractor/business" },
-    { done: listing.services.length > 0, label: "Choose the services you offer", to: "/contractor/business" },
-    { done: Boolean(listing.phone), label: "Add a phone number", to: "/contractor/business" },
+    { done: Boolean(listing.phone), label: "Add a business phone number", to: "/contractor/business" },
+    { done: Boolean(listing.address), label: "Add your street address", to: "/contractor/business" },
     { done: Boolean(listing.postal_code), label: "Add your ZIP code and how far you travel, so nearby requests reach you", to: "/contractor/business" },
-    { done: Boolean(listing.service_areas), label: "List the other cities you serve, so you get requests there too", to: "/contractor/business" },
-    { done: plan !== "free", label: "Choose a Featured or Premium plan to receive requests", to: "/contractor/billing" },
-    { done: Boolean(listing.google_place_id), label: "Connect your Google listing to show stars (Featured and Premium)", to: "/contractor/business" },
+    ...(plan === "free"
+      ? [{ done: false, label: "Go Featured to show About us, services and service areas, connect Google reviews, and unlock requests for $" + leadPrice.paid, to: "/contractor/billing" }]
+      : [
+          { done: Boolean(listing.description && listing.description.length >= 40), label: "Write your About us", to: "/contractor/business" },
+          { done: listing.services.length > 0, label: "Choose the services you offer", to: "/contractor/business" },
+          { done: Boolean(listing.service_areas), label: "List the other cities you serve, so you get requests there too", to: "/contractor/business" },
+          { done: Boolean(listing.google_place_id), label: "Connect your Google listing to show your star rating", to: "/contractor/business" },
+        ]),
   ];
 
   return (
@@ -91,44 +97,37 @@ export default function ContractorHome() {
       )}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="New requests" value={count("new")} hint="Not contacted yet" />
-        <StatCard label="Contacted" value={count("contacted")} hint="Waiting on the customer" />
-        <StatCard label="Won" value={count("won")} hint={leads ? `${leads.length} received in total` : undefined} />
-        <StatCard label="Current plan" value={planName(plan)} hint={plan === "free" ? "No new requests on Basic" : endsSoon ? `Ends ${new Date(listing.plan_until as string).toLocaleDateString()}` : undefined} />
+        <StatCard label="New requests" value={count("new")} hint={leads ? `${leads.length} received in total` : undefined} />
+        <StatCard label="Locked" value={leads ? locked : "…"} hint={`$${price} each to unlock`} />
+        <StatCard label="Contacted" value={count("contacted")} hint={`${count("won")} won`} />
+        <StatCard label="Current plan" value={planName(plan)} hint={plan === "free" ? `Go Featured: $${leadPrice.paid} per request` : endsSoon ? `Ends ${new Date(listing.plan_until as string).toLocaleDateString()}` : undefined} />
       </div>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-2">
         <Panel title="Request delivery">
           <p className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-semibold ${receiving ? "bg-green-100 text-green-800" : "bg-amber-100 text-amber-900"}`}>
             <span className={`size-2 rounded-full ${receiving ? "bg-green-600" : "bg-amber-500"}`} aria-hidden />
-            {receiving ? "Receiving requests" : plan === "free" ? "Not receiving requests" : "Paused until your listing is published"}
+            {receiving ? "Receiving requests" : "Paused until your listing is published"}
           </p>
-          {plan === "free" ? (
-            <p className="mt-3 text-sm text-slate-700">
-              New customer requests are sent automatically to Featured and Premium contractors. <Link to="/contractor/billing" className="font-semibold text-primary underline">Choose a plan</Link> to start receiving them.
+          <p className="mt-3 text-sm text-slate-700">You get requests from customers in:</p>
+          <ul className="mt-2 flex flex-wrap gap-2">
+            {areas.map((a) => (
+              <li key={a} className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-800"><MapPin className="size-3.5 text-primary" aria-hidden /> {a}</li>
+            ))}
+            {listing.postal_code && (
+              <li className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1 text-sm text-slate-800"><MapPin className="size-3.5 text-primary" aria-hidden /> within {listing.service_radius_miles ?? 30} miles of {listing.postal_code}</li>
+            )}
+          </ul>
+          {!listing.postal_code && (
+            <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
+              Add your ZIP code in <Link to="/contractor/business" className="font-semibold underline">My business</Link> so we can also send you requests from customers nearby, not just in your own city.
             </p>
-          ) : (
-            <>
-              <p className="mt-3 text-sm text-slate-700">You get requests from customers in:</p>
-              <ul className="mt-2 flex flex-wrap gap-2">
-                {areas.map((a) => (
-                  <li key={a} className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-800"><MapPin className="size-3.5 text-primary" aria-hidden /> {a}</li>
-                ))}
-                {listing.postal_code && (
-                  <li className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1 text-sm text-slate-800"><MapPin className="size-3.5 text-primary" aria-hidden /> within {listing.service_radius_miles ?? 30} miles of {listing.postal_code}</li>
-                )}
-              </ul>
-              {!listing.postal_code && (
-                <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
-                  Add your ZIP code in <Link to="/contractor/business" className="font-semibold underline">My business</Link> so we can also send you requests from customers nearby, not just in your own city.
-                </p>
-              )}
-              <p className="mt-3 text-xs text-slate-500">
-                Each request goes to up to 3 contractors near the customer, Premium first, then in turn. Not every request will reach you, and we can&apos;t promise any number of requests or jobs.
-                
-              </p>
-            </>
           )}
+          <p className="mt-3 text-xs text-slate-500">
+            You see the customer&apos;s name and the problem for free. Unlock a request for ${price} to see how to reach them.
+            {plan === "free" && <> <Link to="/contractor/billing" className="font-semibold text-primary underline">Go Featured</Link> to pay ${leadPrice.paid} instead and be sent requests first.</>}
+            {" "}Each request goes to up to 3 contractors near the customer, paid listings first. We can&apos;t promise any number of requests or jobs.
+          </p>
           <div className="mt-4 flex items-center justify-between gap-3 rounded-xl bg-slate-50 p-3">
             <p className="flex items-start gap-2 text-sm text-slate-700">
               {notifyEmail ? <Bell className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden /> : <BellOff className="mt-0.5 size-4 shrink-0 text-slate-400" aria-hidden />}
@@ -151,7 +150,7 @@ export default function ContractorHome() {
                 <li key={l.id} className="flex items-center justify-between gap-3 py-2.5">
                   <span className="min-w-0">
                     <span className="block truncate font-semibold text-navy">{l.first_name} {l.last_name}</span>
-                    <span className="block truncate text-sm text-slate-600">{l.issue} · {l.city}</span>
+                    <span className="block truncate text-sm text-slate-600">{l.issue}</span>
                   </span>
                   <span className="shrink-0 text-xs text-slate-500">{ago(l.assigned_at)}</span>
                 </li>
@@ -174,7 +173,7 @@ export default function ContractorHome() {
             ))}
           </ul>
         </Panel>
-        {plan === "free" && <Link to="/contractor/billing" className={buttonClass("primary", "mt-5 !rounded-full")}>See plans</Link>}
+        {plan === "free" && <Link to="/contractor/billing" className={buttonClass("primary", "mt-5 !rounded-full")}>Go Featured</Link>}
       </div>
     </>
   );

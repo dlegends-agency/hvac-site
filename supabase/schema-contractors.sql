@@ -1,11 +1,12 @@
 -- Run AFTER schema-directory.sql and schema-discovery.sql. Supabase: SQL Editor > New query > paste > Run. Safe to re-run.
--- Adds the contractor accounts feature: paid plans (featured placement), a contractor dashboard (own profile + assigned leads),
--- listing ownership with admin-approved claims, and self-reported Google ratings.
+-- Adds the contractor accounts feature: a free plan and one paid plan (Featured), a contractor dashboard, listing ownership with
+-- admin-approved claims, automatic lead routing (customer details are unlocked per lead), email alerts and Google ratings.
 
 -- 1. Listing fields: plan, ratings ----------------------------------------------------
 alter table public.listings add column if not exists plan text not null default 'free';
 alter table public.listings drop constraint if exists listings_plan_check;
-alter table public.listings add constraint listings_plan_check check (plan in ('free', 'featured', 'premium'));
+update public.listings set plan = 'featured' where plan = 'premium'; -- there is now one paid plan
+alter table public.listings add constraint listings_plan_check check (plan in ('free', 'featured'));
 -- When a paid plan stops being active. Featured status is only shown while this is empty or in the future.
 alter table public.listings add column if not exists plan_until timestamptz;
 
@@ -81,6 +82,12 @@ begin
   new.id := old.id;
   new.slug := old.slug;
   new.status := old.status;
+  -- About, services and areas served are paid features: a free (or lapsed) account cannot change them.
+  if not (old.plan = 'featured' and (old.plan_until is null or old.plan_until > now())) then
+    new.description := old.description;
+    new.services := old.services;
+    new.service_areas := old.service_areas;
+  end if;
   new.plan := old.plan;
   new.plan_until := old.plan_until;
   new.source := old.source;
@@ -119,6 +126,7 @@ create table if not exists public.listing_billing (
   current_period_end     timestamptz,
   updated_at             timestamptz not null default now()
 );
+alter table public.listing_billing add column if not exists billing_interval text check (billing_interval in ('month', 'year'));
 alter table public.listing_billing enable row level security;
 
 drop policy if exists "Owners read own billing" on public.listing_billing;
@@ -137,9 +145,9 @@ alter table public.leads add column if not exists contractor_notes text check (c
 create index if not exists leads_assigned_idx on public.leads (assigned_listing_id);
 
 -- 7. Automatic lead routing ---------------------------------------------------------------------------
--- Every new lead is sent to Featured and Premium contractors that serve the customer's area (their city, or within their
+-- Every new lead is sent to contractors (free or paid) that serve the customer's area (their city, or within their
 -- travel radius of the customer's ZIP code). One lead goes to up to 3
--- contractors (Premium first, then whoever received a lead longest ago, so leads rotate fairly). Admins can add or remove
+-- contractors (paid accounts first, then whoever received a lead longest ago, so leads rotate fairly). Admins can add or remove
 -- contractors by hand on a lead. Contractors never read the leads table: they see only leads sent to them, through the
 -- functions below.
 create table if not exists public.lead_assignments (
@@ -150,8 +158,15 @@ create table if not exists public.lead_assignments (
   contractor_status text not null default 'new' check (contractor_status in ('new', 'contacted', 'won', 'lost')),
   contractor_notes  text check (char_length(contractor_notes) <= 2000),
   contacted_at      timestamptz,
+  -- Set when the contractor pays to see the customer's full details (by the Stripe webhook, or by an admin).
+  unlocked_at       timestamptz,
+  unlock_cents      int,
+  unlock_ref        text,
   primary key (lead_id, listing_id)
 );
+alter table public.lead_assignments add column if not exists unlocked_at timestamptz;
+alter table public.lead_assignments add column if not exists unlock_cents int;
+alter table public.lead_assignments add column if not exists unlock_ref text;
 create index if not exists lead_assignments_listing_idx on public.lead_assignments (listing_id, assigned_at desc);
 alter table public.lead_assignments enable row level security;
 
@@ -263,10 +278,11 @@ as $$
   )));
 $$;
 
--- Sends one lead to matching paid contractors. Returns how many contractors it was sent to.
+-- Sends one lead to matching contractors. Returns how many contractors it was sent to.
 -- A contractor matches when the lead is in their city or a city they list, OR when the customer's ZIP code is within the
 -- contractor's own travel radius of the contractor's ZIP code. The customer's ZIP is used, not the typed city, so a mistyped city
--- cannot hide a lead. Order: Premium first, then local, then whoever received a lead longest ago, then nearest.
+-- cannot hide a lead. Order: paid accounts first, then local, then whoever received a lead longest ago, then nearest.
+-- Every contractor sees only the customer's name and problem until they pay to unlock that lead.
 create or replace function public.route_lead(p_lead uuid, p_max int default 3)
 returns int
 language plpgsql
@@ -277,10 +293,17 @@ declare
   l public.leads;
   v_lat double precision;
   v_lng double precision;
+  v_have int;
   n int := 0;
 begin
   select * into l from public.leads where id = p_lead;
   if not found or l.status = 'spam' then
+    return 0;
+  end if;
+
+  -- Only fill the places that are still empty (contractors added by hand count), so routing twice never over-shares a lead.
+  select count(*)::int into v_have from public.lead_assignments x where x.lead_id = l.id;
+  if v_have >= p_max then
     return 0;
   end if;
 
@@ -291,7 +314,7 @@ begin
   from (
     select q.id
     from (
-      select li.id, li.created_at, (li.plan = 'premium') as is_premium, li.service_radius_miles as radius,
+      select li.id, li.created_at, (li.plan = 'featured' and (li.plan_until is null or li.plan_until > now())) as is_paid, li.service_radius_miles as radius,
              (select max(a.assigned_at) from public.lead_assignments a where a.listing_id = li.id) as last_at,
              (public.norm_state(li.state) = public.norm_state(l.state) and (
                 lower(btrim(li.city)) = lower(btrim(l.city))
@@ -303,12 +326,11 @@ begin
       join public.listing_owners o on o.listing_id = li.id
       left join public.zip_centroids z on z.zip = public.zip5(li.postal_code)
       where li.status = 'published'
-        and li.plan in ('featured', 'premium')
-        and (li.plan_until is null or li.plan_until > now())
+        and not exists (select 1 from public.lead_assignments ax where ax.lead_id = l.id and ax.listing_id = li.id)
     ) q
     where q.is_local or (q.miles is not null and q.miles <= q.radius)
-    order by q.is_premium desc, q.is_local desc, q.last_at asc nulls first, q.miles asc nulls last, q.created_at
-    limit greatest(p_max, 0)
+    order by q.is_paid desc, q.is_local desc, q.last_at asc nulls first, q.miles asc nulls last, q.created_at
+    limit greatest(p_max - v_have, 0)
   ) c
   on conflict do nothing;
 
@@ -352,13 +374,15 @@ begin
 end;
 $$;
 
--- What a contractor sees: only leads sent to their own listing, only the fields they need.
+-- What a contractor sees: only leads sent to their own listing. Until the contractor pays to unlock a lead they get the
+-- customer's name and the problem only; every other field comes back empty.
 drop function if exists public.my_leads();
 create or replace function public.my_leads()
 returns table (
-  id uuid, created_at timestamptz, assigned_at timestamptz, source text, recipient_count int,
-  issue text, urgency text, city text, state text, postal_code text, street text, unit text,
-  first_name text, last_name text, phone text, email text, contact_method text, description text,
+  id uuid, created_at timestamptz, assigned_at timestamptz, source text, recipient_count int, unlocked boolean,
+  issue text, first_name text, last_name text,
+  urgency text, city text, state text, postal_code text, street text, unit text,
+  phone text, email text, contact_method text, description text,
   property_type text, property_status text, preferred_contact_time text,
   contractor_status text, contractor_notes text, contacted_at timestamptz
 )
@@ -369,9 +393,15 @@ stable
 as $$
   select l.id, l.created_at, a.assigned_at, a.source,
          (select count(*)::int from public.lead_assignments x where x.lead_id = l.id),
-         l.issue, l.urgency, l.city, l.state, l.postal_code, l.street, l.unit,
-         l.first_name, l.last_name, l.phone, l.email, l.contact_method, l.description,
-         l.property_type, l.property_status, l.preferred_contact_time,
+         (a.unlocked_at is not null),
+         l.issue, l.first_name, l.last_name,
+         case when a.unlocked_at is not null then l.urgency end, case when a.unlocked_at is not null then l.city end,
+         case when a.unlocked_at is not null then l.state end, case when a.unlocked_at is not null then l.postal_code end,
+         case when a.unlocked_at is not null then l.street end, case when a.unlocked_at is not null then l.unit end,
+         case when a.unlocked_at is not null then l.phone end, case when a.unlocked_at is not null then l.email end,
+         case when a.unlocked_at is not null then l.contact_method end, case when a.unlocked_at is not null then l.description end,
+         case when a.unlocked_at is not null then l.property_type end, case when a.unlocked_at is not null then l.property_status end,
+         case when a.unlocked_at is not null then l.preferred_contact_time end,
          a.contractor_status, a.contractor_notes, a.contacted_at
   from public.lead_assignments a
   join public.leads l on l.id = a.lead_id
@@ -395,15 +425,39 @@ begin
          contractor_notes = nullif(left(p_notes, 2000), ''),
          contacted_at = case when p_status = 'new' then null when a.contacted_at is null then now() else a.contacted_at end
    where a.lead_id = p_id
+     and a.unlocked_at is not null
      and exists (select 1 from public.listing_owners o where o.listing_id = a.listing_id and o.user_id = auth.uid());
   if not found then
+    if exists (select 1 from public.lead_assignments a join public.listing_owners o on o.listing_id = a.listing_id
+                where a.lead_id = p_id and o.user_id = auth.uid()) then
+      raise exception 'Unlock this lead first';
+    end if;
     raise exception 'Lead not found';
   end if;
 end;
 $$;
 
+-- Called by the Stripe webhook (service role only) once a contractor has paid for a lead. Safe to call twice.
+create or replace function public.unlock_lead(p_lead uuid, p_listing uuid, p_cents int, p_ref text)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update public.lead_assignments
+     set unlocked_at = coalesce(unlocked_at, now()),
+         unlock_cents = coalesce(unlock_cents, p_cents),
+         unlock_ref = coalesce(unlock_ref, p_ref)
+   where lead_id = p_lead and listing_id = p_listing;
+  return found;
+end;
+$$;
+
 revoke all on function public.route_lead(uuid, int) from public, anon, authenticated;
 revoke all on function public.leads_auto_route() from public, anon, authenticated;
+revoke all on function public.unlock_lead(uuid, uuid, int, text) from public, anon, authenticated;
+grant execute on function public.unlock_lead(uuid, uuid, int, text) to service_role;
 revoke all on function public.admin_route_lead(uuid) from public, anon;
 revoke all on function public.my_leads() from public, anon;
 revoke all on function public.update_my_lead(uuid, text, text) from public, anon;

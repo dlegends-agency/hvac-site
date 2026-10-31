@@ -1,16 +1,18 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { Clock, Mail, MapPin, Phone, Search, Users } from "lucide-react";
+import { Clock, Loader2, Lock, Mail, MapPin, Phone, Search, Users } from "lucide-react";
 import { PageTitle, Panel } from "@/components/admin/widgets";
 import { Button, buttonClass } from "@/components/ui/Button";
 import { inputClass } from "@/components/ui/Field";
+import { leadPrice } from "@/config/pricing";
 import { activePlan } from "@/lib/plans";
 import { getSupabaseBrowser } from "@/lib/supabase";
 import { CONTRACTOR_LEAD_STATUSES, type ContractorLead, type ContractorLeadStatus } from "@/lib/types";
+import { callApi } from "./api";
 import { useContractor } from "./context";
 import { ago, useMyLeads } from "./useMyLeads";
 
-type Tab = "all" | ContractorLeadStatus;
+type Tab = "all" | "locked" | ContractorLeadStatus;
 
 const statusStyle: Record<ContractorLeadStatus, string> = {
   new: "border-blue-600 bg-blue-600 text-white",
@@ -19,12 +21,43 @@ const statusStyle: Record<ContractorLeadStatus, string> = {
   lost: "border-slate-500 bg-slate-500 text-white",
 };
 
-function LeadCard({ lead, onSaved }: { lead: ContractorLead; onSaved: (l: ContractorLead) => void }) {
+function Locked({ lead, price }: { lead: ContractorLead; price: number }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function unlock() {
+    setBusy(true);
+    setError(null);
+    const res = await callApi<{ url?: string }>("/api/stripe/unlock", { leadId: lead.id });
+    if (res.data.url) return void window.location.assign(res.data.url);
+    setBusy(false);
+    setError(
+      res.status === 501 ? "Online payments aren't switched on yet. Please contact us."
+        : res.status === 409 ? "This request is already unlocked. Refresh the page."
+          : "We couldn't start the payment. Please try again.",
+    );
+  }
+
+  return (
+    <div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4">
+      <p className="flex items-center gap-2 text-sm font-semibold text-navy"><Lock className="size-4 text-slate-500" aria-hidden /> The rest of this request is locked</p>
+      <p className="mt-1 text-sm text-slate-600">Unlock it to see the customer&apos;s phone number, email, address, when they need help and their full message.</p>
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        <Button onClick={unlock} disabled={busy} className="!rounded-full !px-5 !py-2 text-sm">
+          {busy && <Loader2 className="size-4 animate-spin" aria-hidden />} Unlock for ${price}
+        </Button>
+        <span className="text-xs text-slate-500">One payment for this request. Not refundable.</span>
+      </div>
+      <div role="alert">{error && <p className="mt-2 text-sm font-medium text-red-700">{error}</p>}</div>
+    </div>
+  );
+}
+
+function Details({ lead, onSaved }: { lead: ContractorLead; onSaved: (l: ContractorLead) => void }) {
   const [notes, setNotes] = useState(lead.contractor_notes ?? "");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  const tel = `tel:${lead.phone.replace(/[^\d+]/g, "")}`;
-  const urgent = lead.urgency === "Immediately";
+  const tel = `tel:${(lead.phone ?? "").replace(/[^\d+]/g, "")}`;
 
   async function save(status: ContractorLeadStatus, noteText: string) {
     setBusy(true);
@@ -37,23 +70,7 @@ function LeadCard({ lead, onSaved }: { lead: ContractorLead; onSaved: (l: Contra
   }
 
   return (
-    <li className={`rounded-2xl border bg-white p-5 shadow-sm ${lead.contractor_status === "new" ? "border-blue-300 ring-1 ring-blue-100" : "border-slate-200"}`}>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="text-lg font-bold text-navy">{lead.first_name} {lead.last_name}</p>
-          <p className="mt-0.5 text-sm text-slate-700">{lead.issue}</p>
-          <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
-            <span className="inline-flex items-center gap-1"><Clock className="size-3.5" aria-hidden /> Received {ago(lead.assigned_at)}</span>
-            <span className="inline-flex items-center gap-1"><MapPin className="size-3.5" aria-hidden /> {lead.city}, {lead.state}</span>
-            {lead.recipient_count > 1 && <span className="inline-flex items-center gap-1"><Users className="size-3.5" aria-hidden /> Also sent to {lead.recipient_count - 1} other {lead.recipient_count === 2 ? "contractor" : "contractors"}</span>}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {urgent && <span className="rounded-full bg-emergency-soft px-2.5 py-0.5 text-xs font-semibold text-emergency">Needs help now</span>}
-          {lead.urgency !== "Immediately" && <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">{lead.urgency}</span>}
-        </div>
-      </div>
-
+    <>
       <dl className="mt-4 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
         <div><dt className="font-semibold text-navy">Service address</dt><dd className="text-slate-700">{[lead.street, lead.unit, `${lead.city}, ${lead.state} ${lead.postal_code}`].filter(Boolean).join(", ")}</dd></div>
         <div><dt className="font-semibold text-navy">Property</dt><dd className="text-slate-700">{lead.property_type} · {lead.property_status}</dd></div>
@@ -85,31 +102,86 @@ function LeadCard({ lead, onSaved }: { lead: ContractorLead; onSaved: (l: Contra
           <span role="status" className={`text-sm ${msg?.ok ? "text-green-700" : "text-red-700"}`}>{msg?.text}</span>
         </div>
       </div>
+    </>
+  );
+}
+
+function LeadCard({ lead, price, onSaved }: { lead: ContractorLead; price: number; onSaved: (l: ContractorLead) => void }) {
+  const urgent = lead.urgency === "Immediately";
+  return (
+    <li className={`rounded-2xl border bg-white p-5 shadow-sm ${lead.contractor_status === "new" ? "border-blue-300 ring-1 ring-blue-100" : "border-slate-200"}`}>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-lg font-bold text-navy">{lead.first_name} {lead.last_name}</p>
+          <p className="mt-0.5 text-sm text-slate-700">{lead.issue}</p>
+          <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
+            <span className="inline-flex items-center gap-1"><Clock className="size-3.5" aria-hidden /> Received {ago(lead.assigned_at)}</span>
+            {lead.unlocked && <span className="inline-flex items-center gap-1"><MapPin className="size-3.5" aria-hidden /> {lead.city}, {lead.state}</span>}
+            {lead.recipient_count > 1 && <span className="inline-flex items-center gap-1"><Users className="size-3.5" aria-hidden /> Also sent to {lead.recipient_count - 1} other {lead.recipient_count === 2 ? "contractor" : "contractors"}</span>}
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {urgent && <span className="rounded-full bg-emergency-soft px-2.5 py-0.5 text-xs font-semibold text-emergency">Needs help now</span>}
+          {lead.unlocked && lead.urgency && lead.urgency !== "Immediately" && <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">{lead.urgency}</span>}
+          {lead.unlocked ? <span className="rounded-full bg-green-50 px-2.5 py-0.5 text-xs font-semibold text-green-800">Unlocked</span> : <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600"><Lock className="size-3" aria-hidden /> Locked</span>}
+        </div>
+      </div>
+      {lead.unlocked ? <Details lead={lead} onSaved={onSaved} /> : <Locked lead={lead} price={price} />}
     </li>
   );
 }
 
 export default function ContractorLeads() {
   const { listing } = useContractor();
-  const { leads, error, replace } = useMyLeads(Boolean(listing));
+  const { leads, error, replace, reload } = useMyLeads(Boolean(listing));
   const [params, setParams] = useSearchParams();
   const [q, setQ] = useState("");
-  const tab: Tab = CONTRACTOR_LEAD_STATUSES.includes(params.get("status") as ContractorLeadStatus) ? (params.get("status") as ContractorLeadStatus) : "all";
+  const justPaid = params.get("unlocked") === "1";
+  const [waiting, setWaiting] = useState(justPaid);
+  const tabParam = params.get("status");
+  const tab: Tab = tabParam === "locked" || CONTRACTOR_LEAD_STATUSES.includes(tabParam as ContractorLeadStatus) ? (tabParam as Tab) : "all";
   const paid = listing ? activePlan(listing) !== "free" : false;
+  const price = paid ? leadPrice.paid : leadPrice.free;
+
+  // Coming back from Stripe: the webhook unlocks the request a moment after the payment, so check a few times.
+  useEffect(() => {
+    if (!justPaid) return;
+    let tries = 0;
+    const timer = window.setInterval(() => {
+      tries++;
+      void reload();
+      if (tries >= 10) {
+        window.clearInterval(timer);
+        setWaiting(false);
+      }
+    }, 3000);
+    return () => window.clearInterval(timer);
+  }, [justPaid, reload]);
+
+  // Stop saying "unlocking" as soon as the request that was just paid for has unlocked.
+  const paidLead = params.get("lead");
+  const paidLeadOpen = Boolean(paidLead && leads?.some((l) => l.id === paidLead && l.unlocked));
+  const stillWaiting = waiting && justPaid && !paidLeadOpen;
 
   const counts = useMemo(() => {
-    const c: Record<Tab, number> = { all: leads?.length ?? 0, new: 0, contacted: 0, won: 0, lost: 0 };
-    for (const l of leads ?? []) c[l.contractor_status]++;
+    const c: Record<Tab, number> = { all: leads?.length ?? 0, locked: 0, new: 0, contacted: 0, won: 0, lost: 0 };
+    for (const l of leads ?? []) {
+      c[l.contractor_status]++;
+      if (!l.unlocked) c.locked++;
+    }
     return c;
   }, [leads]);
 
   const term = q.trim().toLowerCase();
   const shown = (leads ?? []).filter(
-    (l) => (tab === "all" || l.contractor_status === tab) && (!term || [l.first_name, l.last_name, l.phone, l.email, l.city, l.issue].join(" ").toLowerCase().includes(term)),
+    (l) =>
+      (tab === "all" || (tab === "locked" ? !l.unlocked : l.contractor_status === tab)) &&
+      (!term || [l.first_name, l.last_name, l.issue, l.unlocked ? [l.phone, l.email, l.city].join(" ") : ""].join(" ").toLowerCase().includes(term)),
   );
 
   const setTab = (t: Tab) => {
     const next = new URLSearchParams(params);
+    next.delete("unlocked");
     if (t === "all") next.delete("status");
     else next.set("status", t);
     setParams(next, { replace: true });
@@ -124,20 +196,20 @@ export default function ContractorLeads() {
     );
   }
 
+  const tabs: Tab[] = ["all", "locked", ...CONTRACTOR_LEAD_STATUSES];
+
   return (
     <>
       <PageTitle title="Customer requests" />
       <p className="mb-5 max-w-3xl text-sm text-slate-700">
-        New requests from customers near you are sent to you automatically while you&apos;re on a Featured or Premium plan. Contact the customer yourself, then
-        update the status so you can keep track.
+        New requests from customers near you are sent to you automatically. You see the customer&apos;s name and the problem for free. Unlock a request for <strong>${price}</strong> to see how to
+        reach them{!paid && <>, or <Link to="/contractor/billing" className="font-semibold text-primary underline">go Featured</Link> and pay ${leadPrice.paid} instead</>}.
       </p>
 
-      {!paid && (
-        <div className="mb-6 max-w-3xl rounded-2xl border border-amber-300 bg-amber-50 p-5">
-          <p className="font-semibold text-navy">You&apos;re not receiving new requests</p>
-          <p className="mt-1 text-sm text-slate-700">New requests go to Featured and Premium contractors. Choose a plan to start receiving them. Requests you already received stay here.</p>
-          <Link to="/contractor/billing" className={buttonClass("primary", "mt-3 !rounded-full !px-5 !py-2 text-sm")}>See plans</Link>
-        </div>
+      {stillWaiting && (
+        <p role="status" className="mb-5 flex max-w-3xl items-center gap-2 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-900">
+          <Loader2 className="size-4 animate-spin" aria-hidden /> Payment received. Unlocking your request, this takes a few seconds…
+        </p>
       )}
 
       {error ? (
@@ -147,8 +219,8 @@ export default function ContractorLeads() {
       ) : (
         <>
           <div className="flex flex-wrap items-center gap-3">
-            <div role="tablist" aria-label="Filter requests by status" className="flex flex-wrap gap-1.5">
-              {(["all", ...CONTRACTOR_LEAD_STATUSES] as Tab[]).map((t) => (
+            <div role="tablist" aria-label="Filter requests" className="flex flex-wrap gap-1.5">
+              {tabs.map((t) => (
                 <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => setTab(t)}
                   className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold capitalize ${tab === t ? "border-primary bg-primary text-white" : "border-slate-300 bg-white text-navy hover:bg-slate-50"}`}>
                   {t} ({counts[t]})
@@ -158,24 +230,20 @@ export default function ContractorLeads() {
             <div className="relative ml-auto w-full sm:w-64">
               <Search className="pointer-events-none absolute top-3.5 left-3 size-4 text-slate-400" aria-hidden />
               <label htmlFor="lead-q" className="sr-only">Search requests</label>
-              <input id="lead-q" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name, phone, city…" className={`${inputClass} !py-2.5 !pl-9`} />
+              <input id="lead-q" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name or problem…" className={`${inputClass} !py-2.5 !pl-9`} />
             </div>
           </div>
 
           {leads.length === 0 ? (
             <div className="mt-6 max-w-2xl rounded-2xl border border-slate-200 bg-white p-8 text-center">
               <p className="text-lg font-semibold text-navy">No requests yet</p>
-              <p className="mt-2 text-sm text-slate-600">
-                {paid
-                  ? "When a customer asks for help in an area you serve, the request appears here. Make sure your listing is published and your service areas are filled in."
-                  : "Choose a Featured or Premium plan and requests from customers in your area will appear here."}
-              </p>
+              <p className="mt-2 text-sm text-slate-600">When a customer asks for help near you, the request appears here. Make sure your listing is published and your ZIP code and travel distance are set in My business.</p>
             </div>
           ) : shown.length === 0 ? (
             <p className="mt-6 text-sm text-slate-600">No requests match your filters.</p>
           ) : (
             <ul className="mt-5 max-w-4xl space-y-4">
-              {shown.map((l) => <LeadCard key={l.id} lead={l} onSaved={replace} />)}
+              {shown.map((l) => <LeadCard key={l.id} lead={l} price={price} onSaved={replace} />)}
             </ul>
           )}
         </>
@@ -183,7 +251,7 @@ export default function ContractorLeads() {
 
       <p className="mt-8 max-w-2xl text-xs text-slate-500">
         A request can be sent to up to three contractors, and we can&apos;t guarantee any number of requests or jobs. Customer details are shared so you can respond to their request:
-        use them only for that, and follow the rules that apply to calls, texts and emails.
+        use them only for that, and follow the rules that apply to calls, texts and emails. Unlocked requests are not refundable.
       </p>
     </>
   );

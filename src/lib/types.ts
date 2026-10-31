@@ -34,7 +34,10 @@ export interface Lead {
 export const CONTRACTOR_LEAD_STATUSES = ["new", "contacted", "won", "lost"] as const;
 export type ContractorLeadStatus = (typeof CONTRACTOR_LEAD_STATUSES)[number];
 
-/** A lead as a contractor sees it (returned by the my_leads() database function). */
+/**
+ * A lead as a contractor sees it (returned by the my_leads() database function). Until the contractor pays to unlock it,
+ * only the customer's name and the problem are filled in; every other field is null.
+ */
 export interface ContractorLead {
   id: string;
   created_at: string;
@@ -44,22 +47,24 @@ export interface ContractorLead {
   source: "auto" | "manual";
   /** How many contractors received this same request (including this one). */
   recipient_count: number;
+  /** True once the contractor has paid to see the full details. */
+  unlocked: boolean;
   contacted_at: string | null;
   issue: string;
-  urgency: string;
-  city: string;
-  state: string;
-  postal_code: string;
-  street: string;
-  unit: string | null;
   first_name: string;
   last_name: string;
-  phone: string;
-  email: string;
-  contact_method: string;
+  urgency: string | null;
+  city: string | null;
+  state: string | null;
+  postal_code: string | null;
+  street: string | null;
+  unit: string | null;
+  phone: string | null;
+  email: string | null;
+  contact_method: string | null;
   description: string | null;
-  property_type: string;
-  property_status: string;
+  property_type: string | null;
+  property_status: string | null;
   preferred_contact_time: string | null;
   contractor_status: ContractorLeadStatus;
   contractor_notes: string | null;
@@ -120,7 +125,7 @@ export interface Listing {
   service_radius_miles?: number;
 }
 
-export type PlanId = "free" | "featured" | "premium";
+export type PlanId = "free" | "featured";
 
 export interface ListingClaim {
   id: string;
@@ -141,6 +146,7 @@ export interface ListingBilling {
   plan: string | null;
   status: string | null;
   current_period_end: string | null;
+  billing_interval?: "month" | "year" | null;
 }
 
 /** Admin-only details stored in a separate table. */

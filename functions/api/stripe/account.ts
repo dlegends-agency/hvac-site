@@ -23,7 +23,7 @@ interface StripeInvoice {
   status: string | null;
   hosted_invoice_url: string | null;
   invoice_pdf: string | null;
-  lines?: { data: { price?: { id: string } | null }[] };
+  lines?: { data: { description?: string | null; price?: { id: string } | null }[] };
 }
 interface StripeSubscription {
   status: string;
@@ -88,6 +88,7 @@ export const onRequestPost = async ({ env, request }: { env: Env; request: Reque
           currency: i.currency,
           status: i.status,
           plan: planForPrice(env, i.lines?.data[0]?.price?.id),
+          description: i.lines?.data[0]?.description ?? null,
           url: i.hosted_invoice_url,
           pdf: i.invoice_pdf,
         })),

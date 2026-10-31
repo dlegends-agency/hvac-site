@@ -6,13 +6,14 @@ import { onRequestPost } from "../functions/api/notify/send.ts";
 // --- rendering
 const alert = { business_name: 'Acme <script>alert(1)</script> & Sons', issue: "AC Not Cooling, Thermostat Problem", urgency: "Immediately", city: "Austin", state: "Texas", lead_created_at: "2026-10-30T12:00:00Z" };
 const mail = renderLeadEmail(alert, "https://site.test");
-assert.equal(mail.subject, "Urgent: New HVAC request in Austin, Texas");
+assert.equal(mail.subject, "Urgent: New HVAC request: AC Not Cooling, Thermostat Problem");
 assert.ok(mail.html.includes("https://site.test/contractor/leads?status=new") && mail.text.includes("https://site.test/contractor/leads?status=new"));
 assert.ok(!mail.html.includes("<script>") && mail.html.includes("&lt;script&gt;"), "user text is escaped in HTML");
 assert.ok(mail.html.includes("AC Not Cooling, Thermostat Problem") && mail.text.includes("Problem: AC Not Cooling, Thermostat Problem"));
 assert.ok(mail.html.includes("turn these emails off") && mail.text.includes("turn these emails off"));
-assert.equal(renderLeadEmail({ ...alert, urgency: "Flexible timing" }, "https://site.test").subject, "New HVAC request in Austin, Texas", "not marked urgent");
-const injected = renderLeadEmail({ ...alert, city: "Austin\r\nBcc: evil@x.com", issue: "x" }, "https://site.test");
+for (const place of ["Austin", "Texas"]) assert.ok(!mail.html.includes(place) && !mail.text.includes(place) && !mail.subject.includes(place), `${place} (where the customer is) stays behind the unlock`);
+assert.equal(renderLeadEmail({ ...alert, urgency: "Flexible timing" }, "https://site.test").subject, "New HVAC request: AC Not Cooling, Thermostat Problem", "not marked urgent");
+const injected = renderLeadEmail({ ...alert, issue: "x\r\nBcc: evil@x.com" }, "https://site.test");
 assert.ok(!/[\r\n]/.test(injected.subject), "no header injection through the subject");
 assert.equal(escapeHtml(`<a href="x">'&`), "&lt;a href=&quot;x&quot;&gt;&#39;&amp;");
 assert.ok(secretsMatch("abc123", "abc123") && !secretsMatch("abc123", "abc124") && !secretsMatch("abc", "abcd") && !secretsMatch("", "") && !secretsMatch(null, "x"));

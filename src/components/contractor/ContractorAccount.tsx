@@ -19,6 +19,7 @@ interface Invoice {
   currency: string;
   status: string;
   plan: PlanId | null;
+  description?: string | null;
   url: string | null;
   pdf: string | null;
 }
@@ -237,7 +238,7 @@ function Payments() {
                 {invoices.map((i) => (
                   <tr key={i.id}>
                     <td className="py-2.5 pr-3 text-slate-700">{day(i.date)}</td>
-                    <td className="py-2.5 pr-3 text-slate-800">{i.plan ? `${planName(i.plan)} plan` : "Subscription"}{i.number && <span className="block text-xs text-slate-500">{i.number}</span>}</td>
+                    <td className="py-2.5 pr-3 text-slate-800">{i.plan ? `${planName(i.plan)} plan` : i.description ?? "Payment"}{i.number && <span className="block text-xs text-slate-500">{i.number}</span>}</td>
                     <td className="py-2.5 pr-3 font-semibold text-navy">{money(i.amount, i.currency)}</td>
                     <td className="py-2.5 pr-3"><span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ${statusStyle[i.status] ?? "bg-slate-100 text-slate-700"}`}>{i.status}</span></td>
                     <td className="py-2.5">

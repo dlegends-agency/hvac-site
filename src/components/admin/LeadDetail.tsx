@@ -14,6 +14,8 @@ interface Assignment {
   source: "auto" | "manual";
   contractor_status: string;
   contacted_at: string | null;
+  unlocked_at: string | null;
+  unlock_cents: number | null;
   listings: { business_name: string; city: string; plan: PlanId; plan_until: string | null } | null;
 }
 import { Panel, QueryState, StatusBadge } from "./widgets";
@@ -53,7 +55,7 @@ export function LeadDetail() {
   const loadAssignments = useCallback(async () => {
     const { data } = await getSupabaseBrowser()
       .from("lead_assignments")
-      .select("listing_id, assigned_at, source, contractor_status, contacted_at, listings(business_name, city, plan, plan_until)")
+      .select("listing_id, assigned_at, source, contractor_status, contacted_at, unlocked_at, unlock_cents, listings(business_name, city, plan, plan_until)")
       .eq("lead_id", id)
       .order("assigned_at");
     setAssignments((data as unknown as Assignment[] | null) ?? []);
@@ -116,6 +118,17 @@ export function LeadDetail() {
     setSaving(false);
     if (error) return setMsg("Could not remove.");
     setMsg("Removed.");
+    void loadAssignments();
+  }
+
+  async function unlockFree(listingId: string) {
+    if (!window.confirm("Unlock this lead for the contractor at no charge?")) return;
+    setSaving(true);
+    setMsg(null);
+    const { error } = await getSupabaseBrowser().from("lead_assignments").update({ unlocked_at: new Date().toISOString(), unlock_cents: 0, unlock_ref: "admin" }).eq("lead_id", id).eq("listing_id", listingId);
+    setSaving(false);
+    if (error) return setMsg("Could not unlock.");
+    setMsg("Unlocked for the contractor.");
     void loadAssignments();
   }
 
@@ -194,7 +207,7 @@ export function LeadDetail() {
                 </Panel>
                 <Panel title={`Sent to contractors (${assignments.length})`}>
                   {assignments.length === 0 ? (
-                    <p className="text-sm text-slate-600">Not sent to anyone yet. New leads go automatically to Featured and Premium contractors that serve the customer&apos;s city.</p>
+                    <p className="text-sm text-slate-600">Not sent to anyone yet. New leads go automatically to up to three contractors near the customer, paid listings first.</p>
                   ) : (
                     <ul className="divide-y divide-slate-100">
                       {assignments.map((a) => (
@@ -205,6 +218,10 @@ export function LeadDetail() {
                               {a.listings?.city} · {a.listings ? activePlan(a.listings) : ""} · {a.source === "auto" ? "automatic" : "added by you"}
                             </span>
                             <span className="block text-xs capitalize text-slate-600">Status: {a.contractor_status}{a.contacted_at ? ` (contacted ${new Date(a.contacted_at).toLocaleDateString()})` : ""}</span>
+                            <span className="block text-xs text-slate-600">
+                              {a.unlocked_at ? `Unlocked ${a.unlock_cents ? `for $${(a.unlock_cents / 100).toFixed(2)}` : "free"}` : "Locked (not paid yet)"}
+                              {!a.unlocked_at && <button type="button" disabled={saving} onClick={() => unlockFree(a.listing_id)} className="ml-2 font-semibold text-primary hover:underline disabled:opacity-60">Unlock free</button>}
+                            </span>
                           </span>
                           <button type="button" disabled={saving} onClick={() => removeContractor(a.listing_id)} className="shrink-0 text-xs font-semibold text-red-700 hover:underline disabled:opacity-60">Remove</button>
                         </li>
@@ -218,7 +235,7 @@ export function LeadDetail() {
                   </select>
                   {owned.length === 0 && <p className="mt-2 text-xs text-slate-500">No contractor accounts yet. Approve a claim in Directory &gt; Claims first.</p>}
                   <Button variant="secondary" onClick={routeNow} disabled={saving} className="mt-3 w-full !py-2 text-sm">Send to matching contractors</Button>
-                  <p className="mt-2 text-xs text-slate-500">Contractors see the customer&apos;s name, phone, email and request, and each keeps their own status and notes.</p>
+                  <p className="mt-2 text-xs text-slate-500">Contractors see only the customer&apos;s name and the problem until they pay to unlock the lead ($10 on Free, $5 on Featured). Each keeps their own status and notes.</p>
                 </Panel>
                 <Panel title="Internal notes">
                   <label htmlFor="notes" className="sr-only">Internal notes</label>

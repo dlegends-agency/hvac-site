@@ -189,11 +189,11 @@ export function ListingEditor() {
               <Panel title="Plan (advertising)">
                 <label htmlFor="plan" className="sr-only">Plan</label>
                 <select id="plan" value={draft.plan} onChange={(e) => set("plan", e.target.value as PlanId)} className={`${inputClass} capitalize`}>
-                  <option value="free">Basic (free)</option><option value="featured">Featured</option><option value="premium">Premium</option>
+                  <option value="free">Free</option><option value="featured">Featured (paid)</option>
                 </select>
                 <label htmlFor="plan_until" className="mt-3 mb-1 block text-sm font-semibold text-navy">Paid until <span className="font-normal text-slate-500">(optional)</span></label>
                 <input id="plan_until" type="date" value={draft.plan_until} onChange={(e) => set("plan_until", e.target.value)} className={inputClass} />
-                <p className="mt-2 text-xs text-slate-500">Stripe subscriptions set this automatically. Use it to give a manual or free trial plan; it reverts to Basic after the date.</p>
+                <p className="mt-2 text-xs text-slate-500">Stripe subscriptions set this automatically. Use it to give a manual or free trial plan; it reverts to Free after the date.</p>
               </Panel>
               {meta && (
                 <Panel title="Source">
