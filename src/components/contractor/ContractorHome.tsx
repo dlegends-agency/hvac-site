@@ -22,7 +22,7 @@ export default function ContractorHome() {
     return (
       <>
         <PageTitle title="Welcome" />
-        <div className="max-w-2xl space-y-6">
+        <div className="space-y-6">
           {claim?.status === "pending" ? (
             <Panel title="Request received">
               <p className="flex items-start gap-2 text-sm text-slate-700">
@@ -161,7 +161,7 @@ export default function ContractorHome() {
         </Panel>
       </div>
 
-      <div className="mt-6 max-w-2xl">
+      <div className="mt-6">
         <Panel title="Make your listing stronger">
           <ul className="space-y-3">
             {checklist.map((c) => (

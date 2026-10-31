@@ -92,8 +92,8 @@ function SignIn() {
   const note = (n: Note) => <p role="status" className={`mt-3 text-sm font-medium ${n?.ok ? "text-green-700" : "text-red-700"}`}>{n?.text}</p>;
 
   return (
-    <Panel title="Sign-in details">
-      <form onSubmit={changeEmail} noValidate className="max-w-md space-y-3">
+    <Panel title="Sign-in details" className="xl:row-span-2">
+      <form onSubmit={changeEmail} noValidate className="space-y-3">
         <p className="text-sm text-slate-700">Signed in as <strong>{email}</strong></p>
         <Field id="new_email" label="New email address" hint="We email a confirmation link to the new address before anything changes.">
           {(a) => <input id="new_email" name="new_email" type="email" autoComplete="email" className={inputClass} {...a} />}
@@ -106,7 +106,7 @@ function SignIn() {
 
       <hr className="my-6 border-slate-100" />
 
-      <form onSubmit={changePassword} noValidate className="max-w-md space-y-3">
+      <form onSubmit={changePassword} noValidate className="space-y-3">
         <h3 className="font-semibold text-navy">Change password</h3>
         <Field id="current_password" label="Current password">
           {(a) => <input id="current_password" name="current_password" type="password" autoComplete="current-password" className={inputClass} {...a} />}
@@ -143,7 +143,7 @@ function Alerts() {
 
   return (
     <Panel title="Email alerts">
-      <div className="flex max-w-xl items-center justify-between gap-4">
+      <div className="flex items-center justify-between gap-4">
         <p className="flex items-start gap-2 text-sm text-slate-700">
           {notifyEmail ? <Bell className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden /> : <BellOff className="mt-0.5 size-4 shrink-0 text-slate-400" aria-hidden />}
           <span>{notifyEmail ? <>We email <strong>{email}</strong> when a customer request is sent to you.</> : "You won't be emailed about new requests. You'll still see them in your dashboard."}</span>
@@ -225,7 +225,7 @@ function Payments() {
         <p className="mt-4 text-xs text-slate-500">Cards are handled by Stripe. We never see or store your full card number.</p>
       </Panel>
 
-      <Panel title="Payment history">
+      <Panel title="Payment history" className="xl:col-span-2">
         {invoices.length === 0 ? (
           <p className="text-sm text-slate-600">No payments yet.</p>
         ) : (
@@ -261,7 +261,7 @@ export default function ContractorAccount() {
   return (
     <>
       <PageTitle title="Account settings" />
-      <div className="max-w-4xl space-y-6">
+      <div className="grid items-start gap-6 xl:grid-cols-2">
         <SignIn />
         <Alerts />
         <Payments />

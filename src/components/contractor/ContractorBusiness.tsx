@@ -95,7 +95,7 @@ function BusinessForm({ listing, reload }: { listing: Listing; reload: () => Pro
   );
 
   return (
-    <div className="grid items-start gap-8 xl:grid-cols-[minmax(0,48rem)_minmax(18rem,26rem)]">
+    <div className="grid items-start gap-8 xl:grid-cols-[minmax(0,1fr)_26rem]">
     <form onSubmit={save} onInput={onType} noValidate className="space-y-6">
       <Panel title="Your directory listing">
         <p className="mb-4 text-sm text-slate-600">

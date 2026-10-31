@@ -75,13 +75,13 @@ export function SeoAudit() {
         </Button>
       </PageTitle>
 
-      <p className="max-w-3xl text-sm text-slate-600">
+      <p className="text-sm text-slate-600">
         Audits every public page of this site: titles, meta descriptions, canonicals, headings, structured data, images, internal links, duplicates and orphan pages,
         plus robots.txt, the sitemap and your published blog and directory content. Pages are loaded as a browser renders them; static pages are also checked in the raw server HTML that crawlers receive first.
         The results are a checklist of specific issues, not a ranking prediction.
       </p>
       {import.meta.env.DEV && (
-        <p className="mt-3 max-w-3xl rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+        <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
           You&apos;re on the local dev server. Server-HTML checks are skipped and the sitemap isn&apos;t available here. Run the audit on the deployed site for full results.
         </p>
       )}

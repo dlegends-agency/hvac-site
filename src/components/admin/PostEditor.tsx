@@ -113,7 +113,7 @@ export function PostEditor() {
         {id && !post ? (
           <p className="rounded-2xl border border-slate-200 bg-white p-8 text-slate-600">Post not found.</p>
         ) : (
-          <form onSubmit={save} className="max-w-3xl space-y-5">
+          <form onSubmit={save} className="space-y-5">
             <div className="flex items-center justify-between gap-3">
               <h1 className="text-2xl font-bold text-navy">{id ? "Edit post" : "New post"}</h1>
               {post?.status === "published" && (

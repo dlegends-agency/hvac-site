@@ -20,9 +20,9 @@ export function StatCard({ label, value, hint }: { label: string; value: ReactNo
   );
 }
 
-export function Panel({ title, children }: { title: string; children: ReactNode }) {
+export function Panel({ title, children, className = "" }: { title: string; children: ReactNode; className?: string }) {
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <section className={`rounded-2xl border border-slate-200 bg-white p-5 shadow-sm ${className}`}>
       <h2 className="mb-4 font-semibold text-navy">{title}</h2>
       {children}
     </section>

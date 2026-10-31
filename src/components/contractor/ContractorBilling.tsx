@@ -48,11 +48,11 @@ export default function ContractorBilling() {
     <>
       <PageTitle title="Plan & billing" />
       {params.get("status") === "success" && (
-        <p role="status" className="mb-5 max-w-3xl rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-900">
+        <p role="status" className="mb-5 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-900">
           Thank you. Your payment went through. It can take a minute for your plan to update here; refresh if you don&apos;t see it yet.
         </p>
       )}
-      <p className="mb-5 max-w-3xl text-sm text-slate-700">
+      <p className="mb-5 text-sm text-slate-700">
         Current plan: <strong>{planName(current)}</strong>
         {billing?.current_period_end && current !== "free" && <> · renews or ends {new Date(billing.current_period_end).toLocaleDateString()}</>}
         {" "}· Unlocking a customer request costs <strong>${current === "free" ? leadPrice.free : leadPrice.paid}</strong> each.
@@ -67,7 +67,7 @@ export default function ContractorBilling() {
         ))}
       </div>
 
-      <ul className="grid max-w-4xl gap-5 md:grid-cols-2">
+      <ul className="grid gap-5 md:grid-cols-2">
         {plans.map((p) => {
           const isCurrent = p.id === current;
           return (
@@ -96,10 +96,10 @@ export default function ContractorBilling() {
         })}
       </ul>
 
-      <div role="alert" className="mt-4 max-w-3xl">{error && <p className="rounded-xl border border-orange-200 bg-orange-50 p-3 text-sm text-orange-900">{error}</p>}</div>
+      <div role="alert" className="mt-4">{error && <p className="rounded-xl border border-orange-200 bg-orange-50 p-3 text-sm text-orange-900">{error}</p>}</div>
 
       {billing?.stripe_customer_id && (
-        <div className="mt-6 max-w-3xl">
+        <div className="mt-6">
           <Panel title="Manage your subscription">
             <p className="text-sm text-slate-600">Switch between monthly and yearly, update your card, download invoices or cancel in Stripe&apos;s secure billing portal.</p>
             <Button variant="secondary" onClick={() => go("/api/stripe/portal", {}, "portal")} disabled={busy !== null} className="mt-3 !rounded-full">
@@ -108,7 +108,7 @@ export default function ContractorBilling() {
           </Panel>
         </div>
       )}
-      <p className="mt-6 max-w-3xl text-xs text-slate-500">
+      <p className="mt-6 text-xs text-slate-500">
         Payments are processed by Stripe; we never see or store your card number. Paid plans are advertising and don&apos;t guarantee customer requests. Unlocked requests are not refundable.
         See the <Link to="/terms-of-use" className="underline">Terms of Use</Link>.
       </p>

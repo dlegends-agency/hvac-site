@@ -43,7 +43,7 @@ export function ClaimsAdmin() {
     <>
       <PageTitle title="Directory" />
       <DirectoryTabs />
-      <p className="mb-5 max-w-3xl text-sm text-slate-600">
+      <p className="mb-5 text-sm text-slate-600">
         Contractors ask to manage a listing. Check that the person represents the business (compare their email and phone with the business&apos;s website or phone number) before approving.
         Approving lets them edit the listing&apos;s details; it does not publish a pending listing.
       </p>
