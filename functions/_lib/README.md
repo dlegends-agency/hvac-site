@@ -14,7 +14,9 @@ Shared helpers for the Cloudflare Pages Functions. The leading underscore keeps 
   - `ownedListingId(env, userId)`, `billingFor(env, listingId)`.
   - `verifyStripeSignature(payload, header, secret, nowSeconds?, toleranceSeconds = 300)`: HMAC-SHA256 check of `Stripe-Signature`.
   - `entitlement(env, sub)`: maps a subscription to `{ plan, until, interval }`.
-- `google.ts`: `Candidate`, `Rating`, `isPlaceId`, `parseCandidates`, `parseRating`, `parseHours`, `isPaidNow`, `searchPlaces`, `placeLive` (rating and opening hours in one request).
+- `google.ts`: `Candidate`, `Rating`, `isPlaceId`, `parseCandidates`, `parseRating`, `parseHours`, `isPaidNow`, `searchPlaces`, `placeLive` (rating, opening hours and the first photo's name in one request), `parsePhoto`, `isPhotoName`, `photoUri`.
+- `captcha.ts`: `verifyCaptcha` (Cloudflare Turnstile; skipped when `TURNSTILE_SECRET_KEY` is not set).
+- `submit.ts`: `pickFields`, `readGuarded` (CAPTCHA check and field whitelist for the public form endpoints).
 - `email.ts`: `LeadAlert`, `escapeHtml`, `secretsMatch`, `renderLeadEmail`, `sendEmail`.
 
 ## Invariants

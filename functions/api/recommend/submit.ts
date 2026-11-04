@@ -2,6 +2,7 @@
 // A customer recommends a published directory listing. The recommendation is always saved (as "pending"); the business reads it in its
 // dashboard and decides whether to show it. If email sending is set up, a confirmation link is emailed to the customer too, and the
 // recommendation then carries an "email confirmed" note. `website` is a hidden trap field for bots.
+import { verifyCaptcha } from "../../_lib/captcha";
 import { sendEmail } from "../../_lib/email";
 import { checkRecommendation, hashIp, hashToken, newToken, renderConfirmEmail } from "../../_lib/recommend";
 import { db, json, siteOrigin, type Env } from "../../_lib/stripe";
@@ -25,6 +26,9 @@ export const onRequestPost = async ({ env, request }: { env: Env; request: Reque
     return json({ error: "Invalid request." }, 400);
   }
   if (typeof raw.website === "string" && raw.website.trim() !== "") return json(emailOn ? SAVED_CONFIRM : SAVED); // a bot filled the hidden field
+
+  const captcha = await verifyCaptcha(env, raw.captcha, request.headers.get("CF-Connecting-IP"));
+  if (!captcha.ok) return json({ error: "Please complete the security check and try again.", captcha: true }, 400);
 
   const checked = checkRecommendation(raw);
   if (!checked.ok) return json({ error: checked.error }, 400);

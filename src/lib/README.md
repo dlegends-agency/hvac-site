@@ -8,6 +8,8 @@ Shared non-visual logic: Supabase client and data hooks, domain types, plan enti
 - `types.ts`: `Lead`, `ContractorLead`, `Post`, `PageView`, `Listing`, `ListingClaim`, `ListingBilling`, `ListingPrivate`, `DiscoveryJob`, `ListingCandidate`, `DiscoveryRun`, `PlanId`, `LeadStatus`, `ListingStatus`, `LEAD_STATUSES`, `CONTRACTOR_LEAD_STATUSES`, `LISTING_STATUSES`.
 - `plans.ts`: `activePlan`, `isFeatured`, `isVerified`, `sortByPlan`, `publicView`.
 - `listing-images.ts`: `imageUrl`, `uploadListingImage`, `removeListingImage`, `coverCrop`, `IMAGE_RULES` (photos go to the public `listing-images` Storage bucket, resized in the browser first).
+- `post-form.ts`: `postForm` (sends a public form to `/api/submit/*` with its CAPTCHA token and the customer's session if signed in).
+- `use-google-photo.ts`: `useGooglePhoto` (a paid connected listing's Google photo as its profile picture).
 - `recommendations.ts`: `useListingRecommendations`, `Recommendation`.
 - `hours.ts`: `DAYS`, `cleanHours`, `hasHours`, `formatTime`, `timeZoneFor`, `openStatus` ("Open now · closes 5:00 PM", by the state's main time zone).
 - `google-live.ts`: `fetchGoogleLive` (one `/api/google/rating` request per slug, shared by the stars and the hours on a page).

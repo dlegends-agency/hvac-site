@@ -7,6 +7,7 @@ Cloudflare Pages Function routes served under `/api`. Each file exports `onReque
 - `run-discovery.ts`: `onRequestPost` for `POST /api/run-discovery` (bearer token). Lets the admin "Run now" button dispatch the `discovery-agent.yml` GitHub Actions workflow on `ref: "main"`. Returns `{ started: true }`. It declares its own local `Env` (`VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `GITHUB_TOKEN`, `GITHUB_REPO`) and `json` helper.
 
 ## Subdirectories & Boundaries
+- submit: [./submit/README.md](./submit/README.md) - public forms (service request, contact, list your business) with a CAPTCHA check.
 - recommend: [./recommend/README.md](./recommend/README.md) - customer recommendations: submit, email confirmation.
 - google: [./google/README.md](./google/README.md) - Google Places business linking and live ratings.
 - notify: [./notify/README.md](./notify/README.md) - lead alert email sending.
@@ -19,4 +20,4 @@ Cloudflare Pages Function routes served under `/api`. Each file exports `onReque
 - `run-discovery`: calls Supabase `rpc/is_admin` and the GitHub REST API to trigger a workflow run.
 
 ## Verification
-- Run: `npm run test:stripe`, `npm run test:google`, `npm run test:notify`, `npm run test:account`, `npm run test:unlock`, `npm run test:recommend`
+- Run: `npm run test:stripe`, `npm run test:google`, `npm run test:notify`, `npm run test:account`, `npm run test:unlock`, `npm run test:recommend`, `npm run test:submit`

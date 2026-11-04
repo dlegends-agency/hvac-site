@@ -35,6 +35,8 @@ const MessagesAdmin = lazy(() => import("@/components/admin/MessagesAdmin").then
 const SeoAudit = lazy(() => import("@/components/admin/SeoAudit").then((m) => ({ default: m.SeoAudit })));
 // The contractor dashboard is its own chunk too.
 const ContractorLoginPage = lazy(() => import("@/components/contractor/ContractorLoginPage"));
+const CustomerLoginPage = lazy(() => import("@/components/account/CustomerLoginPage"));
+const AccountPage = lazy(() => import("@/components/account/AccountPage"));
 const ContractorLayout = lazy(() => import("@/components/contractor/ContractorLayout"));
 const ContractorHome = lazy(() => import("@/components/contractor/ContractorHome"));
 const ContractorLeads = lazy(() => import("@/components/contractor/ContractorLeads"));
@@ -68,6 +70,8 @@ export default function App() {
           <Route path="/directory/:slug" element={<ListingPage />} />
           <Route path="/pricing" element={<PricingPage />} />
           <Route path="/contractor/login" element={<ContractorLoginPage />} />
+          <Route path="/account/login" element={<CustomerLoginPage />} />
+          <Route path="/account" element={<AccountPage />} />
           <Route path="/contractor" element={<ContractorLayout />}>
             <Route index element={<ContractorHome />} />
             <Route path="leads" element={<ContractorLeads />} />

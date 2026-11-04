@@ -11,9 +11,15 @@ export interface LiveHours {
   openNow: boolean | null;
 }
 
+export interface LivePhoto {
+  name: string;
+  attribution: string | null;
+}
+
 export interface GoogleLive {
   rating: LiveRating | null;
   hours: LiveHours | null;
+  photo: LivePhoto | null;
 }
 
 const inFlight = new Map<string, Promise<GoogleLive>>();
@@ -23,8 +29,8 @@ export function fetchGoogleLive(slug: string): Promise<GoogleLive> {
   if (!p) {
     p = fetch(`/api/google/rating?slug=${encodeURIComponent(slug)}`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((j: Partial<GoogleLive> | null) => ({ rating: j?.rating ?? null, hours: j?.hours ?? null }))
-      .catch(() => ({ rating: null, hours: null }));
+      .then((j: Partial<GoogleLive> | null) => ({ rating: j?.rating ?? null, hours: j?.hours ?? null, photo: j?.photo ?? null }))
+      .catch(() => ({ rating: null, hours: null, photo: null }));
     inFlight.set(slug, p);
     // Forget it shortly after so a later visit to the page asks Google again instead of showing an old answer.
     void p.then(() => setTimeout(() => inFlight.delete(slug), 30_000));

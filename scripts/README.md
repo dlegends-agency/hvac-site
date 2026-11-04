@@ -10,10 +10,11 @@ Node ESM (`.mjs`) utilities for the HVAC site: the build-time prerenderer, a one
 | --- | --- | --- |
 | `prerender.mjs` | After `vite build` and `vite build --ssr`, imports `.ssr/entry-server.js` (`render`, `prerenderRoutes`, `siteUrl`, `brandName`) and writes `dist/<route>/index.html` with title, description, canonical, Open Graph and JSON-LD. Rewrites the `Sitemap:` line in `dist/robots.txt`. | `build` (last step) |
 | `load-zip-centroids.mjs` | One-time load of `supabase/data/zip-centroids.csv.gz` into the `zip_centroids` table (upsert on `zip`, batches of 1000). Needs `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`. | none (run with `node`) |
-| `ts-resolve.mjs` | Registers a `node:module` resolve hook so extensionless relative imports in `functions/` resolve to `.ts`. Loaded with `--import`. | used by `test:notify`, `test:account`, `test:unlock`, `test:recommend` |
+| `ts-resolve.mjs` | Registers a `node:module` resolve hook so extensionless relative imports in `functions/` resolve to `.ts`. Loaded with `--import`. | used by `test:notify`, `test:account`, `test:unlock`, `test:recommend`, `test:submit`, `test:google` |
 | `test-stripe.mjs` | Tests `functions/_lib/stripe.ts` (webhook signature, plan and price mapping, entitlement). | `test:stripe` |
 | `test-google.mjs` | Tests `functions/_lib/google.ts` (place ids, candidates, ratings, `isPaidNow`). | `test:google` |
 | `test-recommend.mjs` | Tests `functions/_lib/recommend.ts`, `functions/api/recommend/*` (with `fetch` mocked), `src/lib/hours.ts` and `parseHours`. | `test:recommend` |
+| `test-submit.mjs` | Tests `functions/_lib/captcha.ts`, `functions/_lib/submit.ts` and `functions/api/submit/*` (and the CAPTCHA on the recommendation form) with `fetch` mocked. | `test:submit` |
 | `test-notify.mjs` | Tests `functions/_lib/email.ts` and `functions/api/notify/send.ts` with `fetch` mocked. | `test:notify` |
 | `test-account.mjs` | Tests `functions/api/stripe/account.ts` and `portal.ts` with `fetch` mocked. | `test:account` |
 | `test-unlock.mjs` | Tests `unlock.ts`, `checkout.ts`, `webhook.ts` and checks `src/config/pricing.ts` `leadPrice` matches `LEAD_PRICE_CENTS`. | `test:unlock` |

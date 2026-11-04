@@ -43,6 +43,7 @@ export const siteConfig: SiteConfig = {
     { label: "FAQ", href: "/#faq" },
     { label: "Blog", href: "/blog" },
     { label: "For Contractors", href: "/pricing" },
+    { label: "My Requests", href: "/account" },
   ],
   seo: {
     title: "Emergency HVAC Repair | Find Local Heating and AC Help",

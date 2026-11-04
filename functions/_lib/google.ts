@@ -67,12 +67,39 @@ export function parseHours(data: unknown): LiveHours | null {
   return { lines, openNow: typeof h.openNow === "boolean" ? h.openNow : null };
 }
 
-/** Rating and opening hours in one Place Details request (one billed call). Nothing is stored. */
-export async function placeLive(env: Env, placeId: string): Promise<{ rating: Rating | null; hours: LiveHours | null }> {
+export interface LivePhoto {
+  /** Google's name for the photo: "places/<place id>/photos/<reference>". */
+  name: string;
+  /** Who took it, as Google asks us to show. */
+  attribution: string | null;
+}
+
+const PHOTO_NAME = /^places\/[A-Za-z0-9_-]+\/photos\/[A-Za-z0-9_-]+$/;
+export const isPhotoName = (v: unknown): v is string => typeof v === "string" && v.length <= 400 && PHOTO_NAME.test(v);
+
+/** The first photo of the place (Google lists the business's own photos first), or null. */
+export function parsePhoto(data: unknown): LivePhoto | null {
+  const first = (data as { photos?: { name?: unknown; authorAttributions?: { displayName?: unknown }[] }[] } | null)?.photos?.[0];
+  if (!first || !isPhotoName(first.name)) return null;
+  const who = first.authorAttributions?.[0]?.displayName;
+  return { name: first.name, attribution: typeof who === "string" && who.length > 0 && who.length <= 100 ? who : null };
+}
+
+/** The short-lived image address for one photo (about 400 pixels wide). Nothing is stored. */
+export async function photoUri(env: Env, name: string): Promise<string | null> {
+  if (!isPhotoName(name)) return null;
+  const res = await fetch(`${BASE}/${name}/media?maxWidthPx=400&skipHttpRedirect=true`, { headers: { "X-Goog-Api-Key": env.GOOGLE_PLACES_API_KEY ?? "" } });
+  if (!res.ok) throw new Error(`Places photo ${res.status}`);
+  const uri = ((await res.json()) as { photoUri?: unknown } | null)?.photoUri;
+  return typeof uri === "string" && /^https:\/\/([a-z0-9-]+\.)*(googleusercontent\.com|ggpht\.com|google\.com)\//i.test(uri) ? uri : null;
+}
+
+/** Rating, opening hours and the first photo's name in one Place Details request (one billed call). Nothing is stored. */
+export async function placeLive(env: Env, placeId: string): Promise<{ rating: Rating | null; hours: LiveHours | null; photo: LivePhoto | null }> {
   const res = await fetch(`${BASE}/places/${encodeURIComponent(placeId)}`, {
-    headers: { "X-Goog-Api-Key": env.GOOGLE_PLACES_API_KEY ?? "", "X-Goog-FieldMask": "rating,userRatingCount,googleMapsUri,regularOpeningHours" },
+    headers: { "X-Goog-Api-Key": env.GOOGLE_PLACES_API_KEY ?? "", "X-Goog-FieldMask": "rating,userRatingCount,googleMapsUri,regularOpeningHours,photos" },
   });
   if (!res.ok) throw new Error(`Places details ${res.status}`);
   const data = await res.json();
-  return { rating: parseRating(data), hours: parseHours(data) };
+  return { rating: parseRating(data), hours: parseHours(data), photo: parsePhoto(data) };
 }

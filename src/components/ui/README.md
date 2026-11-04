@@ -9,6 +9,8 @@ Small presentational form and button primitives.
 - `CheckboxCards.tsx`: `CheckboxCards`.
 - `RadioCards.tsx`: `RadioCards`.
 
+- `Turnstile.tsx`: `useCaptcha` (token, widget, blocked, reset), `captchaEnabled`; shown only when `VITE_TURNSTILE_SITE_KEY` is set.
+
 ## Invariants
 - None
 

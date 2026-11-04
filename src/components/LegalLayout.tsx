@@ -45,7 +45,7 @@ export function LegalLayout({ title, seoTitle, description, path, updated, intro
               </div>
             </nav>
 
-            <article className="max-w-3xl rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-10">
+            <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-10">
               <h1 className="text-3xl font-extrabold tracking-tight text-navy sm:text-4xl">{title}</h1>
               <p className="mt-2 text-sm text-slate-500">Last updated: {updated}</p>
               <div className="mt-6 space-y-4 text-lg leading-relaxed text-slate-700">{intro}</div>

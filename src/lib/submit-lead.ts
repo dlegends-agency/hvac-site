@@ -1,15 +1,16 @@
 import type { LeadFormValues } from "@/lib/lead-schema";
+import { postForm } from "@/lib/post-form";
 import { getSupabaseBrowser, isSupabaseConfigured } from "@/lib/supabase";
 
 export type SubmitResult = "ok" | "not_configured" | "error";
 
 /**
- * Inserts a validated lead into Supabase. The `leads` table's RLS policy allows anonymous INSERT only,
- * so visitors can submit but never read leads. See supabase/schema.sql.
+ * Sends a validated lead to /api/submit/lead, which checks the CAPTCHA and saves it (linked to the customer's account when they are
+ * signed in). Visitors can submit but never read leads. In `npm run dev`, where there are no server functions, it inserts directly.
  */
-export async function submitLead(values: LeadFormValues, idempotencyKey: string, source: string): Promise<SubmitResult> {
+export async function submitLead(values: LeadFormValues, idempotencyKey: string, source: string, captcha: string | null): Promise<SubmitResult> {
   if (!isSupabaseConfigured) return "not_configured";
-  const { error } = await getSupabaseBrowser().from("leads").insert({
+  const row = {
     idempotency_key: idempotencyKey,
     source,
     issue: values.issues.join(", "),
@@ -31,8 +32,13 @@ export async function submitLead(values: LeadFormValues, idempotencyKey: string,
     preferred_contact_time: values.preferredContactTime || null,
     referral_acknowledgment: values.referralAcknowledgment,
     marketing_consent: values.marketingConsent,
+  };
+  const res = await postForm("/api/submit/lead", row, captcha, {
+    devFallback: async () => {
+      const { error } = await getSupabaseBrowser().from("leads").insert(row);
+      // 23505 = duplicate idempotency key: this exact request was already stored.
+      return !error || error.code === "23505";
+    },
   });
-  // 23505 = duplicate idempotency key: this exact request was already stored.
-  if (error && error.code !== "23505") return "error";
-  return "ok";
+  return res.ok ? "ok" : "error";
 }

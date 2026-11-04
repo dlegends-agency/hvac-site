@@ -3,12 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Field, inputClass } from "@/components/ui/Field";
+import { useCaptcha } from "@/components/ui/Turnstile";
 import { getSupabaseBrowser, isSupabaseConfigured } from "@/lib/supabase";
 
 export function LoginForm() {
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const captcha = useCaptcha();
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -19,7 +21,9 @@ export function LoginForm() {
     const { error } = await getSupabaseBrowser().auth.signInWithPassword({
       email: String(data.get("email")).trim(),
       password: String(data.get("password")),
+      options: { captchaToken: captcha.token ?? undefined },
     });
+    captcha.reset();
     if (error) {
       setError("Sign-in failed. Check your email and password.");
       setLoading(false);
@@ -43,7 +47,8 @@ export function LoginForm() {
         {(a) => <input id="password" name="password" type="password" autoComplete="current-password" required className={inputClass} {...a} />}
       </Field>
       <div role="alert">{error && <p className="text-sm font-medium text-red-700">{error}</p>}</div>
-      <Button type="submit" className="w-full" disabled={loading || !isSupabaseConfigured}>
+      {captcha.widget}
+      <Button type="submit" className="w-full" disabled={loading || captcha.blocked || !isSupabaseConfigured}>
         {loading && <Loader2 className="size-4 animate-spin" aria-hidden />} Sign in
       </Button>
     </form>

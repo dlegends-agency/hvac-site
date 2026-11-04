@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { Loader2, ThumbsUp } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Field, inputClass } from "@/components/ui/Field";
+import { useCaptcha } from "@/components/ui/Turnstile";
 import type { Recommendation } from "@/lib/recommendations";
 import type { Listing } from "@/lib/types";
 
@@ -14,6 +15,7 @@ function RecommendForm({ listing }: { listing: Listing }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [length, setLength] = useState(0);
+  const captcha = useCaptcha();
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -27,7 +29,7 @@ function RecommendForm({ listing }: { listing: Listing }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          slug: listing.slug, name: f.get("name"), email: f.get("email"), body: f.get("body"), used: f.get("used") === "on", website: f.get("website"),
+          slug: listing.slug, name: f.get("name"), email: f.get("email"), body: f.get("body"), used: f.get("used") === "on", website: f.get("website"), captcha: captcha.token,
         }),
       });
       const j = (await res.json().catch(() => ({}))) as { ok?: boolean; message?: string; error?: string };
@@ -41,6 +43,7 @@ function RecommendForm({ listing }: { listing: Listing }) {
     } catch {
       setMsg({ ok: false, text: "Could not send your recommendation. Please check your connection and try again." });
     }
+    captcha.reset();
     setBusy(false);
   }
 
@@ -64,8 +67,9 @@ function RecommendForm({ listing }: { listing: Listing }) {
       <div aria-hidden className="absolute -left-[9999px] h-0 w-0 overflow-hidden">
         <label>Website <input name="website" tabIndex={-1} autoComplete="off" /></label>
       </div>
+      {captcha.widget}
       <div className="flex flex-wrap items-center gap-4">
-        <Button type="submit" disabled={busy} className="!rounded-full px-6">{busy && <Loader2 className="size-4 animate-spin" aria-hidden />} Send recommendation</Button>
+        <Button type="submit" disabled={busy || captcha.blocked} className="!rounded-full px-6">{busy && <Loader2 className="size-4 animate-spin" aria-hidden />} Send recommendation</Button>
         <p role="status" className={`text-sm font-medium ${msg?.ok ? "text-green-700" : "text-red-700"}`}>{msg?.text}</p>
       </div>
     </form>

@@ -27,7 +27,7 @@ export function ServiceAreaSection() {
       <Pin className="anim-float absolute top-[22%] left-[6%] hidden w-8 drop-shadow-md md:block lg:left-[9%]" />
       <Pin className="anim-float absolute top-[42%] right-[5%] hidden w-14 drop-shadow-lg md:block lg:right-[8%]" />
 
-      <div className="relative mx-auto max-w-4xl px-4 sm:px-6">
+      <div className="relative mx-auto max-w-site px-4 sm:px-6">
         <div className="text-center" {...reveal()}>
           <h2 id="areas-title" className="text-2xl font-extrabold tracking-tight text-navy sm:text-3xl">Looking for HVAC Repair Near You?</h2>
           <p className="mx-auto mt-2 max-w-xl text-sm text-slate-600 sm:text-base">
@@ -35,7 +35,7 @@ export function ServiceAreaSection() {
           </p>
         </div>
 
-        <ul className="mx-auto mt-8 grid max-w-4xl gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="mx-auto mt-8 grid max-w-site gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {locations.map((loc, i) => (
             <li key={loc.slug} {...reveal(i)}>
               <Link to={loc.path} className={pill}>

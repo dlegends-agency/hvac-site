@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { leadSchema, stepFields, type LeadFormValues } from "@/lib/lead-schema";
 import { defaultCountry } from "@/config/form";
+import { useCaptcha } from "@/components/ui/Turnstile";
 import { submitLead } from "@/lib/submit-lead";
 import { onPreselectIssue } from "@/lib/lead-events";
 
@@ -27,6 +28,9 @@ export function useLeadForm(source = "homepage") {
   });
   const [step, setStep] = useState(0);
   const [status, setStatus] = useState<SubmitStatus>("idle");
+  const captcha = useCaptcha();
+  const captchaToken = captcha.token;
+  const resetCaptcha = captcha.reset;
   const inFlight = useRef(false);
   const requestId = useRef<string>("");
 
@@ -58,14 +62,15 @@ export function useLeadForm(source = "homepage") {
     inFlight.current = true;
     setStatus("submitting");
     try {
-      const result = await submitLead(values, requestId.current, source);
+      const result = await submitLead(values, requestId.current, source, captchaToken);
       setStatus(result === "ok" ? "success" : result === "not_configured" ? "not_configured" : "error");
     } catch {
       setStatus("error");
     } finally {
       inFlight.current = false;
+      resetCaptcha();
     }
-  }, [source]);
+  }, [source, captchaToken, resetCaptcha]);
 
   const submit = useCallback((e?: React.BaseSyntheticEvent) => form.handleSubmit(onValid)(e), [form, onValid]);
 
@@ -76,5 +81,5 @@ export function useLeadForm(source = "homepage") {
     setStatus("idle");
   }, [form]);
 
-  return { form, step, setStep, status, setStatus, next, back, submit, reset };
+  return { form, step, setStep, status, setStatus, next, back, submit, reset, captcha };
 }
