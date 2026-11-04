@@ -52,10 +52,27 @@ export async function searchPlaces(env: Env, query: string): Promise<Candidate[]
   return parseCandidates(await res.json());
 }
 
-export async function placeRating(env: Env, placeId: string): Promise<Rating | null> {
+export interface LiveHours {
+  /** One line per day as Google writes it, for example "Monday: 8:00 AM – 5:00 PM". */
+  lines: string[];
+  openNow: boolean | null;
+}
+
+/** Opening hours from a Place Details response, or null when Google has none. */
+export function parseHours(data: unknown): LiveHours | null {
+  const h = (data as { regularOpeningHours?: { weekdayDescriptions?: unknown; openNow?: unknown } } | null)?.regularOpeningHours;
+  if (!Array.isArray(h?.weekdayDescriptions)) return null;
+  const lines = h.weekdayDescriptions.filter((l): l is string => typeof l === "string" && l.length > 0 && l.length <= 100).slice(0, 7);
+  if (lines.length === 0) return null;
+  return { lines, openNow: typeof h.openNow === "boolean" ? h.openNow : null };
+}
+
+/** Rating and opening hours in one Place Details request (one billed call). Nothing is stored. */
+export async function placeLive(env: Env, placeId: string): Promise<{ rating: Rating | null; hours: LiveHours | null }> {
   const res = await fetch(`${BASE}/places/${encodeURIComponent(placeId)}`, {
-    headers: { "X-Goog-Api-Key": env.GOOGLE_PLACES_API_KEY ?? "", "X-Goog-FieldMask": "rating,userRatingCount,googleMapsUri" },
+    headers: { "X-Goog-Api-Key": env.GOOGLE_PLACES_API_KEY ?? "", "X-Goog-FieldMask": "rating,userRatingCount,googleMapsUri,regularOpeningHours" },
   });
   if (!res.ok) throw new Error(`Places details ${res.status}`);
-  return parseRating(await res.json());
+  const data = await res.json();
+  return { rating: parseRating(data), hours: parseHours(data) };
 }

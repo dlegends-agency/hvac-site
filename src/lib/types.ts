@@ -123,7 +123,17 @@ export interface Listing {
   google_place_id?: string | null;
   /** How far the business travels for customers, in miles (used to match nearby requests). */
   service_radius_miles?: number;
+  /** Licence number typed by the business. Shown with a badge; "verified" only after an admin checked it (license_verified_at). */
+  license_number?: string | null;
+  license_verified_at?: string | null;
+  /** Set when an admin approved the owner's claim. "Verified by HVACHelp" also needs a paid plan. */
+  verified_at?: string | null;
+  business_hours?: BusinessHours | null;
 }
+
+export type DayKey = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
+/** Opening hours by day, "HH:MM" in 24-hour time. A missing or null day means closed. */
+export type BusinessHours = Partial<Record<DayKey, { open: string; close: string } | null>>;
 
 export type PlanId = "free" | "featured";
 

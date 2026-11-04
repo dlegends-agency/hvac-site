@@ -21,10 +21,13 @@ export function sortByPlan<T extends Pick<Listing, "plan" | "plan_until">>(list:
 }
 
 /**
- * What the public directory shows for a listing. A free (or lapsed) listing shows only its name, phone number and address:
- * About us, services, service areas, website, email and the Google connection are paid features and are left out.
+ * What the public directory shows for a listing. A free (or lapsed) listing shows its name, phone number, address and licence
+ * number: About us, services, service areas, opening hours, website, email and the Google connection are paid features and are left out.
  */
 export function publicView(l: Listing): Listing {
   if (isFeatured(l)) return l;
-  return { ...l, description: null, services: [], service_areas: null, emergency_service: false, website: null, email: null, google_place_id: null, google_reviews_url: null };
+  return { ...l, description: null, services: [], service_areas: null, emergency_service: false, website: null, email: null, google_place_id: null, google_reviews_url: null, business_hours: null };
 }
+
+/** The "Verified by HVACHelp" mark: a paid plan that is active now, on a listing whose owner an admin approved. */
+export const isVerified = (l: Pick<Listing, "plan" | "plan_until" | "verified_at">) => isFeatured(l) && Boolean(l.verified_at);

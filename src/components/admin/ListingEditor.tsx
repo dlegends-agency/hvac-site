@@ -26,11 +26,14 @@ interface Draft {
   service_areas: string;
   plan: PlanId;
   plan_until: string;
+  license_number: string;
+  license_verified: boolean;
 }
 
 const empty: Draft = {
   business_name: "", slug: "", status: "published", description: "", services: [], emergency_service: false,
   phone: "", email: "", website: "", address: "", city: "", state: "", postal_code: "", service_areas: "", plan: "free", plan_until: "",
+  license_number: "", license_verified: false,
 };
 
 export function ListingEditor() {
@@ -42,6 +45,10 @@ export function ListingEditor() {
   const [notes, setNotes] = useState("");
   // False until contractor SQL has been run (the plan columns do not exist yet), so saving keeps working before then.
   const [planColumn, setPlanColumn] = useState(false);
+  // Same for the license and verification columns (profiles SQL). `licenseSince` keeps the date an earlier check was recorded.
+  const [profileColumns, setProfileColumns] = useState(false);
+  const [licenseSince, setLicenseSince] = useState<string | null>(null);
+  const [ownerVerified, setOwnerVerified] = useState(false);
   const [slugTouched, setSlugTouched] = useState(false);
   const [loading, setLoading] = useState(Boolean(id));
   const [missing, setMissing] = useState(false);
@@ -57,6 +64,11 @@ export function ListingEditor() {
     ]).then(([l, p]) => {
       const row = l.data as Listing | null;
       if (row) setPlanColumn(row.plan !== undefined);
+      if (row) {
+        setProfileColumns(row.license_number !== undefined);
+        setLicenseSince(row.license_verified_at ?? null);
+        setOwnerVerified(Boolean(row.verified_at));
+      }
       if (row) setMeta({ source: row.source ?? "submitted", sourceUrl: row.source_url ?? null, attribution: row.attribution ?? null, placeId: row.google_place_id ?? null });
       if (!row) setMissing(true);
       else {
@@ -67,6 +79,7 @@ export function ListingEditor() {
           website: row.website ?? "", address: row.address ?? "", city: row.city, state: row.state,
           postal_code: row.postal_code ?? "", service_areas: row.service_areas ?? "",
           plan: row.plan ?? "free", plan_until: row.plan_until ? row.plan_until.slice(0, 10) : "",
+          license_number: row.license_number ?? "", license_verified: Boolean(row.license_verified_at),
         });
       }
       const pr = p.data as ListingPrivate | null;
@@ -101,6 +114,11 @@ export function ListingEditor() {
       address: draft.address.trim() || null, city: draft.city.trim(), state: draft.state.trim(),
       postal_code: draft.postal_code.trim() || null, service_areas: draft.service_areas.trim() || null,
       ...(planColumn || draft.plan !== "free" ? { plan: draft.plan, plan_until: draft.plan_until ? new Date(`${draft.plan_until}T23:59:59Z`).toISOString() : null } : {}),
+      ...(profileColumns ? {
+        license_number: draft.license_number.trim() || null,
+        // A mark needs a number. The date of an earlier check is kept; a new check is dated now.
+        license_verified_at: draft.license_verified && draft.license_number.trim() ? licenseSince ?? new Date().toISOString() : null,
+      } : {}),
     };
     const supabase = getSupabaseBrowser();
     const res = id
@@ -111,6 +129,7 @@ export function ListingEditor() {
       return setMsg({ ok: false, text: res.error.code === "23505" ? "That URL slug is already used." : "Could not save. Check the slug uses only lowercase letters, numbers and hyphens." });
     }
     const saved = res.data as Listing;
+    if (profileColumns) setLicenseSince(saved.license_verified_at ?? null);
     if (notes !== (priv?.admin_notes ?? "")) {
       await supabase.from("listing_private").upsert({ listing_id: saved.id, submitter_name: priv?.submitter_name ?? null, submitter_email: priv?.submitter_email ?? null, admin_notes: notes || null });
     }
@@ -195,6 +214,23 @@ export function ListingEditor() {
                 <input id="plan_until" type="date" value={draft.plan_until} onChange={(e) => set("plan_until", e.target.value)} className={inputClass} />
                 <p className="mt-2 text-xs text-slate-500">Stripe subscriptions set this automatically. Use it to give a manual or free trial plan; it reverts to Free after the date.</p>
               </Panel>
+              {profileColumns && (
+                <Panel title="License and verification">
+                  <label htmlFor="license_number" className="mb-1 block text-sm font-semibold text-navy">License number <span className="font-normal text-slate-500">(optional)</span></label>
+                  <input id="license_number" value={draft.license_number} maxLength={40} onChange={(e) => set("license_number", e.target.value)} className={inputClass} />
+                  <label className="mt-3 flex items-start gap-2 text-sm text-slate-800">
+                    <input type="checkbox" className="mt-0.5 size-4 accent-primary" checked={draft.license_verified} disabled={!draft.license_number.trim()} onChange={(e) => set("license_verified", e.target.checked)} />
+                    I checked this number with the state. Show &quot;License verified&quot;.
+                  </label>
+                  <a href="https://www.tdlr.texas.gov/LicenseSearch/" target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline">
+                    Search Texas licenses (TDLR) <ExternalLink className="size-3.5" aria-hidden />
+                  </a>
+                  <p className="mt-3 text-xs text-slate-500">
+                    Owner confirmed (a claim was approved): <strong>{ownerVerified ? "yes" : "no"}</strong>. The &quot;Verified by HVACHelp&quot; badge shows when this is yes and the plan is paid and active.
+                    If the business changes its number, the check is cleared.
+                  </p>
+                </Panel>
+              )}
               {meta && (
                 <Panel title="Source">
                   <p className="text-sm text-slate-700">{meta.source === "agent" ? "Found by the discovery agent" : <span className="capitalize">{meta.source}</span>}</p>

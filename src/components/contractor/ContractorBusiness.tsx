@@ -6,11 +6,13 @@ import { Button, buttonClass } from "@/components/ui/Button";
 import { Field, inputClass } from "@/components/ui/Field";
 import { services } from "@/config/services";
 import { ListingCard } from "@/components/directory/ListingCard";
+import { cleanHours } from "@/lib/hours";
 import { isFeatured, publicView } from "@/lib/plans";
 import { getSupabaseBrowser } from "@/lib/supabase";
-import type { Listing } from "@/lib/types";
+import type { BusinessHours, Listing } from "@/lib/types";
 import { ConnectGoogle } from "./ConnectGoogle";
 import { useContractor } from "./context";
+import { HoursEditor } from "./HoursEditor";
 
 const text = (v: FormDataEntryValue | null) => String(v ?? "").trim();
 
@@ -33,6 +35,9 @@ function BusinessForm({ listing, reload }: { listing: Listing; reload: () => Pro
   const [emergency, setEmergency] = useState(listing.emergency_service);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [hours, setHours] = useState<BusinessHours>(listing.business_hours ?? {});
+  // False until profiles SQL has been run (the new columns do not exist yet), so saving keeps working before then.
+  const hasProfileColumns = "license_number" in listing;
   // What is typed in the form right now, for the live preview of the directory card.
   const [typed, setTyped] = useState<Record<string, string>>({});
   const onType = (e: React.FormEvent<HTMLFormElement>) =>
@@ -53,6 +58,10 @@ function BusinessForm({ listing, reload }: { listing: Listing; reload: () => Pro
     website: t("website", listing.website),
     services: selected,
     emergency_service: emergency,
+    license_number: t("license_number", listing.license_number),
+    // A changed license number loses its "verified" mark, so the preview does too.
+    license_verified_at: t("license_number", listing.license_number) === (listing.license_number ?? null) ? listing.license_verified_at : null,
+    business_hours: cleanHours(hours),
   });
 
   async function save(e: React.FormEvent<HTMLFormElement>) {
@@ -71,14 +80,19 @@ function BusinessForm({ listing, reload }: { listing: Listing; reload: () => Pro
     const radius = Number(text(f.get("service_radius_miles")) || 30);
     if (!Number.isInteger(radius) || radius < 5 || radius > 150) return setMsg({ ok: false, text: "Travel distance must be a whole number from 5 to 150 miles." });
 
+    const license = text(f.get("license_number"));
+    if (license.length > 40) return setMsg({ ok: false, text: "The license number is too long." });
+
     setSaving(true);
     setMsg(null);
     const { error } = await getSupabaseBrowser().from("listings").update({
       business_name: name, phone, address: text(f.get("address")) || null, city, state, postal_code: zip || null, service_radius_miles: radius,
+      ...(hasProfileColumns ? { license_number: license || null } : {}),
       // Paid-only fields. (The database ignores them for a free account too.)
       ...(paid ? {
         description: text(f.get("description")) || null, services: selected, emergency_service: emergency,
         email: text(f.get("email")) || null, website: text(f.get("website")) || null, service_areas: text(f.get("service_areas")) || null,
+        ...(hasProfileColumns ? { business_hours: cleanHours(hours) } : {}),
       } : {}),
     }).eq("id", listing.id);
     setSaving(false);
@@ -109,6 +123,12 @@ function BusinessForm({ listing, reload }: { listing: Listing; reload: () => Pro
             {input("city", "City", listing.city)}
             {input("state", "State", listing.state)}
           </div>
+          {hasProfileColumns && input("license_number", "License number", listing.license_number, {
+            optional: true,
+            hint: listing.license_verified_at
+              ? "Verified by HVACHelp. If you change the number, it will need to be checked again."
+              : "Shown on your listing as \"License no. provided\". Texas A/C licenses are issued by TDLR (for example TACLB12345C). After we check the number with the state, the badge changes to \"License verified\".",
+          })}
         </div>
       </Panel>
 
@@ -151,6 +171,15 @@ function BusinessForm({ listing, reload }: { listing: Listing; reload: () => Pro
             {input("service_areas", "Other cities you serve", listing.service_areas, { optional: true, hint: "Cities or counties, separated by commas. Requests from these cities are sent to you too, and you show up on their city pages." })}
           </Panel>
 
+          {hasProfileColumns && (
+            <Panel title="Opening hours">
+              <p className="mb-4 text-sm text-slate-600">
+                Tick the days you are open. If you leave this empty and your Google listing is connected, we show the hours from Google instead.
+              </p>
+              <HoursEditor value={hours} onChange={setHours} />
+            </Panel>
+          )}
+
           <Panel title="Google reviews">
             <p className="text-sm text-slate-600">
               Show your Google star rating and review count on your listing and in the directory, taken live from Google. You don&apos;t type anything in. We search Google using your business name, city and state, so make sure those are right and saved first.
@@ -163,6 +192,8 @@ function BusinessForm({ listing, reload }: { listing: Listing; reload: () => Pro
           <LockedPanel title="About us">Tell customers what you do. Not shown in the directory on the Free plan.</LockedPanel>
           <LockedPanel title="Services">Choose the services you offer and mark emergency service. Not shown in the directory on the Free plan.</LockedPanel>
           <LockedPanel title="Service areas">List the other cities you serve and show up on their city pages.</LockedPanel>
+          <LockedPanel title="Opening hours">Show when you are open, with an &quot;Open now&quot; label.</LockedPanel>
+          <LockedPanel title="Verified by HVACHelp badge">Featured listings with a confirmed owner get a Verified badge on the listing and in the directory.</LockedPanel>
           <LockedPanel title="Google reviews">Connect your Google listing to show your star rating and review count.</LockedPanel>
         </>
       )}

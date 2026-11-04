@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { Star } from "lucide-react";
+import { BadgeCheck, ShieldCheck, Star } from "lucide-react";
 import { safeGoogleUrl } from "@/lib/directory";
-import { isFeatured } from "@/lib/plans";
+import { fetchGoogleLive, type LiveRating } from "@/lib/google-live";
+import { isFeatured, isVerified } from "@/lib/plans";
 import type { Listing } from "@/lib/types";
 
 export function FeaturedBadge({ listing }: { listing: Listing }) {
@@ -9,6 +10,32 @@ export function FeaturedBadge({ listing }: { listing: Listing }) {
   return (
     <span className="inline-flex w-fit items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-900" title="Featured listings are paid placements">
       <Star className="size-3.5 fill-amber-500 text-amber-500" aria-hidden /> Featured
+    </span>
+  );
+}
+
+/** Paid plan and an approved owner. It says who runs the listing, not that we checked licensing, insurance or work quality. */
+export function VerifiedBadge({ listing }: { listing: Listing }) {
+  if (!isVerified(listing)) return null;
+  return (
+    <span className="inline-flex w-fit items-center gap-1 rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-900" title="HVACHelp confirmed that someone from this business manages this listing. This does not mean we checked licensing, insurance or work quality.">
+      <BadgeCheck className="size-3.5 text-primary" aria-hidden /> Verified by HVACHelp
+    </span>
+  );
+}
+
+/** The license number the business gave us. "Verified" only after an admin checked it with the state. */
+export function LicenseBadge({ listing }: { listing: Listing }) {
+  const number = listing.license_number?.trim();
+  if (!number) return null;
+  const verified = Boolean(listing.license_verified_at);
+  return (
+    <span
+      className={`inline-flex w-fit items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${verified ? "bg-green-50 text-green-900" : "bg-slate-100 text-slate-700"}`}
+      title={verified ? "HVACHelp checked this license number with the state." : "The business gave us this license number. HVACHelp has not checked it yet."}
+    >
+      <ShieldCheck className={`size-3.5 ${verified ? "text-green-700" : "text-slate-500"}`} aria-hidden />
+      {verified ? `License verified · ${number}` : `License no. provided · ${number}`}
     </span>
   );
 }
@@ -24,12 +51,6 @@ function ReviewsLink({ listing }: { listing: Listing }) {
       <Star className="size-4 fill-amber-400 text-amber-400" aria-hidden /> See reviews on Google
     </a>
   );
-}
-
-interface LiveRating {
-  rating: number;
-  count: number;
-  url: string | null;
 }
 
 /**
@@ -64,14 +85,9 @@ export function GoogleReviews({ listing, compact = false }: { listing: Listing; 
   useEffect(() => {
     if (!wanted || !visible) return;
     let cancelled = false;
-    fetch(`/api/google/rating?slug=${encodeURIComponent(listing.slug)}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((j: { rating?: LiveRating | null } | null) => {
-        if (!cancelled) setLive({ slug: listing.slug, data: j?.rating ?? null });
-      })
-      .catch(() => {
-        if (!cancelled) setLive({ slug: listing.slug, data: null });
-      });
+    fetchGoogleLive(listing.slug).then((g) => {
+      if (!cancelled) setLive({ slug: listing.slug, data: g.rating });
+    });
     return () => {
       cancelled = true;
     };
