@@ -7,6 +7,7 @@ Shared non-visual logic: Supabase client and data hooks, domain types, plan enti
 - `supabase.ts`: `isSupabaseConfigured`, `getSupabaseBrowser`.
 - `types.ts`: `Lead`, `ContractorLead`, `Post`, `PageView`, `Listing`, `ListingClaim`, `ListingBilling`, `ListingPrivate`, `DiscoveryJob`, `ListingCandidate`, `DiscoveryRun`, `PlanId`, `LeadStatus`, `ListingStatus`, `LEAD_STATUSES`, `CONTRACTOR_LEAD_STATUSES`, `LISTING_STATUSES`.
 - `plans.ts`: `activePlan`, `isFeatured`, `isVerified`, `sortByPlan`, `publicView`.
+- `listing-images.ts`: `imageUrl`, `uploadListingImage`, `removeListingImage`, `coverCrop`, `IMAGE_RULES` (photos go to the public `listing-images` Storage bucket, resized in the browser first).
 - `hours.ts`: `DAYS`, `cleanHours`, `hasHours`, `formatTime`, `timeZoneFor`, `openStatus` ("Open now · closes 5:00 PM", by the state's main time zone).
 - `google-live.ts`: `fetchGoogleLive` (one `/api/google/rating` request per slug, shared by the stars and the hours on a page).
 - `directory.ts`: `usePublishedListings`, `usePublishedListing`, `listingsForLocation`, `LOCATION_PAGE_LIMIT`, `slugify`, `safeUrl`, `safeGoogleUrl`.

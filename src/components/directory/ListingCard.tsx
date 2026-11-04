@@ -1,12 +1,14 @@
 import { Link } from "react-router-dom";
 import { MapPin, Phone, Siren } from "lucide-react";
 import { FeaturedBadge, GoogleReviews, LicenseBadge, VerifiedBadge } from "@/components/directory/Rating";
+import { imageUrl } from "@/lib/listing-images";
 import { isFeatured } from "@/lib/plans";
 import type { Listing } from "@/lib/types";
 
 export const telHref = (phone: string) => `tel:${phone.replace(/[^\d+]/g, "")}`;
 
 export function ListingCard({ listing }: { listing: Listing }) {
+  const avatar = imageUrl(listing.avatar_path);
   return (
     <li className={`flex flex-col rounded-2xl border bg-white p-5 shadow-sm ${isFeatured(listing) ? "border-amber-300 ring-1 ring-amber-200" : "border-slate-200"}`}>
       <div className="flex flex-wrap gap-1.5 empty:hidden">
@@ -14,9 +16,12 @@ export function ListingCard({ listing }: { listing: Listing }) {
         <VerifiedBadge listing={listing} />
         <LicenseBadge listing={listing} />
       </div>
-      <h2 className="mt-1 text-lg font-bold text-navy">
-        <Link to={`/directory/${listing.slug}`} className="hover:text-primary">{listing.business_name}</Link>
-      </h2>
+      <div className="mt-1 flex items-center gap-3">
+        {avatar && <img src={avatar} alt="" loading="lazy" className="size-12 shrink-0 rounded-xl border border-slate-200 object-cover" />}
+        <h2 className="text-lg font-bold text-navy">
+          <Link to={`/directory/${listing.slug}`} className="hover:text-primary">{listing.business_name}</Link>
+        </h2>
+      </div>
       <p className="mt-1 flex items-center gap-1.5 text-sm text-slate-600">
         <MapPin className="size-4 shrink-0" aria-hidden /> {[listing.address, listing.city, listing.state].filter(Boolean).join(", ")}
       </p>

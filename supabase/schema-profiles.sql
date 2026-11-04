@@ -15,6 +15,16 @@ alter table public.listings drop constraint if exists listings_business_hours_ch
 alter table public.listings add constraint listings_business_hours_check
   check (business_hours is null or (jsonb_typeof(business_hours) = 'object' and pg_column_size(business_hours) <= 1500));
 
+-- Profile picture and cover photo (paid plan): paths inside the public "listing-images" storage bucket, always "<listing id>/<file>".
+alter table public.listings add column if not exists avatar_path text;
+alter table public.listings add column if not exists cover_image_path text;
+alter table public.listings drop constraint if exists listings_avatar_path_check;
+alter table public.listings add constraint listings_avatar_path_check
+  check (avatar_path is null or (char_length(avatar_path) <= 200 and avatar_path like id::text || '/%'));
+alter table public.listings drop constraint if exists listings_cover_image_path_check;
+alter table public.listings add constraint listings_cover_image_path_check
+  check (cover_image_path is null or (char_length(cover_image_path) <= 200 and cover_image_path like id::text || '/%'));
+
 -- Anyone already approved as an owner counts as verified.
 update public.listings l set verified_at = now()
   where verified_at is null and exists (select 1 from public.listing_owners o where o.listing_id = l.id);
@@ -59,6 +69,8 @@ begin
     new.verified_at := null;
     new.license_verified_at := null;
     new.business_hours := null;
+    new.avatar_path := null;
+    new.cover_image_path := null;
     new.plan := 'free';
     new.plan_until := null;
     new.google_place_id := null;
@@ -71,6 +83,9 @@ begin
   end if;
   if not (old.plan = 'featured' and (old.plan_until is null or old.plan_until > now())) then
     new.business_hours := old.business_hours;
+    -- Photos are a paid feature too (a lapsed plan keeps the file but cannot change which photo is shown).
+    new.avatar_path := old.avatar_path;
+    new.cover_image_path := old.cover_image_path;
   end if;
   return new;
 end;
@@ -116,3 +131,57 @@ create or replace view public.listing_recommendation_counts as
   where status = 'approved' and email_confirmed_at is not null
   group by listing_id;
 grant select on public.listing_recommendation_counts to anon, authenticated;
+
+-- 5. Photo storage ------------------------------------------------------------------------------------------
+-- A public bucket (anyone can view a photo by its address). Only the owner of a listing on an active paid plan can add or replace
+-- files in that listing's folder; owners can always delete their own files. Photos are limited to 2 MB and to JPEG, PNG or WebP.
+do $$
+begin
+  if to_regclass('storage.buckets') is null or to_regclass('storage.objects') is null then
+    raise notice 'Supabase Storage was not found: the listing-images bucket was not created.';
+    return;
+  end if;
+
+  insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+  values ('listing-images', 'listing-images', true, 2097152, array['image/jpeg', 'image/png', 'image/webp'])
+  on conflict (id) do update
+    set public = true, file_size_limit = 2097152, allowed_mime_types = array['image/jpeg', 'image/png', 'image/webp'];
+
+  drop policy if exists "Paid owners add listing images" on storage.objects;
+  create policy "Paid owners add listing images" on storage.objects for insert to authenticated
+    with check (
+      bucket_id = 'listing-images'
+      and exists (
+        select 1 from public.listing_owners o join public.listings l on l.id = o.listing_id
+        where o.user_id = auth.uid() and l.id::text = (storage.foldername(name))[1]
+          and l.plan = 'featured' and (l.plan_until is null or l.plan_until > now())
+      )
+    );
+
+  drop policy if exists "Paid owners replace listing images" on storage.objects;
+  create policy "Paid owners replace listing images" on storage.objects for update to authenticated
+    using (
+      bucket_id = 'listing-images'
+      and exists (
+        select 1 from public.listing_owners o join public.listings l on l.id = o.listing_id
+        where o.user_id = auth.uid() and l.id::text = (storage.foldername(name))[1]
+          and l.plan = 'featured' and (l.plan_until is null or l.plan_until > now())
+      )
+    );
+
+  -- Deleting a file also needs permission to see it (Supabase checks "select" for "delete ... returning").
+  drop policy if exists "Owners see their listing images" on storage.objects;
+  create policy "Owners see their listing images" on storage.objects for select to authenticated
+    using (
+      bucket_id = 'listing-images'
+      and exists (select 1 from public.listing_owners o where o.user_id = auth.uid() and o.listing_id::text = (storage.foldername(name))[1])
+    );
+
+  drop policy if exists "Owners delete listing images" on storage.objects;
+  create policy "Owners delete listing images" on storage.objects for delete to authenticated
+    using (
+      bucket_id = 'listing-images'
+      and exists (select 1 from public.listing_owners o where o.user_id = auth.uid() and o.listing_id::text = (storage.foldername(name))[1])
+    );
+end
+$$;

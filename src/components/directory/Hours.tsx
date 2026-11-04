@@ -22,7 +22,7 @@ export function OpenNow({ listing }: { listing: Listing }) {
  * Opening hours. The business's own hours are used when it entered them. Otherwise, a paid listing that is connected to Google
  * shows Google's hours, fetched live (Google's terms do not allow storing them).
  */
-export function HoursSection({ listing }: { listing: Listing }) {
+export function HoursSection({ listing, className = "mt-8" }: { listing: Listing; className?: string }) {
   const own = cleanHours(listing.business_hours);
   const useGoogle = !own && isFeatured(listing) && Boolean(listing.google_place_id);
   const [google, setGoogle] = useState<{ slug: string; hours: LiveHours | null } | null>(null);
@@ -40,8 +40,8 @@ export function HoursSection({ listing }: { listing: Listing }) {
 
   if (own) {
     return (
-      <section className="mt-8" aria-labelledby="hours-heading">
-        <h2 id="hours-heading" className="text-lg font-semibold text-navy">Hours</h2>
+      <section className={className} aria-labelledby="hours-heading">
+        <h2 id="hours-heading" className="text-base font-semibold text-navy">Hours</h2>
         <OpenNow listing={listing} />
         <dl className="mt-3 grid max-w-sm grid-cols-[7rem_1fr] gap-y-1 text-sm">
           {DAYS.map((d) => (
@@ -58,8 +58,8 @@ export function HoursSection({ listing }: { listing: Listing }) {
   const live = google?.slug === listing.slug ? google.hours : null;
   if (!useGoogle || !live) return null;
   return (
-    <section className="mt-8" aria-labelledby="hours-heading">
-      <h2 id="hours-heading" className="text-lg font-semibold text-navy">Hours</h2>
+    <section className={className} aria-labelledby="hours-heading">
+      <h2 id="hours-heading" className="text-base font-semibold text-navy">Hours</h2>
       {live.openNow !== null && (
         <p className={`mt-2 inline-flex items-center gap-1.5 text-sm font-semibold ${live.openNow ? "text-green-700" : "text-slate-600"}`}>
           <Clock className="size-4" aria-hidden /> {live.openNow ? "Open now" : "Closed now"}

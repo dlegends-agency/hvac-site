@@ -3,7 +3,8 @@ import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, Globe, Mail, MapPin, Phone, Siren, ThumbsUp } from "lucide-react";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
-import { HoursSection, OpenNow } from "@/components/directory/Hours";
+import { OpenNow } from "@/components/directory/Hours";
+import { ListingSidebar } from "@/components/directory/ListingSidebar";
 import { telHref } from "@/components/directory/ListingCard";
 import { FeaturedBadge, GoogleReviews, LicenseBadge, VerifiedBadge } from "@/components/directory/Rating";
 import { Recommendations } from "@/components/directory/Recommendations";
@@ -12,6 +13,7 @@ import { DAYS, cleanHours } from "@/lib/hours";
 import { buttonClass } from "@/components/ui/Button";
 import { siteConfig } from "@/config/site";
 import { safeUrl, usePublishedListing } from "@/lib/directory";
+import { imageUrl } from "@/lib/listing-images";
 import { usePageMeta } from "@/lib/use-page-meta";
 
 export default function ListingPage() {
@@ -48,12 +50,14 @@ export default function ListingPage() {
   );
 
   const website = safeUrl(l?.website);
+  const cover = imageUrl(l?.cover_image_path);
+  const avatar = imageUrl(l?.avatar_path);
 
   return (
     <>
       <Header />
       <main className="bg-surface">
-        <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6">
+        <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
           <Link to="/directory" className="inline-flex items-center gap-1 text-sm font-semibold text-primary">
             <ArrowLeft className="size-4" aria-hidden /> All businesses
           </Link>
@@ -66,7 +70,18 @@ export default function ListingPage() {
               <p className="mt-2 text-slate-600">This business isn&apos;t listed, or the listing was removed.</p>
             </div>
           ) : (
-            <article className="mt-5 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+            <div className="mt-5 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+            <article className="overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+              {(cover || avatar) && (
+                <div className="-mx-6 -mt-6 mb-4 sm:-mx-8 sm:-mt-8">
+                  <div className="aspect-[16/5] max-h-64 w-full overflow-hidden bg-gradient-to-br from-blue-100 to-slate-200">
+                    {cover && <img src={cover} alt="" className="size-full object-cover" fetchPriority="high" />}
+                  </div>
+                  {avatar && (
+                    <img src={avatar} alt={`${l.business_name} logo`} className="relative -mt-12 ml-6 size-24 rounded-2xl border-4 border-white bg-white object-cover shadow-sm sm:-mt-14 sm:ml-8 sm:size-28" />
+                  )}
+                </div>
+              )}
               <div className="flex flex-wrap gap-1.5 empty:hidden">
                 <FeaturedBadge listing={l} />
                 <VerifiedBadge listing={l} />
@@ -76,7 +91,7 @@ export default function ListingPage() {
               <GoogleReviews listing={l} />
               <p className="mt-2 flex items-center gap-1.5 text-slate-600">
                 <MapPin className="size-4" aria-hidden />
-                {[l.address, `${l.city}, ${l.state}`, l.postal_code].filter(Boolean).join(" · ")}
+                {l.city}, {l.state}
               </p>
               <OpenNow listing={l} />
               {l.emergency_service && (
@@ -117,7 +132,6 @@ export default function ListingPage() {
                   <p className="mt-2 text-slate-700">{l.service_areas}</p>
                 </section>
               )}
-              <HoursSection listing={l} />
               <Recommendations listing={l} />
               <SimilarBusinesses listing={l} />
 
@@ -126,6 +140,8 @@ export default function ListingPage() {
                 Confirm credentials directly with any contractor before hiring.
               </p>
             </article>
+            <ListingSidebar listing={l} />
+            </div>
           )}
         </div>
       </main>
