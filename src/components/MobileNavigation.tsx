@@ -3,7 +3,7 @@ import { Menu, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { NavItem } from "@/config/site";
 
-export function MobileNavigation({ items }: { items: NavItem[] }) {
+export function MobileNavigation({ items, signedIn, onLogout }: { items: NavItem[]; signedIn: boolean; onLogout: () => void }) {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -35,6 +35,13 @@ export function MobileNavigation({ items }: { items: NavItem[] }) {
                 </Link>
               </li>
             ))}
+            <li>
+              {signedIn ? (
+                <button type="button" onClick={() => { setOpen(false); onLogout(); }} className="block w-full rounded-lg px-3 py-3 text-left text-base font-medium text-navy hover:bg-slate-50">Logout</button>
+              ) : (
+                <Link to="/account/login" onClick={() => setOpen(false)} className="block rounded-lg px-3 py-3 text-base font-medium text-navy hover:bg-slate-50">Login</Link>
+              )}
+            </li>
           </ul>
         </nav>
       )}
