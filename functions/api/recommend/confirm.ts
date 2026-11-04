@@ -1,6 +1,6 @@
 // GET /api/recommend/confirm?t=<token>
 // The customer opens the link from the confirmation email. This marks their email as confirmed (the recommendation then waits for
-// an admin to approve it) and sends them to the business page. A link works once and expires after 7 days.
+// the business to decide) and sends them to the business page. A link works once and expires after 7 days.
 import { hashToken, isToken } from "../../_lib/recommend";
 import { escapeHtml } from "../../_lib/email";
 import { db, siteOrigin, type Env } from "../../_lib/stripe";
@@ -28,10 +28,10 @@ export const onRequestGet = async ({ env, request }: { env: Env; request: Reques
   });
   if (!res.ok) return page("Something went wrong", "We could not confirm your email. Please try the link again in a few minutes.", site, 502);
   const row = ((await res.json()) as { listing_id: string }[])[0];
-  if (!row) return page("Link already used or expired", "This link was already used or has expired. If you have already confirmed, your recommendation is waiting for our team to read it.", site, 410);
+  if (!row) return page("Link already used or expired", "This link was already used or has expired. If you have already confirmed, your recommendation is with the business, which decides whether to show it.", site, 410);
 
   const l = await db(env, `listings?id=eq.${encodeURIComponent(row.listing_id)}&select=slug&limit=1`);
   const slug = l.ok ? ((await l.json()) as { slug: string }[])[0]?.slug : undefined;
-  if (!slug) return page("Thank you", "Your email is confirmed. Our team will read your recommendation before it is shown.", site);
+  if (!slug) return page("Thank you", "Your email is confirmed. The business will decide whether to show your recommendation.", site);
   return new Response(null, { status: 302, headers: { Location: `${site}/directory/${slug}?recommendation=confirmed`, "Cache-Control": "no-store" } });
 };

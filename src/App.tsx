@@ -41,6 +41,7 @@ const ContractorLeads = lazy(() => import("@/components/contractor/ContractorLea
 const ContractorBusiness = lazy(() => import("@/components/contractor/ContractorBusiness"));
 const ContractorBilling = lazy(() => import("@/components/contractor/ContractorBilling"));
 const ContractorAccount = lazy(() => import("@/components/contractor/ContractorAccount"));
+const ContractorRecommendations = lazy(() => import("@/components/contractor/ContractorRecommendations"));
 const ClaimsAdmin = lazy(() => import("@/components/admin/ClaimsAdmin").then((m) => ({ default: m.ClaimsAdmin })));
 const RecommendationsAdmin = lazy(() => import("@/components/admin/RecommendationsAdmin").then((m) => ({ default: m.RecommendationsAdmin })));
 const AnalyticsReport = lazy(() => import("@/components/admin/AnalyticsReport").then((m) => ({ default: m.AnalyticsReport })));
@@ -71,6 +72,7 @@ export default function App() {
             <Route index element={<ContractorHome />} />
             <Route path="leads" element={<ContractorLeads />} />
             <Route path="business" element={<ContractorBusiness />} />
+            <Route path="recommendations" element={<ContractorRecommendations />} />
             <Route path="profile" element={<Navigate to="/contractor/business" replace />} />
             <Route path="billing" element={<ContractorBilling />} />
             <Route path="account" element={<ContractorAccount />} />

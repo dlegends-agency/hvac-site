@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, Globe, Mail, MapPin, Phone, Siren, ThumbsUp } from "lucide-react";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
+import { FeaturedRecommendation } from "@/components/directory/FeaturedRecommendation";
 import { OpenNow } from "@/components/directory/Hours";
 import { ListingSidebar } from "@/components/directory/ListingSidebar";
 import { telHref } from "@/components/directory/ListingCard";
@@ -14,6 +15,7 @@ import { buttonClass } from "@/components/ui/Button";
 import { siteConfig } from "@/config/site";
 import { safeUrl, usePublishedListing } from "@/lib/directory";
 import { imageUrl } from "@/lib/listing-images";
+import { useListingRecommendations } from "@/lib/recommendations";
 import { usePageMeta } from "@/lib/use-page-meta";
 
 export default function ListingPage() {
@@ -52,6 +54,7 @@ export default function ListingPage() {
   const website = safeUrl(l?.website);
   const cover = imageUrl(l?.cover_image_path);
   const avatar = imageUrl(l?.avatar_path);
+  const recommendations = useListingRecommendations(l?.id);
 
   return (
     <>
@@ -111,6 +114,8 @@ export default function ListingPage() {
                 <a href="#recommendations" className={buttonClass("secondary")}><ThumbsUp className="size-4" aria-hidden /> Recommend</a>
               </div>
 
+              <FeaturedRecommendation listing={l} items={recommendations} />
+
               {l.description && (
                 <section className="mt-8">
                   <h2 className="text-lg font-semibold text-navy">About</h2>
@@ -132,7 +137,7 @@ export default function ListingPage() {
                   <p className="mt-2 text-slate-700">{l.service_areas}</p>
                 </section>
               )}
-              <Recommendations listing={l} />
+              <Recommendations listing={l} items={recommendations} />
               <SimilarBusinesses listing={l} />
 
               <p className="mt-8 rounded-xl bg-slate-50 p-4 text-sm text-slate-600">

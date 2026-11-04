@@ -1,6 +1,6 @@
 // Runs supabase/schema-contractors.sql and supabase/schema-profiles.sql in an in-memory Postgres (PGlite) with stubs for Supabase
 // auth, and checks the profile rules: verified mark follows ownership, license check is cleared when the number changes, hours are
-// a paid feature, public submissions cannot set marks, and only approved + confirmed recommendations are public.
+// a paid feature, public submissions cannot set marks, and the business decides which recommendations are public and may feature one.
 // Run: npm i --no-save @electric-sql/pglite && node supabase/tests/profiles.test.mjs
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -172,20 +172,61 @@ assert.equal((await row(lapsed)).cover_image_path, null, "a lapsed plan cannot c
 const rec = async (listing, email, status = "pending", confirmed = false) =>
   (await q("insert into public.listing_recommendations (listing_id, author_name, author_email, body, token_hash, status, email_confirmed_at) values ($1,'Maria L.',$2,'They fixed our AC the same day and were fair.', 'hash', $3, $4) returning id",
     [listing, email, status, confirmed ? new Date().toISOString() : null]))[0].id;
-await rec(a, "one@x.com", "approved", true);
-await rec(a, "two@x.com", "approved", false);
-await rec(a, "three@x.com", "pending", true);
-await rec(a, "four@x.com", "rejected", true);
+const r1 = await rec(a, "one@x.com", "approved", true);
+const r2 = await rec(a, "two@x.com", "approved", false);
+const r3 = await rec(a, "three@x.com", "pending", true);
+const r4 = await rec(a, "four@x.com", "rejected", true);
 await assert.rejects(() => rec(a, "ONE@x.com"), /listing_recommendations_one_per_email/, "one per email per business, ignoring case");
-await rec(f, "one@x.com", "approved", true); // the same person may recommend a different business
+const rf = await rec(f, "one@x.com", "approved", true); // the same person may recommend a different business
 
-const pub = await as("anon", null, async () => { await db.exec("set role anon"); try { return await q("select * from public.listing_recommendations_public where listing_id=$1", [a]); } finally { await db.exec("reset role"); } });
-assert.equal(pub.length, 1, "only approved and email-confirmed recommendations are public");
-assert.deepEqual(Object.keys(pub[0]).sort(), ["author_name", "body", "created_at", "id", "listing_id"], "no email address and no token in the public view");
-const counts = await q("select * from public.listing_recommendation_counts order by total");
-assert.deepEqual(counts.map((c) => c.total), [1, 1]);
+const asAnon = (sql, params) => asDb("anon", null, () => db.query(sql, params));
+let pub = (await asAnon("select * from public.listing_recommendations_public where listing_id=$1 order by author_name, id", [a])).rows;
+assert.equal(pub.length, 2, "every approved recommendation is public, whether or not the email was confirmed; pending and hidden ones are not");
+assert.deepEqual(Object.keys(pub[0]).sort(), ["author_name", "body", "created_at", "email_confirmed", "featured", "id", "listing_id"], "no email address and no token in the public view");
+assert.deepEqual(pub.map((p) => p.email_confirmed).sort(), [false, true]);
+assert.deepEqual((await q("select * from public.listing_recommendation_counts order by total")).map((c) => c.total), [1, 2]);
 assert.equal((await q("select relrowsecurity from pg_class where relname='listing_recommendations'"))[0].relrowsecurity, true, "the table itself is private");
 assert.deepEqual((await q("select policyname from pg_policies where tablename='listing_recommendations'")).map((p) => p.policyname), ["Admins manage recommendations"], "no public or owner access to the table");
 await assert.rejects(() => db.query("insert into public.listing_recommendations (listing_id, author_name, author_email, body, token_hash) values ($1,'M','a@b.co','too short','h')", [a]), /check/);
+await assert.rejects(() => db.query("update public.listing_recommendations set featured=true where id=$1", [r3]), /featured_check/, "only an approved recommendation can be featured");
+
+// the business sees only its own, without email addresses
+const mine = (user) => asDb("authenticated", user, () => db.query("select * from public.my_recommendations()")).then((r) => r.rows);
+let list = await mine(owner);
+assert.equal(list.length, 4, "the owner sees everything written about their listing, including pending and hidden");
+assert.ok(!("author_email" in list[0]) && !("token_hash" in list[0]) && list.every((x) => ["pending", "approved", "rejected"].includes(x.status)), "never the customer's email address");
+assert.equal((await mine(lOwner)).length, 0, "another business sees none of them");
+assert.equal((await mine(fOwner)).length, 1, "the free listing's owner sees theirs");
+await assert.rejects(() => asAnon("select * from public.my_recommendations()"), /permission denied/, "signed-out visitors cannot call it");
+
+// the business decides
+const decide = (user, id, status) => asDb("authenticated", user, () => db.query("select public.decide_my_recommendation($1,$2)", [id, status]));
+await decide(owner, r3, "approved");
+assert.equal((await q("select status, moderated_at is not null as stamped from public.listing_recommendations where id=$1", [r3]))[0].status, "approved");
+assert.equal((await q("select moderated_at from public.listing_recommendations where id=$1", [r3]))[0].moderated_at !== null, true);
+await assert.rejects(() => decide(lOwner, r3, "rejected"), /Recommendation not found/, "another business cannot decide");
+await assert.rejects(() => decide(owner, rf, "rejected"), /Recommendation not found/, "nor can an owner decide for a different listing");
+await assert.rejects(() => decide(owner, r3, "deleted"), /Invalid status/);
+await assert.rejects(() => asAnon("select public.decide_my_recommendation($1,'approved')", [r3]), /permission denied/);
+pub = (await asAnon("select * from public.listing_recommendations_public where listing_id=$1", [a])).rows;
+assert.equal(pub.length, 3, "approving makes it public");
+
+// one featured recommendation, paid plan only
+const feature = (user, id, on = true) => asDb("authenticated", user, () => db.query("select public.feature_my_recommendation($1,$2)", [id, on]));
+await feature(owner, r1);
+assert.deepEqual((await q("select id from public.listing_recommendations where featured and listing_id=$1", [a])).map((x) => x.id), [r1]);
+await feature(owner, r2);
+assert.deepEqual((await q("select id from public.listing_recommendations where featured and listing_id=$1", [a])).map((x) => x.id), [r2], "featuring another one replaces the first");
+pub = (await asAnon("select id, featured from public.listing_recommendations_public where listing_id=$1 and featured", [a])).rows;
+assert.deepEqual(pub.map((x) => x.id), [r2], "the public view says which one is featured");
+await assert.rejects(() => feature(owner, r4), /Show this recommendation first/, "a hidden recommendation cannot be featured");
+await assert.rejects(() => feature(lOwner, r2), /Recommendation not found/, "another business cannot feature it");
+await assert.rejects(() => feature(fOwner, rf), /Featured plan/, "a free plan cannot feature one");
+await assert.rejects(() => asAnon("select public.feature_my_recommendation($1)", [r2]), /permission denied/);
+await decide(owner, r2, "rejected");
+assert.equal((await q("select featured from public.listing_recommendations where id=$1", [r2]))[0].featured, false, "hiding a recommendation un-features it");
+await feature(owner, r1);
+await feature(owner, r1, false);
+assert.equal((await q("select featured from public.listing_recommendations where id=$1", [r1]))[0].featured, false, "it can be un-featured");
 
 console.log("profiles SQL: all checks passed");

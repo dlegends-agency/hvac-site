@@ -1,6 +1,6 @@
 // Offline tests for customer recommendations and listing hours. Run: npm run test:recommend
 import assert from "node:assert/strict";
-import { checkRecommendation, displayName, hashToken, isToken, newToken, renderConfirmEmail } from "../functions/_lib/recommend.ts";
+import { checkRecommendation, displayName, hashIp, hashToken, isToken, newToken, renderConfirmEmail } from "../functions/_lib/recommend.ts";
 import { onRequestPost as submit } from "../functions/api/recommend/submit.ts";
 import { onRequestGet as confirm } from "../functions/api/recommend/confirm.ts";
 import { parseHours } from "../functions/_lib/google.ts";
@@ -36,16 +36,17 @@ assert.ok(!/[\r\n]/.test(mail.subject) && !mail.html.includes("<script>") && mai
 
 // --- the endpoints, with Supabase and Resend simulated
 const env = { SUPABASE_SERVICE_ROLE_KEY: "svc", VITE_SUPABASE_URL: "https://x.supabase.co", RESEND_API_KEY: "re", NOTIFY_FROM_EMAIL: "HVACHelp <a@site.test>", VITE_SITE_URL: "https://site.test" };
-const post = (body, e = env) => submit({ env: e, request: new Request("https://site.test/api/recommend/submit", { method: "POST", body: typeof body === "string" ? body : JSON.stringify(body) }) });
+const post = (body, e = env) => submit({ env: e, request: new Request("https://site.test/api/recommend/submit", { method: "POST", headers: { "CF-Connecting-IP": "203.0.113.7" }, body: typeof body === "string" ? body : JSON.stringify(body) }) });
 
 let rows, inserted, mailed, deleted, insertStatus, resendOk, patchRows, patchedWith;
-const reset = () => { rows = { listing: [{ id: "L1", business_name: "Acme HVAC" }], byEmail: [], byListing: [] }; inserted = []; mailed = []; deleted = 0; insertStatus = 201; resendOk = true; patchRows = [{ listing_id: "L1" }]; patchedWith = null; };
+const reset = () => { rows = { listing: [{ id: "L1", business_name: "Acme HVAC" }], byEmail: [], byListing: [], bySender: [] }; inserted = []; mailed = []; deleted = 0; insertStatus = 201; resendOk = true; patchRows = [{ listing_id: "L1" }]; patchedWith = null; };
 globalThis.fetch = async (url, init = {}) => {
   url = String(url);
   const method = init.method ?? "GET";
   if (url.includes("/rest/v1/listings?slug=")) return new Response(JSON.stringify(rows.listing), { status: 200 });
   if (url.includes("/rest/v1/listings?id=")) return new Response(JSON.stringify([{ slug: "acme-hvac-austin" }]), { status: 200 });
   if (url.includes("listing_recommendations?author_email=eq.")) return new Response(JSON.stringify(rows.byEmail), { status: 200 });
+  if (url.includes("listing_recommendations?ip_hash=eq.")) return new Response(JSON.stringify(rows.bySender), { status: 200 });
   if (url.includes("listing_recommendations?listing_id=eq.")) return new Response(JSON.stringify(rows.byListing), { status: 200 });
   if (url.endsWith("/rest/v1/listing_recommendations") && method === "POST") { inserted.push(JSON.parse(init.body)); return new Response(null, { status: insertStatus }); }
   if (url.includes("listing_recommendations?token_hash=eq.") && method === "DELETE") { deleted++; return new Response(null, { status: 204 }); }
@@ -62,6 +63,10 @@ assert.equal(inserted[0].author_name, "Maria L.");
 assert.equal(inserted[0].author_email, "maria@example.com");
 assert.equal(inserted[0].listing_id, "L1");
 assert.equal(inserted[0].token_hash.length, 64);
+assert.equal(inserted[0].ip_hash, await hashIp("203.0.113.7", "svc"), "only a salted hash of the sender is stored");
+assert.ok(!JSON.stringify(inserted[0]).includes("203.0.113.7"), "never the address itself");
+assert.notEqual(await hashIp("203.0.113.7", "svc"), await hashIp("203.0.113.7", "other"), "the salt matters");
+assert.match((await res.json()).message, /Check your email/);
 assert.ok(!("token" in inserted[0]) && !JSON.stringify(inserted[0]).includes("status"), "the token itself is not stored and status is left to the database default");
 assert.equal(mailed.length, 1);
 assert.deepEqual(mailed[0].to, ["maria@example.com"]);
@@ -77,9 +82,15 @@ reset(); rows.byEmail = [{}, {}, {}]; res = await post(good); assert.equal(res.s
 reset(); rows.byListing = Array.from({ length: 10 }, () => ({})); res = await post(good); assert.equal(res.status, 429, "10 unconfirmed per business per hour");
 reset(); insertStatus = 409; res = await post(good);
 assert.equal(res.status, 200); assert.equal(mailed.length, 0, "a repeat for the same business sends nothing and looks the same");
+reset(); rows.bySender = Array.from({ length: 6 }, () => ({})); res = await post(good); assert.equal(res.status, 429); assert.equal(inserted.length, 0, "6 per sender per day");
 reset(); resendOk = false; res = await post(good);
-assert.equal(res.status, 502); assert.equal(deleted, 1, "if the email cannot be sent the row is removed so the customer can retry");
-reset(); res = await post(good, { ...env, RESEND_API_KEY: undefined }); assert.equal(res.status, 501);
+assert.equal(res.status, 200); assert.equal(inserted.length, 1); assert.equal(deleted, 0, "if the confirmation email cannot be sent the recommendation is still saved");
+assert.doesNotMatch((await res.json()).message, /Check your email/);
+reset(); res = await post(good, { ...env, RESEND_API_KEY: undefined });
+assert.equal(res.status, 200, "no email service: the recommendation is still saved for the business to review");
+assert.equal(inserted.length, 1); assert.equal(mailed.length, 0);
+assert.match((await res.json()).message, /sent to the business/);
+reset(); res = await post(good, { ...env, SUPABASE_SERVICE_ROLE_KEY: undefined }); assert.equal(res.status, 501); assert.equal(inserted.length, 0);
 
 // --- confirming
 const get = (t) => confirm({ env, request: new Request(`https://site.test/api/recommend/confirm${t === undefined ? "" : `?t=${t}`}`) });

@@ -4,12 +4,28 @@ import { Bell, BellOff, CheckCircle2, Circle, Clock, MapPin } from "lucide-react
 import { PageTitle, Panel, StatCard } from "@/components/admin/widgets";
 import { buttonClass } from "@/components/ui/Button";
 import { leadPrice, planName } from "@/config/pricing";
-import { useNow } from "@/lib/admin-hooks";
+import { useLiveQuery, useNow } from "@/lib/admin-hooks";
 import { activePlan } from "@/lib/plans";
 import { getSupabaseBrowser } from "@/lib/supabase";
 import { ClaimListing } from "./ClaimListing";
 import { useContractor } from "./context";
 import { ago, useMyLeads } from "./useMyLeads";
+
+/** A link to the Recommendations page when customers have recommended the business and it has not decided yet. */
+function RecommendationNotice() {
+  const q = useLiveQuery<{ status: string }[]>([], () => getSupabaseBrowser().rpc("my_recommendations"), { key: "home-recommendations", intervalMs: 120_000 });
+  const waiting = q.error ? 0 : q.data.filter((r) => r.status === "pending").length;
+  if (waiting === 0) return null;
+  return (
+    <Link to="/contractor/recommendations" className="mb-5 flex items-center gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 transition-colors hover:bg-amber-100">
+      <span className="grid size-10 shrink-0 place-items-center rounded-full bg-amber-500 text-lg font-bold text-white">{waiting}</span>
+      <span>
+        <span className="block font-semibold text-navy">{waiting === 1 ? "1 customer recommendation is waiting for you" : `${waiting} customer recommendations are waiting for you`}</span>
+        <span className="text-sm text-slate-700">Choose which ones to show on your listing.</span>
+      </span>
+    </Link>
+  );
+}
 
 export default function ContractorHome() {
   const { listing, claim, email, notifyEmail, reload } = useContractor();
@@ -85,6 +101,8 @@ export default function ContractorHome() {
           Your listing is <strong>{listing.status}</strong>, so it isn&apos;t public yet. We publish listings after a quick review. Requests are sent only to published listings.
         </p>
       )}
+
+      <RecommendationNotice />
 
       {waiting.length > 0 && (
         <Link to="/contractor/leads?status=new" className="mb-5 flex items-center gap-3 rounded-2xl border border-blue-300 bg-blue-50 p-4 transition-colors hover:bg-blue-100">

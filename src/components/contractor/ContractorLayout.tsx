@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { CreditCard, ExternalLink, LayoutDashboard, Loader2, LogOut, Settings, UserCog, Users } from "lucide-react";
+import { CreditCard, ExternalLink, LayoutDashboard, Loader2, LogOut, Settings, ThumbsUp, UserCog, Users } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { getSupabaseBrowser, isSupabaseConfigured } from "@/lib/supabase";
 import type { Listing, ListingBilling, ListingClaim } from "@/lib/types";
@@ -11,6 +11,7 @@ const links = [
   { href: "/contractor", label: "Dashboard", icon: LayoutDashboard },
   { href: "/contractor/leads", label: "Leads", icon: Users },
   { href: "/contractor/business", label: "My business", icon: UserCog },
+  { href: "/contractor/recommendations", label: "Recommendations", icon: ThumbsUp },
   { href: "/contractor/billing", label: "Plan & billing", icon: CreditCard },
   { href: "/contractor/account", label: "Account settings", icon: Settings },
 ];

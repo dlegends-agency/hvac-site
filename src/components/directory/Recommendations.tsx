@@ -1,17 +1,10 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Loader2, ThumbsUp } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Field, inputClass } from "@/components/ui/Field";
-import { getSupabaseBrowser, isSupabaseConfigured } from "@/lib/supabase";
+import type { Recommendation } from "@/lib/recommendations";
 import type { Listing } from "@/lib/types";
-
-interface Item {
-  id: string;
-  author_name: string;
-  body: string;
-  created_at: string;
-}
 
 const BODY_MIN = 20;
 const BODY_MAX = 1000;
@@ -79,64 +72,49 @@ function RecommendForm({ listing }: { listing: Listing }) {
   );
 }
 
-/** Customer recommendations: confirmed by email and approved by an admin before they show. */
-export function Recommendations({ listing }: { listing: Listing }) {
-  const [items, setItems] = useState<{ id: string; list: Item[] | null } | null>(null);
+/**
+ * Customer recommendations. The business decides which ones to show (and can feature one above "About us"), so this says so.
+ * `items` is undefined while loading and null when the feature is not available yet.
+ */
+export function Recommendations({ listing, items }: { listing: Listing; items: Recommendation[] | null | undefined }) {
   const [open, setOpen] = useState(false);
   const [params] = useSearchParams();
-
-  useEffect(() => {
-    if (!isSupabaseConfigured) return;
-    let cancelled = false;
-    getSupabaseBrowser()
-      .from("listing_recommendations_public")
-      .select("id, author_name, body, created_at")
-      .eq("listing_id", listing.id)
-      .order("created_at", { ascending: false })
-      .limit(50)
-      .then(({ data, error }) => {
-        if (!cancelled) setItems({ id: listing.id, list: error ? null : ((data as Item[] | null) ?? []) });
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [listing.id]);
-
-  const list = items?.id === listing.id ? items.list : null;
-  // The view does not exist until profiles SQL has been run: show nothing rather than a broken section.
-  if (items?.id === listing.id && list === null) return null;
+  if (items === undefined || items === null) return null;
 
   return (
     <section id="recommendations" className="mt-8 scroll-mt-6" aria-labelledby="rec-heading">
       <h2 id="rec-heading" className="flex items-center gap-2 text-lg font-semibold text-navy">
-        <ThumbsUp className="size-5 text-primary" aria-hidden /> Recommendations{list && list.length > 0 ? ` (${list.length})` : ""}
+        <ThumbsUp className="size-5 text-primary" aria-hidden /> Recommendations{items.length > 0 ? ` (${items.length})` : ""}
       </h2>
 
       {params.get("recommendation") === "confirmed" && (
         <p role="status" className="mt-3 rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-900">
-          Thank you. Your email is confirmed. Our team reads every recommendation before it is shown, so yours may take a little while to appear.
+          Thank you. Your email is confirmed. The business decides whether to show your recommendation, so it may not appear straight away.
         </p>
       )}
 
-      {list && list.length > 0 ? (
+      {items.length > 0 ? (
         <ul className="mt-3 space-y-3">
-          {list.map((r) => (
+          {items.map((r) => (
             <li key={r.id} className="rounded-2xl border border-slate-200 p-4">
               <p className="whitespace-pre-line text-slate-800">{r.body}</p>
-              <p className="mt-2 text-sm text-slate-600"><span className="font-semibold text-navy">{r.author_name}</span> · {month(r.created_at)}</p>
+              <p className="mt-2 text-sm text-slate-600">
+                <span className="font-semibold text-navy">{r.author_name}</span> · {month(r.created_at)}
+                {r.email_confirmed && <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">Email confirmed</span>}
+              </p>
             </li>
           ))}
         </ul>
       ) : (
-        list && <p className="mt-2 text-sm text-slate-600">No recommendations yet. Have you used this business?</p>
+        <p className="mt-2 text-sm text-slate-600">No recommendations shown yet. Have you used this business?</p>
       )}
 
       {open ? <RecommendForm listing={listing} /> : (
         <Button variant="secondary" onClick={() => setOpen(true)} className="mt-4 !rounded-full !px-5 !py-2 text-sm"><ThumbsUp className="size-4" aria-hidden /> Recommend this business</Button>
       )}
       <p className="mt-3 text-xs text-slate-500">
-        Recommendations are written by customers, confirmed by email and read by HVACHelp before they are shown. The business cannot edit or remove them.
-        HVACHelp does not check that the work was done.
+        Recommendations are written by customers. The business reads each one and chooses which to show, and cannot edit them. &quot;Email confirmed&quot; means the
+        writer opened a link we emailed them. HVACHelp does not check that the work was done.
       </p>
     </section>
   );

@@ -27,12 +27,12 @@ export const plans: Plan[] = [
     features: [
       "Directory listing with your business name, phone number and address",
       "Show your license number with a license badge",
-      "Customer recommendations on your listing",
+      "Customer recommendations on your listing, which you choose to show",
       "Customer requests near you: you see the customer's name and the problem",
       `Unlock a customer's full details for $${leadPrice.free} per request`,
       "Contractor login and dashboard",
     ],
-    locked: ["About us", "List of services", "Service areas", "Opening hours", "Verified by HVACHelp badge", "Google star rating and reviews"],
+    locked: ["About us", "List of services", "Service areas", "Opening hours", "Verified by HVACHelp badge", "Featured recommendation above About us", "Google star rating and reviews"],
   },
   {
     id: "featured",
@@ -46,6 +46,7 @@ export const plans: Plan[] = [
       "About us, services and service areas shown on your directory listing",
       "Opening hours with an \"Open now\" label",
       "Verified by HVACHelp badge",
+      "Feature one recommendation above About us",
       "Connect your Google reviews: star rating and review count shown live",
       `Unlock a customer's full details for just $${leadPrice.paid} per request`,
       "Customer requests are sent to paid listings first",
@@ -76,7 +77,7 @@ export const pricingFaq: { question: string; answer: string }[] = [
   },
   {
     question: "How do recommendations work?",
-    answer: "Customers write a recommendation and confirm their email address, then our team reads it before it is shown. You cannot choose, edit or remove recommendations, and we do not show a recommendation because it is favourable. We cannot confirm that the work was done.",
+    answer: "Customers write a recommendation on your listing page. It is saved, and you decide in your dashboard whether to show it. You cannot edit what a customer wrote, and your page says that the business chooses which recommendations to show. On the Featured plan you can feature one recommendation above About us. When email sending is set up, customers also confirm their email address, and the recommendation is marked \"Email confirmed\". We cannot confirm that the work was done.",
   },
   {
     question: "Is Featured placement advertising?",
