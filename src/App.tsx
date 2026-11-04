@@ -42,6 +42,7 @@ const ContractorBusiness = lazy(() => import("@/components/contractor/Contractor
 const ContractorBilling = lazy(() => import("@/components/contractor/ContractorBilling"));
 const ContractorAccount = lazy(() => import("@/components/contractor/ContractorAccount"));
 const ClaimsAdmin = lazy(() => import("@/components/admin/ClaimsAdmin").then((m) => ({ default: m.ClaimsAdmin })));
+const RecommendationsAdmin = lazy(() => import("@/components/admin/RecommendationsAdmin").then((m) => ({ default: m.RecommendationsAdmin })));
 const AnalyticsReport = lazy(() => import("@/components/admin/AnalyticsReport").then((m) => ({ default: m.AnalyticsReport })));
 
 export default function App() {
@@ -85,6 +86,7 @@ export default function App() {
             <Route path="listings" element={<ListingsAdmin />} />
             <Route path="listings/discover" element={<DiscoveryAdmin />} />
             <Route path="listings/claims" element={<ClaimsAdmin />} />
+            <Route path="listings/recommendations" element={<RecommendationsAdmin />} />
             <Route path="listings/new" element={<ListingEditor />} />
             <Route path="listings/:id" element={<ListingEditor />} />
             <Route path="messages" element={<MessagesAdmin />} />

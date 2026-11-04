@@ -26,11 +26,13 @@ export const plans: Plan[] = [
     blurb: "Get listed in the directory.",
     features: [
       "Directory listing with your business name, phone number and address",
+      "Show your license number with a license badge",
+      "Customer recommendations on your listing",
       "Customer requests near you: you see the customer's name and the problem",
       `Unlock a customer's full details for $${leadPrice.free} per request`,
       "Contractor login and dashboard",
     ],
-    locked: ["About us", "List of services", "Service areas", "Google star rating and reviews"],
+    locked: ["About us", "List of services", "Service areas", "Opening hours", "Verified by HVACHelp badge", "Google star rating and reviews"],
   },
   {
     id: "featured",
@@ -42,6 +44,8 @@ export const plans: Plan[] = [
       "Everything in Free",
       "Featured badge and placement above free listings",
       "About us, services and service areas shown on your directory listing",
+      "Opening hours with an \"Open now\" label",
+      "Verified by HVACHelp badge",
       "Connect your Google reviews: star rating and review count shown live",
       `Unlock a customer's full details for just $${leadPrice.paid} per request`,
       "Customer requests are sent to paid listings first",
@@ -64,7 +68,15 @@ export const pricingFaq: { question: string; answer: string }[] = [
   },
   {
     question: "What does the Free plan show about my business?",
-    answer: "Your business name, phone number and address. About us, your list of services, your service areas and your Google star rating are only shown on the directory for paid (Featured) listings.",
+    answer: "Your business name, phone number, address and license number (if you add one), plus any customer recommendations. About us, your list of services, your service areas, opening hours, website, email and your Google star rating are only shown on the directory for paid (Featured) listings.",
+  },
+  {
+    question: "What do the badges mean?",
+    answer: "\"Verified by HVACHelp\" means you have a Featured plan and we confirmed that you manage the listing when we approved your claim. It does not mean we checked your licensing, insurance or work. \"License no. provided\" means you gave us a license number. It changes to \"License verified\" after we check the number with the state.",
+  },
+  {
+    question: "How do recommendations work?",
+    answer: "Customers write a recommendation and confirm their email address, then our team reads it before it is shown. You cannot choose, edit or remove recommendations, and we do not show a recommendation because it is favourable. We cannot confirm that the work was done.",
   },
   {
     question: "Is Featured placement advertising?",

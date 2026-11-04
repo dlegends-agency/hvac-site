@@ -1,10 +1,14 @@
 import { useMemo } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Globe, Mail, MapPin, Phone, Siren } from "lucide-react";
+import { ArrowLeft, Globe, Mail, MapPin, Phone, Siren, ThumbsUp } from "lucide-react";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
+import { HoursSection, OpenNow } from "@/components/directory/Hours";
 import { telHref } from "@/components/directory/ListingCard";
-import { FeaturedBadge, GoogleReviews } from "@/components/directory/Rating";
+import { FeaturedBadge, GoogleReviews, LicenseBadge, VerifiedBadge } from "@/components/directory/Rating";
+import { Recommendations } from "@/components/directory/Recommendations";
+import { SimilarBusinesses } from "@/components/directory/SimilarBusinesses";
+import { DAYS, cleanHours } from "@/lib/hours";
 import { buttonClass } from "@/components/ui/Button";
 import { siteConfig } from "@/config/site";
 import { safeUrl, usePublishedListing } from "@/lib/directory";
@@ -14,19 +18,23 @@ export default function ListingPage() {
   const { slug } = useParams<{ slug: string }>();
   const { data: l, loading } = usePublishedListing(slug);
 
-  const jsonLd = useMemo(
-    () =>
-      l && {
-        "@context": "https://schema.org",
-        "@type": "HVACBusiness",
-        name: l.business_name,
-        description: l.description || undefined,
-        url: `${siteConfig.url}/directory/${l.slug}`,
-        telephone: l.phone || undefined,
-        address: { "@type": "PostalAddress", streetAddress: l.address || undefined, addressLocality: l.city, addressRegion: l.state, postalCode: l.postal_code || undefined },
-      },
-    [l],
-  );
+  const jsonLd = useMemo(() => {
+    if (!l) return null;
+    const hours = cleanHours(l.business_hours);
+    const weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+    return {
+      "@context": "https://schema.org",
+      "@type": "HVACBusiness",
+      name: l.business_name,
+      description: l.description || undefined,
+      url: `${siteConfig.url}/directory/${l.slug}`,
+      telephone: l.phone || undefined,
+      address: { "@type": "PostalAddress", streetAddress: l.address || undefined, addressLocality: l.city, addressRegion: l.state, postalCode: l.postal_code || undefined },
+      openingHoursSpecification: hours
+        ? DAYS.flatMap((d, i) => (hours[d.key] ? [{ "@type": "OpeningHoursSpecification", dayOfWeek: weekdays[i], opens: hours[d.key]!.open, closes: hours[d.key]!.close }] : []))
+        : undefined,
+    };
+  }, [l]);
 
   usePageMeta(
     l
@@ -59,13 +67,18 @@ export default function ListingPage() {
             </div>
           ) : (
             <article className="mt-5 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-              <FeaturedBadge listing={l} />
+              <div className="flex flex-wrap gap-1.5 empty:hidden">
+                <FeaturedBadge listing={l} />
+                <VerifiedBadge listing={l} />
+                <LicenseBadge listing={l} />
+              </div>
               <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-navy">{l.business_name}</h1>
               <GoogleReviews listing={l} />
               <p className="mt-2 flex items-center gap-1.5 text-slate-600">
                 <MapPin className="size-4" aria-hidden />
                 {[l.address, `${l.city}, ${l.state}`, l.postal_code].filter(Boolean).join(" · ")}
               </p>
+              <OpenNow listing={l} />
               {l.emergency_service && (
                 <p className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-emergency-soft px-3 py-1 text-sm font-semibold text-emergency">
                   <Siren className="size-4" aria-hidden /> Says it offers emergency service
@@ -80,6 +93,7 @@ export default function ListingPage() {
                     <Globe className="size-4" aria-hidden /> Website
                   </a>
                 )}
+                <a href="#recommendations" className={buttonClass("secondary")}><ThumbsUp className="size-4" aria-hidden /> Recommend</a>
               </div>
 
               {l.description && (
@@ -103,9 +117,12 @@ export default function ListingPage() {
                   <p className="mt-2 text-slate-700">{l.service_areas}</p>
                 </section>
               )}
+              <HoursSection listing={l} />
+              <Recommendations listing={l} />
+              <SimilarBusinesses listing={l} />
 
               <p className="mt-8 rounded-xl bg-slate-50 p-4 text-sm text-slate-600">
-                This listing was provided by the business. {siteConfig.brand.name} does not verify licensing, insurance, pricing or availability.
+                This listing was provided by the business. {siteConfig.brand.name} does not verify insurance, pricing or availability, and checks a license number only where the badge says &quot;License verified&quot;.
                 Confirm credentials directly with any contractor before hiring.
               </p>
             </article>

@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { MapPin, Phone, Siren } from "lucide-react";
-import { FeaturedBadge, GoogleReviews } from "@/components/directory/Rating";
+import { FeaturedBadge, GoogleReviews, LicenseBadge, VerifiedBadge } from "@/components/directory/Rating";
 import { isFeatured } from "@/lib/plans";
 import type { Listing } from "@/lib/types";
 
@@ -9,7 +9,11 @@ export const telHref = (phone: string) => `tel:${phone.replace(/[^\d+]/g, "")}`;
 export function ListingCard({ listing }: { listing: Listing }) {
   return (
     <li className={`flex flex-col rounded-2xl border bg-white p-5 shadow-sm ${isFeatured(listing) ? "border-amber-300 ring-1 ring-amber-200" : "border-slate-200"}`}>
-      <FeaturedBadge listing={listing} />
+      <div className="flex flex-wrap gap-1.5 empty:hidden">
+        <FeaturedBadge listing={listing} />
+        <VerifiedBadge listing={listing} />
+        <LicenseBadge listing={listing} />
+      </div>
       <h2 className="mt-1 text-lg font-bold text-navy">
         <Link to={`/directory/${listing.slug}`} className="hover:text-primary">{listing.business_name}</Link>
       </h2>

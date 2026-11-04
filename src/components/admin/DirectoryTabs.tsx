@@ -4,6 +4,7 @@ const tabs = [
   { to: "/admin/listings", label: "Listings" },
   { to: "/admin/listings/discover", label: "Find businesses" },
   { to: "/admin/listings/claims", label: "Claims" },
+  { to: "/admin/listings/recommendations", label: "Recommendations" },
 ];
 
 /** Tab bar shared by the directory admin pages. */

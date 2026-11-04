@@ -13,7 +13,8 @@
     "test:google": "node scripts/test-google.mjs",
     "test:notify": "node --import ./scripts/ts-resolve.mjs scripts/test-notify.mjs",
     "test:account": "node --import ./scripts/ts-resolve.mjs scripts/test-account.mjs",
-    "test:unlock": "node --import ./scripts/ts-resolve.mjs scripts/test-unlock.mjs"
+    "test:unlock": "node --import ./scripts/ts-resolve.mjs scripts/test-unlock.mjs",
+    "test:recommend": "node --import ./scripts/ts-resolve.mjs scripts/test-recommend.mjs"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.3.0",
