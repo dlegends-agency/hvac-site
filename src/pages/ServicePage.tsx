@@ -40,7 +40,7 @@ export default function ServicePage({ slug }: { slug: string }) {
       <Header />
       <main>
         <section className="bg-surface">
-          <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6 sm:py-14">
+          <div className="mx-auto max-w-site px-4 py-12 sm:px-6 sm:py-14">
             <Breadcrumbs crumbs={crumbs} />
             <h1 className="mt-5 text-3xl font-extrabold tracking-tight text-navy sm:text-4xl">{page.h1}</h1>
             <p className="mt-4 text-lg leading-relaxed text-slate-700">{page.intro}</p>
@@ -56,7 +56,7 @@ export default function ServicePage({ slug }: { slug: string }) {
         </section>
 
         <article className="bg-white py-12">
-          <div className="mx-auto max-w-3xl space-y-10 px-4 sm:px-6">
+          <div className="mx-auto max-w-site space-y-10 px-4 sm:px-6">
             {page.sections.map((s) => (
               <section key={s.id} id={s.id} aria-labelledby={`${s.id}-h`}>
                 <h2 id={`${s.id}-h`} className="text-2xl font-bold text-navy">{s.heading}</h2>
@@ -72,20 +72,20 @@ export default function ServicePage({ slug }: { slug: string }) {
         </article>
 
         <section id="faq" aria-labelledby="svc-faq" className="bg-surface py-12">
-          <div className="mx-auto max-w-3xl px-4 sm:px-6">
+          <div className="mx-auto max-w-site px-4 sm:px-6">
             <h2 id="svc-faq" className="mb-6 text-2xl font-bold text-navy">Frequently Asked Questions</h2>
             <FaqList faqs={page.faqs} />
           </div>
         </section>
 
         <div className="bg-white py-14">
-          <div className="mx-auto max-w-3xl px-4 sm:px-6">
+          <div className="mx-auto max-w-site px-4 sm:px-6">
             <LeadCaptureForm id="lead-form" source={`service-${page.slug}`} title={`Request Help: ${page.name}`} />
           </div>
         </div>
 
         <section className="bg-surface py-12" aria-labelledby="svc-more">
-          <div className="mx-auto max-w-4xl px-4 sm:px-6">
+          <div className="mx-auto max-w-site px-4 sm:px-6">
             <h2 id="svc-more" className="text-xl font-bold text-navy">Related topics</h2>
             <ul className="mt-4 flex flex-wrap gap-3">
               {related.map((r) => <li key={r!.slug}><Link to={servicePath(r!.slug)} className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-navy hover:border-primary">{r!.name}</Link></li>)}

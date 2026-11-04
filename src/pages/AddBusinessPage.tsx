@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/Button";
 import { Field, inputClass } from "@/components/ui/Field";
 import { breadcrumbLd, webPageLd } from "@/lib/schema";
 import { slugify } from "@/lib/directory";
+import { useCaptcha } from "@/components/ui/Turnstile";
+import { postForm } from "@/lib/post-form";
 import { getSupabaseBrowser, isSupabaseConfigured } from "@/lib/supabase";
 import { usePageMeta } from "@/lib/use-page-meta";
 
@@ -37,6 +39,7 @@ export default function AddBusinessPage() {
   });
   const [errors, setErrors] = useState<Errors>({});
   const [status, setStatus] = useState<"idle" | "submitting" | "done" | "error">("idle");
+  const captcha = useCaptcha();
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -59,22 +62,28 @@ export default function AddBusinessPage() {
     setStatus("submitting");
     const d = result.data;
     const id = crypto.randomUUID();
-    const supabase = getSupabaseBrowser();
-    const { error } = await supabase.from("listings").insert({
+    const listing = {
       id,
       slug: `${slugify(`${d.business_name} ${d.city}`)}-${id.slice(0, 4)}`,
-      status: "pending",
       business_name: d.business_name,
       phone: d.phone,
       address: d.address,
       city: d.city,
       state: d.state,
       postal_code: d.postal_code,
+    };
+    // The server checks the CAPTCHA, saves the pending listing and keeps the private contact details in an admin-only table.
+    const res = await postForm("/api/submit/listing", { ...listing, submitter_name: d.submitter_name, submitter_email: d.submitter_email }, captcha.token, {
+      devFallback: async () => {
+        const supabase = getSupabaseBrowser();
+        const { error } = await supabase.from("listings").insert({ ...listing, status: "pending" });
+        if (error) return false;
+        await supabase.from("listing_private").insert({ listing_id: id, submitter_name: d.submitter_name, submitter_email: d.submitter_email });
+        return true;
+      },
     });
-    if (error) return setStatus("error");
-    // Private contact details go in an admin-only table.
-    await supabase.from("listing_private").insert({ listing_id: id, submitter_name: d.submitter_name, submitter_email: d.submitter_email });
-    setStatus("done");
+    captcha.reset();
+    setStatus(res.ok ? "done" : "error");
   }
 
   const text = (id: string, label: string, extra: { hint?: string; type?: string; auto?: string } = {}) => (
@@ -142,7 +151,8 @@ export default function AddBusinessPage() {
               <div role="alert">
                 {status === "error" && <p className="text-sm font-medium text-red-700">We couldn&apos;t submit your listing. Please try again later.</p>}
               </div>
-              <Button type="submit" disabled={status === "submitting"}>
+              {captcha.widget}
+              <Button type="submit" disabled={status === "submitting" || captcha.blocked}>
                 {status === "submitting" && <Loader2 className="size-4 animate-spin" aria-hidden />} Submit for review
               </Button>
             </form>

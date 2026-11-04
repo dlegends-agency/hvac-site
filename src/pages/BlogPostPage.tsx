@@ -38,15 +38,15 @@ export default function BlogPostPage() {
       <Header />
       <main className="bg-white">
         {loading ? (
-          <p className="mx-auto max-w-3xl px-4 py-14 text-slate-600">Loading…</p>
+          <p className="mx-auto max-w-site px-4 py-14 text-slate-600">Loading…</p>
         ) : !post ? (
-          <div className="mx-auto max-w-3xl px-4 py-14 sm:px-6">
+          <div className="mx-auto max-w-site px-4 py-14 sm:px-6">
             <h1 className="text-3xl font-bold text-navy">Article not found</h1>
             <p className="mt-3 text-slate-600">This article doesn&apos;t exist or isn&apos;t published.</p>
             <Link to="/blog" className="mt-4 inline-block font-semibold text-primary">← All articles</Link>
           </div>
         ) : (
-          <article className="mx-auto max-w-3xl px-4 py-14 sm:px-6">
+          <article className="mx-auto max-w-site px-4 py-14 sm:px-6">
             <p className="text-sm"><Link to="/blog" className="font-semibold text-primary">← All articles</Link></p>
             <h1 className="mt-4 text-4xl font-extrabold tracking-tight text-navy">{post.title}</h1>
             {post.published_at && (

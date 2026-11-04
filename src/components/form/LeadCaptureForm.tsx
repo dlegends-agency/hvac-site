@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { Link } from "react-router-dom";
 import { ArrowLeft, ArrowRight, Check, CheckCircle2, Loader2, ShieldCheck, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { isSupabaseConfigured } from "@/lib/supabase";
@@ -27,7 +28,7 @@ export function LeadCaptureForm({
   showHeader = true,
   labelledBy,
 }: Props) {
-  const { form, step, setStep, status, setStatus, next, back, submit } = useLeadForm(source);
+  const { form, step, setStep, status, setStatus, next, back, submit, captcha } = useLeadForm(source);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const seen = useRef({ step: 0, status: "idle" as string });
   const last = stepTitles.length - 1;
@@ -96,6 +97,8 @@ export function LeadCaptureForm({
                 )}
               </div>
 
+              {step === last && captcha.widget && <div className="mt-6">{captcha.widget}</div>}
+
               <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
                 {step > 0 ? (
                   <Button variant="secondary" onClick={back} disabled={submitting} className="!rounded-full">
@@ -109,7 +112,7 @@ export function LeadCaptureForm({
                     Continue <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" aria-hidden />
                   </Button>
                 ) : (
-                  <Button type="submit" disabled={submitting} aria-busy={submitting} className="!rounded-full px-8 shadow-lg shadow-blue-600/20">
+                  <Button type="submit" disabled={submitting || captcha.blocked} aria-busy={submitting} className="!rounded-full px-8 shadow-lg shadow-blue-600/20">
                     {submitting && <Loader2 className="size-4 animate-spin" aria-hidden />}
                     {submitting ? "Submitting…" : "Submit Service Request"}
                   </Button>
@@ -126,6 +129,10 @@ export function LeadCaptureForm({
             <p className="mx-auto mt-2 max-w-md text-sm text-green-900">
               We&apos;ll review your details and help look for a suitable local contractor. Up to three contractors that serve your area may contact you directly. We can&apos;t guarantee availability or a response time.
               If you smell gas or suspect carbon monoxide, leave the area and contact emergency services.
+            </p>
+            <p className="mx-auto mt-3 max-w-md text-sm text-green-900">
+              Want to see which businesses received your request and whether they have been in touch?{" "}
+              <Link to="/account/login?mode=signup" className="font-semibold underline">Create a free account</Link> with the same email address.
             </p>
           </div>
         )}

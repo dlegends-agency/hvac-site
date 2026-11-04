@@ -16,6 +16,7 @@ import { siteConfig } from "@/config/site";
 import { safeUrl, usePublishedListing } from "@/lib/directory";
 import { imageUrl } from "@/lib/listing-images";
 import { useListingRecommendations } from "@/lib/recommendations";
+import { useGooglePhoto } from "@/lib/use-google-photo";
 import { usePageMeta } from "@/lib/use-page-meta";
 
 export default function ListingPage() {
@@ -55,12 +56,15 @@ export default function ListingPage() {
   const cover = imageUrl(l?.cover_image_path);
   const avatar = imageUrl(l?.avatar_path);
   const recommendations = useListingRecommendations(l?.id);
+  // Without an uploaded profile picture, a paid listing connected to Google shows its Google photo.
+  const googlePhoto = useGooglePhoto(l, !avatar);
+  const picture = avatar ?? googlePhoto?.src ?? null;
 
   return (
     <>
       <Header />
       <main className="bg-surface">
-        <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
+        <div className="mx-auto max-w-site px-4 py-12 sm:px-6">
           <Link to="/directory" className="inline-flex items-center gap-1 text-sm font-semibold text-primary">
             <ArrowLeft className="size-4" aria-hidden /> All businesses
           </Link>
@@ -75,14 +79,15 @@ export default function ListingPage() {
           ) : (
             <div className="mt-5 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
             <article className="overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-              {(cover || avatar) && (
+              {(cover || picture) && (
                 <div className="-mx-6 -mt-6 mb-4 sm:-mx-8 sm:-mt-8">
                   <div className="aspect-[16/5] max-h-64 w-full overflow-hidden bg-gradient-to-br from-blue-100 to-slate-200">
                     {cover && <img src={cover} alt="" className="size-full object-cover" fetchPriority="high" />}
                   </div>
-                  {avatar && (
-                    <img src={avatar} alt={`${l.business_name} logo`} className="relative -mt-12 ml-6 size-24 rounded-2xl border-4 border-white bg-white object-cover shadow-sm sm:-mt-14 sm:ml-8 sm:size-28" />
+                  {picture && (
+                    <img src={picture} alt={`${l.business_name} logo`} className="relative -mt-12 ml-6 size-24 rounded-2xl border-4 border-white bg-white object-cover shadow-sm sm:-mt-14 sm:ml-8 sm:size-28" />
                   )}
+                  {!avatar && googlePhoto && <p className="ml-6 mt-1 text-[11px] text-slate-500 sm:ml-8">Photo from Google{googlePhoto.attribution ? `, by ${googlePhoto.attribution}` : ""}</p>}
                 </div>
               )}
               <div className="flex flex-wrap gap-1.5 empty:hidden">

@@ -4,6 +4,7 @@ import { Bell, BellOff, CreditCard, ExternalLink, Loader2 } from "lucide-react";
 import { PageTitle, Panel } from "@/components/admin/widgets";
 import { Button } from "@/components/ui/Button";
 import { Field, inputClass } from "@/components/ui/Field";
+import { useCaptcha } from "@/components/ui/Turnstile";
 import { planName } from "@/config/pricing";
 import { useNow } from "@/lib/admin-hooks";
 import { getSupabaseBrowser } from "@/lib/supabase";
@@ -48,6 +49,7 @@ function SignIn() {
   const [emailNote, setEmailNote] = useState<Note>(null);
   const [pwNote, setPwNote] = useState<Note>(null);
   const [busy, setBusy] = useState<"email" | "password" | null>(null);
+  const captcha = useCaptcha();
 
   async function changeEmail(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -77,7 +79,8 @@ function SignIn() {
     setBusy("password");
     setPwNote(null);
     const auth = getSupabaseBrowser().auth;
-    const check = await auth.signInWithPassword({ email, password: current });
+    const check = await auth.signInWithPassword({ email, password: current, options: { captchaToken: captcha.token ?? undefined } });
+    captcha.reset();
     if (check.error) {
       setBusy(null);
       return setPwNote({ ok: false, text: "Your current password is not correct." });
@@ -117,7 +120,8 @@ function SignIn() {
         <Field id="confirm_password" label="Confirm new password">
           {(a) => <input id="confirm_password" name="confirm_password" type="password" autoComplete="new-password" className={inputClass} {...a} />}
         </Field>
-        <Button type="submit" variant="secondary" disabled={busy !== null} className="!rounded-full !px-5 !py-2 text-sm">
+        {captcha.widget}
+        <Button type="submit" variant="secondary" disabled={busy !== null || captcha.blocked} className="!rounded-full !px-5 !py-2 text-sm">
           {busy === "password" && <Loader2 className="size-4 animate-spin" aria-hidden />} Change password
         </Button>
         {note(pwNote)}

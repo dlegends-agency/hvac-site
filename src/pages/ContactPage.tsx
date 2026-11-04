@@ -9,6 +9,8 @@ import { Button, buttonClass } from "@/components/ui/Button";
 import { Field, SelectWrap, inputClass } from "@/components/ui/Field";
 import { siteConfig } from "@/config/site";
 import { breadcrumbLd, webPageLd } from "@/lib/schema";
+import { useCaptcha } from "@/components/ui/Turnstile";
+import { postForm } from "@/lib/post-form";
 import { getSupabaseBrowser, isSupabaseConfigured } from "@/lib/supabase";
 import { usePageMeta } from "@/lib/use-page-meta";
 
@@ -43,6 +45,7 @@ export default function ContactPage() {
 
   const [errors, setErrors] = useState<Errors>({});
   const [status, setStatus] = useState<"idle" | "submitting" | "done" | "error">("idle");
+  const captcha = useCaptcha();
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -65,8 +68,12 @@ export default function ContactPage() {
 
     setStatus("submitting");
     const { name, email, topic, message } = result.data;
-    const { error } = await getSupabaseBrowser().from("contact_messages").insert({ name, email, topic, message });
-    setStatus(error ? "error" : "done");
+    const payload = { name, email, topic, message };
+    const res = await postForm("/api/submit/contact", payload, captcha.token, {
+      devFallback: async () => !(await getSupabaseBrowser().from("contact_messages").insert(payload)).error,
+    });
+    captcha.reset();
+    setStatus(res.ok ? "done" : "error");
   }
 
   const cards = [
@@ -170,7 +177,8 @@ export default function ContactPage() {
                   <div role="alert">
                     {status === "error" && <p className="text-sm font-medium text-red-700">We couldn&apos;t send your message. Please try again later.</p>}
                   </div>
-                  <Button type="submit" disabled={status === "submitting"} className="!rounded-full px-8 shadow-lg shadow-blue-600/20">
+                  {captcha.widget}
+                  <Button type="submit" disabled={status === "submitting" || captcha.blocked} className="!rounded-full px-8 shadow-lg shadow-blue-600/20">
                     {status === "submitting" && <Loader2 className="size-4 animate-spin" aria-hidden />} Send message
                   </Button>
                 </form>

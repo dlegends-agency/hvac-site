@@ -150,7 +150,7 @@ export default function LocationPage({ slug }: { slug: string }) {
         </div>
 
         <section aria-labelledby="loc-faq" className="bg-surface py-14">
-          <div className="mx-auto max-w-3xl px-4 sm:px-6">
+          <div className="mx-auto max-w-site px-4 sm:px-6">
             <h2 id="loc-faq" className="mb-6 text-3xl font-bold tracking-tight text-navy">HVAC Contractor in {loc.name}: FAQ</h2>
             <FaqList faqs={faqs} />
           </div>

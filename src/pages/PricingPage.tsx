@@ -48,7 +48,7 @@ export default function PricingPage() {
             ))}
           </div>
 
-          <ul className="grid gap-6 md:grid-cols-2 lg:max-w-4xl">
+          <ul className="grid gap-6 md:grid-cols-2">
             {plans.map((p) => (
               <li key={p.id} className={`flex flex-col rounded-3xl border bg-white p-6 shadow-sm sm:p-8 ${p.highlight ? "border-primary ring-2 ring-primary/20" : "border-slate-200"}`}>
                 {p.highlight && <p className="mb-3 w-fit rounded-full bg-primary px-3 py-0.5 text-xs font-semibold text-white">Recommended</p>}
@@ -75,7 +75,7 @@ export default function PricingPage() {
             ))}
           </ul>
 
-          <div className="mt-10 max-w-4xl rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="mt-10 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="text-lg font-bold text-navy">How customer requests work</h2>
             <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm text-slate-700">
               <li>A customer near you asks for help on our site. We send the request to up to three nearby contractors, paid listings first.</li>
@@ -89,7 +89,7 @@ export default function PricingPage() {
           </p>
         </section>
 
-        <section className="mx-auto max-w-3xl px-4 pb-16 sm:px-6" aria-labelledby="pricing-faq">
+        <section className="mx-auto max-w-site px-4 pb-16 sm:px-6" aria-labelledby="pricing-faq">
           <h2 id="pricing-faq" className="text-2xl font-bold text-navy">Questions from contractors</h2>
           <div className="mt-5"><FaqList faqs={pricingFaq} /></div>
           <p className="mt-6 text-sm text-slate-600">

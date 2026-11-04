@@ -10,18 +10,18 @@ const reply = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
 
 export const onRequestGet = async ({ env, request }: { env: Env; request: Request }) => {
-  if (!env.GOOGLE_PLACES_API_KEY || !env.SUPABASE_SERVICE_ROLE_KEY) return reply({ rating: null, hours: null });
+  if (!env.GOOGLE_PLACES_API_KEY || !env.SUPABASE_SERVICE_ROLE_KEY) return reply({ rating: null, hours: null, photo: null });
 
   const slug = new URL(request.url).searchParams.get("slug") ?? "";
-  if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug) || slug.length > 120) return reply({ rating: null, hours: null }, 400);
+  if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug) || slug.length > 120) return reply({ rating: null, hours: null, photo: null }, 400);
 
   const res = await db(env, `listings?slug=eq.${encodeURIComponent(slug)}&status=eq.published&select=google_place_id,plan,plan_until&limit=1`);
   const row = res.ok ? ((await res.json()) as { google_place_id: string | null; plan: string | null; plan_until: string | null }[])[0] : undefined;
-  if (!row?.google_place_id || !isPaidNow(row)) return reply({ rating: null, hours: null });
+  if (!row?.google_place_id || !isPaidNow(row)) return reply({ rating: null, hours: null, photo: null });
 
   try {
     return reply(await placeLive(env, row.google_place_id));
   } catch {
-    return reply({ rating: null, hours: null });
+    return reply({ rating: null, hours: null, photo: null });
   }
 };

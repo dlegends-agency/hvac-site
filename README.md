@@ -35,7 +35,7 @@ Single-page React app, prerendered at build time, backed by Supabase (Postgres +
 - Supabase database writes; Stripe, Google Places and Resend API calls; `dist/` written by the prerender step.
 
 ### System Verification
-- Run: `npm run lint && npm run build`. There is no `test` script; offline tests are `npm run test:stripe`, `test:google`, `test:notify`, `test:account`, `test:unlock`, `test:recommend` and `discover:test`. `supabase/tests/routing.test.mjs` needs `@electric-sql/pglite`, which is not installed.
+- Run: `npm run lint && npm run build`. There is no `test` script; offline tests are `npm run test:stripe`, `test:google`, `test:notify`, `test:account`, `test:unlock`, `test:recommend`, `test:submit` and `discover:test`. `supabase/tests/routing.test.mjs` needs `@electric-sql/pglite`, which is not installed.
 
 ## SEO and prerendering
 
@@ -85,7 +85,7 @@ Replace the domain in `public/robots.txt` with your real one.
 
 ## Supabase setup
 
-1. Run, in order, in the SQL Editor: `supabase/schema.sql`, `supabase/schema-blog-analytics.sql`, `supabase/schema-directory.sql`, `supabase/schema-contact.sql` (Contact page messages), `supabase/schema-discovery.sql` (business discovery), `supabase/schema-contractors.sql` (contractor accounts, plans, assigned leads), `supabase/schema-profiles.sql` (opening hours, license and verified marks, customer recommendations), then (optional) `supabase/seed-blog-posts.sql` for 9 starter articles and `supabase/seed-listings.sql` for 24 starter directory listings.
+1. Run, in order, in the SQL Editor: `supabase/schema.sql`, `supabase/schema-blog-analytics.sql`, `supabase/schema-directory.sql`, `supabase/schema-contact.sql` (Contact page messages), `supabase/schema-discovery.sql` (business discovery), `supabase/schema-contractors.sql` (contractor accounts, plans, assigned leads), `supabase/schema-profiles.sql` (opening hours, license and verified marks, customer recommendations, photos), `supabase/schema-customers.sql` (customer accounts), then (optional) `supabase/seed-blog-posts.sql` for 9 starter articles and `supabase/seed-listings.sql` for 24 starter directory listings.
 2. Authentication > Users > Add user (auto-confirm), then run the `insert into admin_users` snippet at the bottom of `schema.sql`.
 3. Sign in at `/admin/login`. The Overview (`/admin`) auto-refreshes every 30 seconds (Live toggle), shows KPIs vs the previous period, most-viewed cities, and business registrations with Approve / Decline actions. Leads: `/admin/leads`. Blog: `/admin/blog`. Analytics: `/admin/analytics`.
 
@@ -152,6 +152,21 @@ Until these are set the Billing page says payments are not switched on yet, and 
 3. **Cap the cost**: in Google Cloud > APIs & Services > Places API (New) > Quotas, set a low per-day request limit (for example 100 to 300). When the limit is reached the stars simply hide and the reviews link shows instead. Also create a budget alert under Billing > Budgets.
 4. Add the key to Cloudflare Pages as a **Secret** named `GOOGLE_PLACES_API_KEY` and redeploy. Run `supabase/schema-contractors.sql` again so the `google_place_id` column exists.
 5. Each paid, connected listing costs one Places API request each time it is viewed: on its own page, and on a directory card once the card scrolls into view. Basic listings never call Google. The business is found by searching Google for its saved name, city and state. `npm run test:google` checks the helper logic offline.
+
+### Turning on the CAPTCHA (Cloudflare Turnstile)
+
+Every sign-up, sign-in and public form (service request, contact, list your business, recommendations) can show a Cloudflare Turnstile check. It is free. Until it is set up, forms work without it.
+
+1. In the Cloudflare dashboard open **Turnstile > Add widget**, give it your site's domain, choose **Managed**, and copy the **Site key** and the **Secret key**.
+2. Cloudflare Pages > Settings > Variables and Secrets: add `VITE_TURNSTILE_SITE_KEY` (a plain variable, the site key) and `TURNSTILE_SECRET_KEY` (a **Secret**, the secret key). Redeploy, because the site key is baked into the build.
+3. Supabase > Authentication > Attack Protection > turn on **Enable CAPTCHA protection**, choose **Cloudflare Turnstile** and paste the same secret key. This protects sign-up, sign-in and password reset.
+4. Test every form once. Then, as the last step, run `supabase/lock-direct-inserts.sql` in the SQL Editor. Until you do, a bot that calls the database address directly can still skip the CAPTCHA on the service request, contact and list-your-business forms.
+
+The service request, contact and list-your-business forms are sent to `/api/submit/lead`, `/api/submit/contact` and `/api/submit/listing`, which check the CAPTCHA and then save with the server key. `npm run test:submit` tests them offline.
+
+### Customer accounts
+
+A customer can create an account at `/account/login` (linked as **My Requests** in the menu) to follow their requests: which businesses received each one and whether the business has marked it as contacted. Requests sent while signed in are linked to the account; older requests with the same email address show up once that email address is confirmed. Run `supabase/schema-customers.sql` to switch it on. A signed-in customer is not a contractor or an admin; those are separate roles.
 
 ### Turning on nearby matching (one-time ZIP code data)
 
