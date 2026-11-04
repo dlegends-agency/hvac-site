@@ -26,13 +26,14 @@ export const plans: Plan[] = [
     blurb: "Get listed in the directory.",
     features: [
       "Directory listing with your business name, phone number and address",
+      "About us and an emergency-service label on your listing",
       "Show your license number with a license badge",
       "Customer recommendations on your listing, which you choose to show",
       "Customer requests near you: you see the customer's name and the problem",
       `Unlock a customer's full details for $${leadPrice.free} per request`,
       "Contractor login and dashboard",
     ],
-    locked: ["About us", "List of services", "Service areas", "Opening hours", "Verified by HVACHelp badge", "Featured recommendation above About us", "Google star rating and reviews"],
+    locked: ["List of services", "Service areas", "Opening hours", "Verified by HVACHelp badge", "Featured recommendation above About us", "Google star rating and reviews"],
   },
   {
     id: "featured",
@@ -43,7 +44,7 @@ export const plans: Plan[] = [
     features: [
       "Everything in Free",
       "Featured badge and placement above free listings",
-      "About us, services and service areas shown on your directory listing",
+      "Services, service areas, website and email shown on your directory listing",
       "Opening hours with an \"Open now\" label",
       "Verified by HVACHelp badge",
       "Feature one recommendation above About us",
@@ -69,7 +70,7 @@ export const pricingFaq: { question: string; answer: string }[] = [
   },
   {
     question: "What does the Free plan show about my business?",
-    answer: "Your business name, phone number, address and license number (if you add one), plus any customer recommendations. About us, your list of services, your service areas, opening hours, website, email and your Google star rating are only shown on the directory for paid (Featured) listings.",
+    answer: "Your business name, phone number, address, license number (if you add one), your About us, an emergency-service label if you offer it, and any customer recommendations you choose to show. Your list of services, service areas, opening hours, photos, website, email and Google star rating are only shown on the directory for paid (Featured) listings.",
   },
   {
     question: "What do the badges mean?",

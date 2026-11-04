@@ -83,10 +83,10 @@ export default function ContractorHome() {
     { done: Boolean(listing.phone), label: "Add a business phone number", to: "/contractor/business" },
     { done: Boolean(listing.address), label: "Add your street address", to: "/contractor/business" },
     { done: Boolean(listing.postal_code), label: "Add your ZIP code and how far you travel, so nearby requests reach you", to: "/contractor/business" },
+    { done: Boolean(listing.description && listing.description.length >= 40), label: "Write your About us", to: "/contractor/business" },
     ...(plan === "free"
-      ? [{ done: false, label: "Go Featured to show About us, services and service areas, connect Google reviews, and unlock requests for $" + leadPrice.paid, to: "/contractor/billing" }]
+      ? [{ done: false, label: "Go Featured to show your services and service areas, hours, photos and website, connect Google reviews, and unlock requests for $" + leadPrice.paid, to: "/contractor/billing" }]
       : [
-          { done: Boolean(listing.description && listing.description.length >= 40), label: "Write your About us", to: "/contractor/business" },
           { done: listing.services.length > 0, label: "Choose the services you offer", to: "/contractor/business" },
           { done: Boolean(listing.service_areas), label: "List the other cities you serve, so you get requests there too", to: "/contractor/business" },
           { done: Boolean(listing.google_place_id), label: "Connect your Google listing to show your star rating", to: "/contractor/business" },

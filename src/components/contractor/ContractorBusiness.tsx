@@ -89,9 +89,11 @@ function BusinessForm({ listing, reload }: { listing: Listing; reload: () => Pro
     const { error } = await getSupabaseBrowser().from("listings").update({
       business_name: name, phone, address: text(f.get("address")) || null, city, state, postal_code: zip || null, service_radius_miles: radius,
       ...(hasProfileColumns ? { license_number: license || null } : {}),
+      // About us and the emergency-service flag are free for everyone.
+      description: text(f.get("description")) || null, emergency_service: emergency,
       // Paid-only fields. (The database ignores them for a free account too.)
       ...(paid ? {
-        description: text(f.get("description")) || null, services: selected, emergency_service: emergency,
+        services: selected,
         email: text(f.get("email")) || null, website: text(f.get("website")) || null, service_areas: text(f.get("service_areas")) || null,
         ...(hasProfileColumns ? { business_hours: cleanHours(hours) } : {}),
       } : {}),
@@ -114,7 +116,7 @@ function BusinessForm({ listing, reload }: { listing: Listing; reload: () => Pro
     <form onSubmit={save} onInput={onType} noValidate className="space-y-6">
       <Panel title="Your directory listing">
         <p className="mb-4 text-sm text-slate-600">
-          {paid ? "This is what customers see in the directory, along with the sections below." : "Free listings show your business name, phone number and address in the directory."}
+          {paid ? "This is what customers see in the directory, along with the sections below." : "Free listings show your business name, phone number, address, license number, About us and emergency service in the directory."}
         </p>
         <div className="space-y-4">
           {input("business_name", "Business name", listing.business_name)}
@@ -141,13 +143,19 @@ function BusinessForm({ listing, reload }: { listing: Listing; reload: () => Pro
         </div>
       </Panel>
 
+      <Panel title="About us">
+        <Field id="description" label="Description" optional hint="Tell customers what you do and why they should call you. Up to 2,000 characters. Shown on every plan.">
+          {(a) => <textarea id="description" name="description" rows={6} maxLength={2000} defaultValue={listing.description ?? ""} className={inputClass} {...a} />}
+        </Field>
+        <label className="mt-4 flex cursor-pointer items-center gap-2.5 text-sm text-slate-800">
+          <input type="checkbox" checked={emergency} onChange={(e) => setEmergency(e.target.checked)} className="size-4 accent-primary" /> We offer emergency service
+        </label>
+      </Panel>
+
       {paid ? (
         <>
-          <Panel title="About us">
-            <Field id="description" label="Description" optional hint="Tell customers what you do and why they should call you. Up to 2,000 characters.">
-              {(a) => <textarea id="description" name="description" rows={6} maxLength={2000} defaultValue={listing.description ?? ""} className={inputClass} {...a} />}
-            </Field>
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <Panel title="Website and email">
+            <div className="grid gap-4 sm:grid-cols-2">
               {input("website", "Website", listing.website, { optional: true })}
               {input("email", "Public email", listing.email, { optional: true, type: "email" })}
             </div>
@@ -163,9 +171,6 @@ function BusinessForm({ listing, reload }: { listing: Listing; reload: () => Pro
                 </li>
               ))}
             </ul>
-            <label className="mt-4 flex cursor-pointer items-center gap-2.5 text-sm text-slate-800">
-              <input type="checkbox" checked={emergency} onChange={(e) => setEmergency(e.target.checked)} className="size-4 accent-primary" /> We offer emergency service
-            </label>
           </Panel>
 
           <Panel title="Service areas">
@@ -192,8 +197,8 @@ function BusinessForm({ listing, reload }: { listing: Listing; reload: () => Pro
         </>
       ) : (
         <>
-          <LockedPanel title="About us">Tell customers what you do. Not shown in the directory on the Free plan.</LockedPanel>
-          <LockedPanel title="Services">Choose the services you offer and mark emergency service. Not shown in the directory on the Free plan.</LockedPanel>
+          <LockedPanel title="Website and email">Show your website and a public email address on your listing.</LockedPanel>
+          <LockedPanel title="Services">Choose the services you offer. Not shown in the directory on the Free plan.</LockedPanel>
           <LockedPanel title="Service areas">List the other cities you serve and show up on their city pages.</LockedPanel>
           <LockedPanel title="Photos">Add a profile picture and a cover photo to your listing page.</LockedPanel>
           <LockedPanel title="Opening hours">Show when you are open, with an &quot;Open now&quot; label.</LockedPanel>
@@ -216,11 +221,11 @@ function BusinessForm({ listing, reload }: { listing: Listing; reload: () => Pro
       <p className="mt-3 text-xs text-slate-500">
         {paid
           ? "This is your listing card in the directory. It updates as you type; save to publish your changes."
-          : "This is your listing card in the directory. A free listing shows your name, phone number and address."}
+          : "This is your listing card in the directory. A free listing shows your name, phone number, address, About us and emergency service."}
       </p>
       {!paid && (
         <p className="mt-3 rounded-xl bg-blue-50 p-3 text-sm text-slate-700">
-          Go Featured to add your About us, services and Google stars to this card and appear above free listings.{" "}
+          Go Featured to add your services, website, hours, photos and Google stars to this card and appear above free listings.{" "}
           <Link to="/contractor/billing" className="font-semibold text-primary underline">See plans</Link>
         </p>
       )}
