@@ -39,11 +39,10 @@ export const siteConfig: SiteConfig = {
     { label: "Home", href: "/" },
     { label: "How It Works", href: "/#how-it-works" },
     { label: "Services", href: "/#services" },
-    { label: "Find Contractors", href: "/directory" },
+    { label: "Directories", href: "/directory" },
     { label: "FAQ", href: "/#faq" },
     { label: "Blog", href: "/blog" },
     { label: "For Contractors", href: "/pricing" },
-    { label: "My Requests", href: "/account" },
   ],
   seo: {
     title: "Emergency HVAC Repair | Find Local Heating and AC Help",
