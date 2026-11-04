@@ -48,3 +48,32 @@ SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... node scripts/discovery-agent/inde
 - **OpenStreetMap data** is ODbL licensed. Candidates that come only from OpenStreetMap get an attribution note when imported. OpenStreetMap coverage of small contractors varies by area, so a quiet city may return few results; adding `TAVILY_API_KEY` widens the search.
 - The public Overpass servers are sometimes slow or busy. The agent tries several mirrors and logs a failure rather than crashing.
 - Phone numbers, addresses and services are read from public business pages, not guaranteed accurate. Always verify before publishing.
+
+## Contract (EGM)
+
+### Interface
+
+- `index.mjs`: CLI entry. Flags `--dry-run`, `--location`, `--query`, `--max`, `--job <uuid>` (or env `JOB_ID`). Exit code 1 if any job's status is not `ok`.
+- `agent.mjs`: `decide(lead, site, llm, location)`, `runJob(job, db, env, { log, dryRun })`.
+- `db.mjs`: `buildKnown`, `isKnown`, `createSupabaseDb(env)`, `createMemoryDb(...)`.
+- `sources.mjs`: `geocode`, `mapOsmElement`, `findOsm` (fixture via `OSM_FIXTURE`), `findWeb`.
+- `site.mjs`: `parseRobots`, `robotsAllows`, `parseAddressText`, `deriveServices`, `hvacScore`, `extractFromHtml`, `readSite`.
+- `llm.mjs`: `detectProvider`, `validateExtraction`, `extractWithLlm` (Gemini or Groq).
+- `util.mjs`: `SITE_URL`, `BOT_NAME`, `UA`, `sleep`, `BLOCKED_HOSTS`, `hostOf`, `isBlockedHost`, `cleanUrl`, `phoneDigits`, `formatPhone`, `STATES`, `stateName`, `parseLocation`, `isDue`, `mapConcurrent`.
+- `test.mjs`: offline unit tests.
+
+### Invariants
+
+- Website fetches go through `readSite`, which checks robots.txt (`allowedByRobots`) and identifies as `HVACHelpBot` (`UA`).
+- Candidates are upserted into `listing_candidates` with `onConflict: "external_id"` and `ignoreDuplicates`; the agent never publishes listings.
+- `--dry-run` uses `createMemoryDb` and needs no database credentials.
+- Model output is validated by `validateExtraction` before use.
+
+### Side Effects
+
+- Network: Nominatim, Overpass, optional Tavily, Gemini or Groq, and each candidate's own website.
+- Supabase writes (service role key): `listing_candidates`, `discovery_jobs`, `discovery_runs`. Reads `listings`, `discovery_rejected`.
+
+### Verification
+
+- Run: `npm run discover:test`

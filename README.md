@@ -9,6 +9,34 @@ npm run dev                  # http://localhost:3100
 npm run lint && npm run build
 ```
 
+## Repository Blueprint
+
+### System Overview
+Single-page React app, prerendered at build time, backed by Supabase (Postgres + RLS) and Cloudflare Pages Functions for anything that needs secrets (Stripe, Google Places, Resend). Scheduled work runs in GitHub Actions.
+
+### Local Interface & Invariants
+- `vite.config.ts`: dev server on port 3100; alias `@` resolves to `./src`.
+- `eslint.config.js`: lints `**/*.{ts,tsx}`; ignores `dist`, `.ssr`, `functions`, `scripts`, `supabase`.
+- `.github/workflows/`: `discovery-agent.yml` (cron every 6 hours), `load-zip-data.yml` (runs `scripts/load-zip-centroids.mjs`), `notify-flush.yml` (cron every 10 minutes).
+
+### Subdirectories & System Boundaries
+- src: [./src/README.md](./src/README.md) - browser app and SSR entry: pages, components, config, lib.
+- functions: [./functions/README.md](./functions/README.md) - Cloudflare Pages Functions (`/api/*`, `/sitemap.xml`).
+- scripts: [./scripts/README.md](./scripts/README.md) - prerender, ZIP loader, offline tests, discovery agent ([./scripts/discovery-agent/README.md](./scripts/discovery-agent/README.md)).
+- supabase: [./supabase/README.md](./supabase/README.md) - SQL schemas, RLS, routing functions, seeds.
+- `docs/`, `public/`: documentation and static assets, no code contracts.
+
+### Global Invariants
+- Lead prices must match in `src/config/pricing.ts` (`leadPrice`) and `functions/_lib/stripe.ts` (`LEAD_PRICE_CENTS`); `npm run test:unlock` checks it.
+- Plans and unlocked leads are granted only by the Stripe webhook.
+- Authorization is enforced by Supabase RLS; the service role key is used only in `functions/` and scripts, never in the browser.
+
+### Global Side Effects
+- Supabase database writes; Stripe, Google Places and Resend API calls; `dist/` written by the prerender step.
+
+### System Verification
+- Run: `npm run lint && npm run build`. There is no `test` script; offline tests are `npm run test:stripe`, `test:google`, `test:notify`, `test:account`, `test:unlock`, `test:recommend` and `discover:test`. `supabase/tests/routing.test.mjs` needs `@electric-sql/pglite`, which is not installed.
+
 ## SEO and prerendering
 
 `npm run build` runs the client build, an SSR build of `src/entry-server.tsx`, then `scripts/prerender.mjs`, which writes real HTML
@@ -57,7 +85,7 @@ Replace the domain in `public/robots.txt` with your real one.
 
 ## Supabase setup
 
-1. Run, in order, in the SQL Editor: `supabase/schema.sql`, `supabase/schema-blog-analytics.sql`, `supabase/schema-directory.sql`, `supabase/schema-contact.sql` (Contact page messages), `supabase/schema-discovery.sql` (business discovery), `supabase/schema-contractors.sql` (contractor accounts, plans, assigned leads), then (optional) `supabase/seed-blog-posts.sql` for 9 starter articles and `supabase/seed-listings.sql` for 24 starter directory listings.
+1. Run, in order, in the SQL Editor: `supabase/schema.sql`, `supabase/schema-blog-analytics.sql`, `supabase/schema-directory.sql`, `supabase/schema-contact.sql` (Contact page messages), `supabase/schema-discovery.sql` (business discovery), `supabase/schema-contractors.sql` (contractor accounts, plans, assigned leads), `supabase/schema-profiles.sql` (opening hours, license and verified marks, customer recommendations), then (optional) `supabase/seed-blog-posts.sql` for 9 starter articles and `supabase/seed-listings.sql` for 24 starter directory listings.
 2. Authentication > Users > Add user (auto-confirm), then run the `insert into admin_users` snippet at the bottom of `schema.sql`.
 3. Sign in at `/admin/login`. The Overview (`/admin`) auto-refreshes every 30 seconds (Live toggle), shows KPIs vs the previous period, most-viewed cities, and business registrations with Approve / Decline actions. Leads: `/admin/leads`. Blog: `/admin/blog`. Analytics: `/admin/analytics`.
 
