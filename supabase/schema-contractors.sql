@@ -82,9 +82,8 @@ begin
   new.id := old.id;
   new.slug := old.slug;
   new.status := old.status;
-  -- About, services and areas served are paid features: a free (or lapsed) account cannot change them.
+  -- Services and areas served are paid features: a free (or lapsed) account cannot change them. (About us is free for everyone.)
   if not (old.plan = 'featured' and (old.plan_until is null or old.plan_until > now())) then
-    new.description := old.description;
     new.services := old.services;
     new.service_areas := old.service_areas;
   end if;

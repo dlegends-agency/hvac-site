@@ -172,7 +172,7 @@ await edit(D.user, D.id, "business_name = 'Delta Free Renamed', phone = '555-010
 let r = await read(D.id);
 assert.equal(r.business_name, "Delta Free Renamed", "a free account can edit its name");
 assert.equal(r.phone, "555-0100", "and phone");
-assert.equal(r.description, null, "but not About");
+assert.equal(r.description, "hacked about", "and About us, which is free for everyone");
 assert.deepEqual(r.services, [], "not Services");
 assert.equal(r.service_areas, null, "not Service areas");
 assert.equal(r.plan, "free", "and can never give itself a plan");
@@ -181,8 +181,9 @@ await edit(A.user, A.id, "description = 'We fix AC fast', services = '{\"AC Repa
 r = await read(A.id);
 assert.deepEqual([r.description, r.services, r.service_areas], ["We fix AC fast", ["AC Repair"], "Austin, Pflugerville"], "a paid account can");
 
-await edit(F.user, F.id, "description = 'lapsed edit'");
-assert.equal((await read(F.id)).description, null, "a lapsed plan is locked again");
+await edit(F.user, F.id, "description = 'lapsed edit', services = '{Hacked}'");
+r = await read(F.id);
+assert.deepEqual([r.description, r.services], ["lapsed edit", []], "a lapsed plan keeps About us but is locked out of Services again");
 
 await as(admin, () => db.query("update public.listings set description = 'admin wrote this', plan = 'free' where id = $1", [D.id]));
 r = await read(D.id);

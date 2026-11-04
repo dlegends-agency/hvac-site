@@ -91,11 +91,11 @@ export default function AddBusinessPage() {
           <Link to="/directory" className="text-sm font-semibold text-primary">← Back to the directory</Link>
           <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-navy">List your HVAC business for free</h1>
           <p className="mt-2 text-slate-600">
-            A free listing shows your business name, phone number and address in the directory. Submissions are reviewed before they appear. We don&apos;t verify licensing or
+            A free listing shows your business name, phone number, address, About us and emergency service in the directory. Submissions are reviewed before they appear. We don&apos;t verify licensing or
             insurance, and a listing isn&apos;t a guarantee of placement or leads.
           </p>
           <p className="mt-3 rounded-xl bg-blue-50 p-4 text-sm text-slate-700">
-            Want to show your About us, services, service areas and Google reviews too? Create a contractor account after your listing is approved and go
+            Want to show your services, service areas, hours, photos and Google reviews too? Create a contractor account after your listing is approved and go
             Featured. <Link to="/pricing" className="font-semibold text-primary underline">See plans</Link>.
           </p>
 

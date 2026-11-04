@@ -1,5 +1,5 @@
 // Customer recommendations for directory listings: validation, the emailed confirmation token and the confirmation email.
-// A recommendation is shown only after the customer confirms their email AND an admin approves it.
+// A recommendation is saved first; the business then decides whether to show it. The email confirmation is an extra note on it.
 import { escapeHtml } from "./email";
 
 export interface RecommendationInput {
@@ -60,6 +60,11 @@ export function newToken(): string {
   return hex(crypto.getRandomValues(new Uint8Array(32)));
 }
 
+/** Salted SHA-256 of a sender's network address, used only to limit how many recommendations one sender can post. */
+export async function hashIp(ip: string, salt: string): Promise<string> {
+  return hashToken(`${salt}:${ip}`);
+}
+
 export const isToken = (v: unknown): v is string => typeof v === "string" && /^[a-f0-9]{64}$/.test(v);
 
 export async function hashToken(token: string): Promise<string> {
@@ -77,7 +82,7 @@ export function renderConfirmEmail(businessName: string, link: string): { subjec
     "",
     `Please confirm your email address by opening this link: ${link}`,
     "",
-    "After you confirm, our team reads your recommendation before it is shown on the business page. Your email address is never shown.",
+    "After you confirm, the business reads your recommendation and decides whether to show it on its page. Your email address is never shown.",
     "If you did not write this, ignore this email and nothing will be published.",
   ].join("\n");
   const html = `<!doctype html><html><body style="margin:0;background:#f4f7fb;font-family:Arial,Helvetica,sans-serif;color:#14213d">
@@ -86,7 +91,7 @@ export function renderConfirmEmail(businessName: string, link: string): { subjec
 <h1 style="margin:0 0 16px;font-size:22px">Confirm your recommendation</h1>
 <p style="margin:0 0 20px;font-size:15px;line-height:1.5">Thanks for recommending <strong>${escapeHtml(name)}</strong> on HVACHelp. Please confirm your email address.</p>
 <a href="${escapeHtml(link)}" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;font-weight:bold;padding:12px 22px;border-radius:999px">Confirm my email</a>
-<p style="margin:24px 0 0;font-size:12px;line-height:1.5;color:#64748b">After you confirm, our team reads your recommendation before it is shown on the business page. Your email address is never shown. If you did not write this, ignore this email and nothing will be published.</p>
+<p style="margin:24px 0 0;font-size:12px;line-height:1.5;color:#64748b">After you confirm, the business reads your recommendation and decides whether to show it on its page. Your email address is never shown. If you did not write this, ignore this email and nothing will be published.</p>
 </td></tr></table></td></tr></table></body></html>`;
   return { subject, html, text };
 }

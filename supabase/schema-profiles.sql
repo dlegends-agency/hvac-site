@@ -1,6 +1,6 @@
 -- Run AFTER schema-contractors.sql. Supabase: SQL Editor > New query > paste > Run. Safe to re-run.
 -- Adds richer business profiles: opening hours, a licence number with a "licence verified" mark, a "Verified by HVACHelp" mark,
--- and customer recommendations (email-confirmed, then approved by an admin before they show).
+-- and customer recommendations (the business decides which to show and can feature one above "About us").
 
 -- 1. Profile fields -------------------------------------------------------------------------------------
 -- Licence number typed by the business (any plan). Shown as "Licence no. provided" until an admin checks it with the state.
@@ -95,9 +95,12 @@ drop trigger if exists listings_protect_profile on public.listings;
 create trigger listings_protect_profile before insert or update on public.listings for each row execute function public.protect_profile_fields();
 
 -- 4. Recommendations ------------------------------------------------------------------------------------
--- A recommendation is written by a customer, confirmed through a link emailed to them, then approved by an admin.
--- The table is private: the website server (service role) adds rows, admins moderate them, and the public reads only the
--- approved, confirmed ones through the view below (which leaves out the email address and the confirmation token).
+-- A customer writes a recommendation on a listing page. It is saved here as "pending". The business (the listing's owner) reads it in
+-- its dashboard and decides whether to show it, and may pick ONE approved recommendation to feature above its "About us". If a business
+-- has no owner yet, an admin decides. When email sending is set up, the customer also confirms their email address (shown as a small
+-- "email confirmed" note); the recommendation is saved either way. The table is private: the website server (service role) adds rows,
+-- owners use the functions below, admins manage everything, and the public reads only approved ones through the view below (which
+-- leaves out the email address and the confirmation token).
 create table if not exists public.listing_recommendations (
   id                 uuid primary key default gen_random_uuid(),
   created_at         timestamptz not null default now(),
@@ -110,27 +113,112 @@ create table if not exists public.listing_recommendations (
   status             text not null default 'pending' check (status in ('pending', 'approved', 'rejected')),
   moderated_at       timestamptz
 );
+-- Hash of the sender's network address (never the address itself), used only to limit how many a single sender can post per day.
+alter table public.listing_recommendations add column if not exists ip_hash text;
+-- The one recommendation a business features above "About us" (paid plan).
+alter table public.listing_recommendations add column if not exists featured boolean not null default false;
+alter table public.listing_recommendations drop constraint if exists listing_recommendations_featured_check;
+alter table public.listing_recommendations add constraint listing_recommendations_featured_check check (not featured or status = 'approved');
 create unique index if not exists listing_recommendations_one_per_email on public.listing_recommendations (listing_id, lower(author_email));
+create unique index if not exists listing_recommendations_one_featured on public.listing_recommendations (listing_id) where featured;
 create index if not exists listing_recommendations_listing_idx on public.listing_recommendations (listing_id, status);
 create index if not exists listing_recommendations_token_idx on public.listing_recommendations (token_hash);
+create index if not exists listing_recommendations_ip_idx on public.listing_recommendations (ip_hash, created_at);
 
 alter table public.listing_recommendations enable row level security;
 drop policy if exists "Admins manage recommendations" on public.listing_recommendations;
 create policy "Admins manage recommendations" on public.listing_recommendations for all to authenticated
   using (public.is_admin()) with check (public.is_admin());
 
+-- Public: approved recommendations only. (New columns go last so the view can be replaced in place.)
 create or replace view public.listing_recommendations_public as
-  select r.id, r.listing_id, r.author_name, r.body, r.created_at
+  select r.id, r.listing_id, r.author_name, r.body, r.created_at,
+         r.featured, (r.email_confirmed_at is not null) as email_confirmed
   from public.listing_recommendations r
-  where r.status = 'approved' and r.email_confirmed_at is not null;
+  where r.status = 'approved';
 grant select on public.listing_recommendations_public to anon, authenticated;
 
 create or replace view public.listing_recommendation_counts as
   select listing_id, count(*)::int as total
   from public.listing_recommendations
-  where status = 'approved' and email_confirmed_at is not null
+  where status = 'approved'
   group by listing_id;
 grant select on public.listing_recommendation_counts to anon, authenticated;
+
+-- What a business sees: the recommendations written about its own listing (never the customer's email address).
+create or replace function public.my_recommendations()
+returns table (id uuid, created_at timestamptz, author_name text, body text, email_confirmed boolean, status text, featured boolean)
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select r.id, r.created_at, r.author_name, r.body, (r.email_confirmed_at is not null), r.status, r.featured
+  from public.listing_recommendations r
+  join public.listing_owners o on o.listing_id = r.listing_id
+  where o.user_id = auth.uid()
+  order by r.created_at desc;
+$$;
+
+-- The business shows ("approved") or hides ("rejected") a recommendation, or puts it back to "pending". Hiding also un-features it.
+create or replace function public.decide_my_recommendation(p_id uuid, p_status text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if p_status not in ('pending', 'approved', 'rejected') then
+    raise exception 'Invalid status';
+  end if;
+  update public.listing_recommendations r
+     set status = p_status, moderated_at = now(), featured = (r.featured and p_status = 'approved')
+   where r.id = p_id
+     and exists (select 1 from public.listing_owners o where o.listing_id = r.listing_id and o.user_id = auth.uid());
+  if not found then
+    raise exception 'Recommendation not found';
+  end if;
+end;
+$$;
+
+-- Feature one approved recommendation above "About us" (paid plan), replacing any earlier one. p_on = false removes the feature.
+create or replace function public.feature_my_recommendation(p_id uuid, p_on boolean default true)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_listing uuid;
+begin
+  select r.listing_id into v_listing
+    from public.listing_recommendations r
+    join public.listing_owners o on o.listing_id = r.listing_id
+   where r.id = p_id and o.user_id = auth.uid();
+  if v_listing is null then
+    raise exception 'Recommendation not found';
+  end if;
+  if not p_on then
+    update public.listing_recommendations set featured = false where id = p_id;
+    return;
+  end if;
+  if not exists (select 1 from public.listings l where l.id = v_listing and l.plan = 'featured' and (l.plan_until is null or l.plan_until > now())) then
+    raise exception 'Featuring a recommendation needs the Featured plan';
+  end if;
+  if not exists (select 1 from public.listing_recommendations where id = p_id and status = 'approved') then
+    raise exception 'Show this recommendation first';
+  end if;
+  update public.listing_recommendations set featured = false where listing_id = v_listing and featured and id <> p_id;
+  update public.listing_recommendations set featured = true where id = p_id;
+end;
+$$;
+
+revoke all on function public.my_recommendations() from public, anon;
+revoke all on function public.decide_my_recommendation(uuid, text) from public, anon;
+revoke all on function public.feature_my_recommendation(uuid, boolean) from public, anon;
+grant execute on function public.my_recommendations() to authenticated;
+grant execute on function public.decide_my_recommendation(uuid, text) to authenticated;
+grant execute on function public.feature_my_recommendation(uuid, boolean) to authenticated;
 
 -- 5. Photo storage ------------------------------------------------------------------------------------------
 -- A public bucket (anyone can view a photo by its address). Only the owner of a listing on an active paid plan can add or replace

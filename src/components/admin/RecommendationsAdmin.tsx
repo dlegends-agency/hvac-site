@@ -41,8 +41,7 @@ export function RecommendationsAdmin() {
     void q.reload();
   }
 
-  const ready = q.data.filter((r) => r.status === "pending" && r.email_confirmed_at);
-  const unconfirmed = q.data.filter((r) => r.status === "pending" && !r.email_confirmed_at);
+  const ready = q.data.filter((r) => r.status === "pending");
   const decided = q.data.filter((r) => r.status !== "pending");
 
   const businessLine = (r: Row) => (
@@ -57,13 +56,13 @@ export function RecommendationsAdmin() {
       <PageTitle title="Directory" />
       <DirectoryTabs />
       <p className="mb-5 text-sm text-slate-600">
-        Customers confirm their email, then you decide whether the recommendation is shown. Reject anything that looks written by the business or its friends or family
-        (same email domain as the business, copied wording, several at once), offers or asks for money or a favour, names a person, has abuse or unrelated content.
-        Do not pick which recommendations to show based on how favourable they are.
+        A business that manages its listing decides for itself which recommendations to show (Contractor dashboard &gt; Recommendations). You only need to act on listings
+        nobody manages yet, or to remove something that should not be public. Reject anything that looks written by the business or its friends or family
+        (same email domain as the business, copied wording, several at once), offers or asks for money or a favour, names a person, or has abuse or unrelated content.
       </p>
       {msg && <p role="status" className={`mb-4 rounded-xl border p-3 text-sm ${msg.ok ? "border-green-200 bg-green-50 text-green-900" : "border-red-200 bg-red-50 text-red-800"}`}>{msg.text}</p>}
 
-      <Panel title={`Ready to review (${ready.length})`}>
+      <Panel title={`Not decided yet (${ready.length})`}>
         {ready.length === 0 ? <p className="text-sm text-slate-500">Nothing waiting.</p> : (
           <ul className="space-y-4">
             {ready.map((r) => (
@@ -71,7 +70,7 @@ export function RecommendationsAdmin() {
                 <p>{businessLine(r)}{r.listings && <Link to={`/directory/${r.listings.slug}`} target="_blank" className="ml-2 inline-flex items-center gap-1 text-xs font-semibold text-primary">View page <ExternalLink className="size-3" aria-hidden /></Link>}</p>
                 <p className="mt-2 whitespace-pre-line text-slate-800">&ldquo;{r.body}&rdquo;</p>
                 <p className="mt-2 text-sm text-slate-600">
-                  {r.author_name} (shown name) · <a className="text-primary underline" href={`mailto:${r.author_email}`}>{r.author_email}</a> · {when(r.created_at)}
+                  {r.author_name} (shown name) · <a className="text-primary underline" href={`mailto:${r.author_email}`}>{r.author_email}</a> · {when(r.created_at)} · {r.email_confirmed_at ? "email confirmed" : "email not confirmed"}
                 </p>
                 {r.listings && (r.listings.email || r.listings.website) && (
                   <p className="mt-1 text-xs text-slate-500">Business on file: {[r.listings.email, r.listings.website].filter(Boolean).join(" · ")} (compare the email domain)</p>
@@ -85,18 +84,6 @@ export function RecommendationsAdmin() {
           </ul>
         )}
       </Panel>
-
-      <div className="mt-6">
-        <Panel title={`Waiting for the customer to confirm their email (${unconfirmed.length})`}>
-          {unconfirmed.length === 0 ? <p className="text-sm text-slate-500">None.</p> : (
-            <ul className="divide-y divide-slate-100 text-sm">
-              {unconfirmed.map((r) => (
-                <li key={r.id} className="flex flex-wrap justify-between gap-2 py-2"><span>{businessLine(r)}</span><span className="text-slate-500">{when(r.created_at)}</span></li>
-              ))}
-            </ul>
-          )}
-        </Panel>
-      </div>
 
       {decided.length > 0 && (
         <div className="mt-6">
