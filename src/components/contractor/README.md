@@ -5,7 +5,7 @@ Contractor portal (routes under `/contractor`): login, leads, business profile, 
 
 ## Interface
 - Default exports: `ContractorLayout`, `ContractorHome`, `ContractorLeads`, `ContractorBusiness`, `ContractorBilling`, `ContractorAccount`, `ContractorLoginPage`.
-- Named: `ClaimListing`, `ConnectGoogle`.
+- Named: `ClaimListing`, `ConnectGoogle`, `HoursEditor`, `PhotosPanel` (profile picture and cover photo upload; paid plan).
 - `api.ts`: `callApi`, `ApiResult`.
 - `context.ts`: `ContractorContext`, `useContractor`, `ContractorState`.
 - `useMyLeads.ts`: `useMyLeads`, `ago`.

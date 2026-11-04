@@ -7,6 +7,7 @@ Public contractor directory UI.
 - `ListingCard.tsx`: `ListingCard`, `telHref`.
 - `CityListings.tsx`: `CityListings`.
 - `Rating.tsx`: `FeaturedBadge`, `VerifiedBadge` (paid plan and approved owner), `LicenseBadge` ("License no. provided" or "License verified"), `GoogleReviews`.
+- `ListingSidebar.tsx`: `ListingSidebar` (sticky right column: Google map embed, address with directions, phone, website, email, hours), `mapQuery`, `embedUrl`, `directionsUrl`.
 - `Hours.tsx`: `HoursSection` (own hours, else Google's live hours for a paid connected listing), `OpenNow`.
 - `Recommendations.tsx`: `Recommendations` (approved list and the form that posts to `/api/recommend/submit`).
 - `SimilarBusinesses.tsx`: `SimilarBusinesses` (same city, with recommendation counts).

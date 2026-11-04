@@ -13,6 +13,7 @@ import type { BusinessHours, Listing } from "@/lib/types";
 import { ConnectGoogle } from "./ConnectGoogle";
 import { useContractor } from "./context";
 import { HoursEditor } from "./HoursEditor";
+import { PhotosPanel } from "./PhotosPanel";
 
 const text = (v: FormDataEntryValue | null) => String(v ?? "").trim();
 
@@ -171,6 +172,8 @@ function BusinessForm({ listing, reload }: { listing: Listing; reload: () => Pro
             {input("service_areas", "Other cities you serve", listing.service_areas, { optional: true, hint: "Cities or counties, separated by commas. Requests from these cities are sent to you too, and you show up on their city pages." })}
           </Panel>
 
+          {hasProfileColumns && <PhotosPanel listing={listing} reload={reload} />}
+
           {hasProfileColumns && (
             <Panel title="Opening hours">
               <p className="mb-4 text-sm text-slate-600">
@@ -192,6 +195,7 @@ function BusinessForm({ listing, reload }: { listing: Listing; reload: () => Pro
           <LockedPanel title="About us">Tell customers what you do. Not shown in the directory on the Free plan.</LockedPanel>
           <LockedPanel title="Services">Choose the services you offer and mark emergency service. Not shown in the directory on the Free plan.</LockedPanel>
           <LockedPanel title="Service areas">List the other cities you serve and show up on their city pages.</LockedPanel>
+          <LockedPanel title="Photos">Add a profile picture and a cover photo to your listing page.</LockedPanel>
           <LockedPanel title="Opening hours">Show when you are open, with an &quot;Open now&quot; label.</LockedPanel>
           <LockedPanel title="Verified by HVACHelp badge">Featured listings with a confirmed owner get a Verified badge on the listing and in the directory.</LockedPanel>
           <LockedPanel title="Google reviews">Connect your Google listing to show your star rating and review count.</LockedPanel>

@@ -129,6 +129,9 @@ export interface Listing {
   /** Set when an admin approved the owner's claim. "Verified by HVACHelp" also needs a paid plan. */
   verified_at?: string | null;
   business_hours?: BusinessHours | null;
+  /** Paths in the public "listing-images" bucket ("<listing id>/<file>"). Paid plan only. */
+  avatar_path?: string | null;
+  cover_image_path?: string | null;
 }
 
 export type DayKey = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";

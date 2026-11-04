@@ -34,6 +34,14 @@ create table public.leads (
   phone text not null default '5125550100', email text not null default 'jane@x.com', contact_method text not null default 'Phone', description text default 'x',
   property_type text not null default 'Residential', property_status text not null default 'Homeowner', preferred_contact_time text, notes text
 );
+-- Stand-in for Supabase Storage.
+create schema storage;
+create table storage.buckets (id text primary key, name text, public boolean, file_size_limit bigint, allowed_mime_types text[]);
+create table storage.objects (id uuid primary key default gen_random_uuid(), bucket_id text, name text);
+create function storage.foldername(name text) returns text[] language sql immutable as $$ select (string_to_array(name, '/'))[1:cardinality(string_to_array(name, '/')) - 1] $$;
+alter table storage.objects enable row level security;
+grant usage on schema storage, public to authenticated;
+grant select, insert, update, delete on storage.objects to authenticated;
 create schema net;
 create table net.calls (url text, headers jsonb, body jsonb);
 create function net.http_post(url text, headers jsonb, body jsonb) returns bigint language sql as $$ insert into net.calls values (url, headers, body) returning 1::bigint $$;
@@ -41,6 +49,7 @@ create function net.http_post(url text, headers jsonb, body jsonb) returns bigin
 
 // A listing that already had an approved owner before the profiles script is run.
 await db.exec(read("schema-contractors.sql"));
+await db.exec("grant select on public.listing_owners, public.listings to authenticated; grant usage on schema auth to authenticated; grant execute on function public.is_admin() to authenticated");
 const uid = async (email) => (await db.query("insert into auth.users (email) values ($1) returning id", [email])).rows[0].id;
 const early = (await db.query("insert into public.listings (slug, status, business_name, city, state) values ('early','published','Early Owner','Austin','Texas') returning id")).rows[0].id;
 await db.query("insert into public.listing_owners (listing_id, user_id) values ($1,$2)", [early, await uid("early@x.com")]);
@@ -116,15 +125,48 @@ await assert.rejects(() => db.query("update public.listings set license_number=$
 
 // ---------------------------------------------------------------- public submissions
 await as("anon", null, () => db.query(
-  "insert into public.listings (slug, status, business_name, city, state, plan, plan_until, verified_at, license_verified_at, business_hours, license_number, google_place_id) values ('spam','pending','Spam Co','Austin','Texas','featured',$1,now(),now(),$2,'TACLB5','ChIJ0123456789abcdef') ",
+  "insert into public.listings (slug, status, business_name, city, state, plan, plan_until, verified_at, license_verified_at, business_hours, license_number, google_place_id, avatar_path, cover_image_path) values ('spam','pending','Spam Co','Austin','Texas','featured',$1,now(),now(),$2,'TACLB5','ChIJ0123456789abcdef', 'x/a.jpg', 'x/c.jpg') ",
   [featured, hours]));
 r = await row((await q("select id from public.listings where slug='spam'"))[0].id);
-assert.deepEqual([r.plan, r.plan_until, r.verified_at, r.license_verified_at, r.business_hours, r.google_place_id], ["free", null, null, null, null, null], "a public submission is always free and unverified");
+assert.deepEqual([r.plan, r.plan_until, r.verified_at, r.license_verified_at, r.business_hours, r.google_place_id, r.avatar_path, r.cover_image_path], ["free", null, null, null, null, null, null, null], "a public submission is always free and unverified");
 assert.equal(r.license_number, "TACLB5", "but it may carry a license number, which stays unchecked");
 await as("authenticated", admin, () => db.query("insert into public.listings (slug, status, business_name, city, state, plan, verified_at) values ('by-admin','published','By Admin','Austin','Texas','featured', now())"));
 assert.equal((await row((await q("select id from public.listings where slug='by-admin'"))[0].id)).plan, "featured", "an admin may create a paid listing");
 await as("service_role", null, () => db.query("insert into public.listings (slug, status, business_name, city, state, plan) values ('by-agent','pending','By Agent','Austin','Texas','featured')"));
 assert.equal((await row((await q("select id from public.listings where slug='by-agent'"))[0].id)).plan, "featured", "server code (service role) is not restricted");
+
+// ---------------------------------------------------------------- photos
+const folder = (id) => `${id}/`;
+const asDb = async (role, user, fn) => {
+  await db.query("select set_config('request.jwt.claim.role', $1, false), set_config('request.jwt.claim.sub', $2, false)", [role, user ?? ""]);
+  await db.exec(`set role ${role}`);
+  try { return await fn(); } finally { await db.exec("reset role"); await db.query("select set_config('request.jwt.claim.role', '', false), set_config('request.jwt.claim.sub', '', false)"); }
+};
+const upload = (user, listingId, file = "cover-1.jpg", bucket = "listing-images") =>
+  asDb("authenticated", user, () => db.query("insert into storage.objects (bucket_id, name) values ($1, $2)", [bucket, folder(listingId) + file]));
+const bucket = (await q("select * from storage.buckets where id='listing-images'"))[0];
+assert.ok(bucket && bucket.public === true && Number(bucket.file_size_limit) === 2097152 && bucket.allowed_mime_types.join() === "image/jpeg,image/png,image/webp", "public bucket, 2 MB, three image types");
+
+await upload(owner, a); // the owner of an active paid listing may upload to their own folder
+await assert.rejects(() => upload(owner, f), /row-level security/, "not into another listing's folder");
+await assert.rejects(() => upload(fOwner, f), /row-level security/, "a free plan cannot upload");
+await assert.rejects(() => upload(lOwner, lapsed), /row-level security/, "a lapsed plan cannot upload");
+await assert.rejects(() => upload(owner, a, "x.jpg", "other-bucket"), /row-level security/, "only the listing-images bucket");
+await assert.rejects(() => asDb("authenticated", null, () => db.query("insert into storage.objects (bucket_id, name) values ('listing-images', $1)", [folder(a) + "y.jpg"])), /row-level security/, "signed-out users cannot upload");
+await db.query("insert into storage.objects (bucket_id, name) values ('listing-images', $1)", [folder(f) + "old.jpg"]);
+const del = (user, listingId, file) => asDb("authenticated", user, () => db.query("delete from storage.objects where name=$1 returning id", [folder(listingId) + file]));
+assert.equal((await del(owner, f, "old.jpg")).rows.length, 0, "an owner cannot delete another listing's photo");
+assert.equal((await del(fOwner, f, "old.jpg")).rows.length, 1, "an owner can always delete their own photo, even on a free plan");
+
+await as("authenticated", owner, () => db.query("update public.listings set avatar_path=$2, cover_image_path=$3 where id=$1", [a, `${a}/avatar-1.jpg`, `${a}/cover-1.jpg`]));
+r = await row(a);
+assert.deepEqual([r.avatar_path, r.cover_image_path], [`${a}/avatar-1.jpg`, `${a}/cover-1.jpg`], "a paid owner can set the photos");
+await assert.rejects(() => as("authenticated", owner, () => db.query("update public.listings set avatar_path=$2 where id=$1", [a, `${f}/avatar-1.jpg`])), /listings_avatar_path_check/, "a photo path must be inside the listing's own folder");
+await assert.rejects(() => db.query("update public.listings set cover_image_path=$2 where id=$1", [a, "../x.jpg"]), /listings_cover_image_path_check/);
+await as("authenticated", fOwner, () => db.query("update public.listings set avatar_path=$2 where id=$1", [f, `${f}/avatar-1.jpg`]));
+assert.equal((await row(f)).avatar_path, null, "photos are a paid feature");
+await as("authenticated", lOwner, () => db.query("update public.listings set cover_image_path=$2 where id=$1", [lapsed, `${lapsed}/cover-1.jpg`]));
+assert.equal((await row(lapsed)).cover_image_path, null, "a lapsed plan cannot change the photos");
 
 // ---------------------------------------------------------------- recommendations
 const rec = async (listing, email, status = "pending", confirmed = false) =>
