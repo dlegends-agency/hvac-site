@@ -87,6 +87,7 @@ const thread = await rows(customer, "select * from public.conversation_messages(
 assert.equal(thread[0].body.startsWith("Hi Jane"), true);
 assert.equal(thread[0].mine, false, "the customer did not write the first message");
 assert.equal(thread[1].mine, true);
+assert.deepEqual([thread[0].sender_name, thread[1].sender_name], ["Acme HVAC", "jane@x.com"], "each message names its writer: the business, or the customer's email");
 assert.deepEqual(await rows(stranger, "select * from public.conversation_messages($1,$2)", [L, A.id]), [], "a stranger reads nothing");
 assert.deepEqual(await rows(B.user, "select * from public.conversation_messages($1,$2)", [L, A.id]), [], "nor another business");
 assert.deepEqual(await rows(A.user, "select * from public.conversation_messages($1,$2)", [L, B.id]), [], "nor a business a thread that is not its own");
@@ -99,6 +100,8 @@ assert.ok(unread.as_business >= 18 && unread.as_customer === 0);
 await rows(A.user, "select * from public.conversation_messages($1,$2)", [L, A.id]);
 unread = (await rows(A.user, "select public.my_unread_messages() as u"))[0].u;
 assert.equal(unread.as_business, 0, "opening the conversation marks it read");
+const seen = await rows(A.user, "select * from public.conversation_messages($1,$2)", [L, A.id]);
+assert.equal(seen[1].sender_name, "jane@x.com", "the business sees the customer's email");
 await send(A.user, L, A.id, "See you then.");
 unread = (await rows(customer, "select public.my_unread_messages() as u"))[0].u;
 assert.equal(unread.as_customer, 1, "the customer has not opened the business's newest message");
@@ -120,7 +123,7 @@ assert.equal(started[0].can_send, false, "a business that has not unlocked can s
 assert.equal(started[0].customer, "Customer", "and the name stays hidden while locked");
 assert.equal((await rows(A.user, "select * from public.business_conversations($1)", [farLead])).filter((r) => r.lead_id === farLead).length, 0, "a request the business did not receive cannot be started");
 assert.equal((await rows(stranger, "select * from public.business_conversations($1)", [L])).length, 0, "someone with no business sees nothing");
-assert.ok(JSON.stringify(theirs).indexOf("5125550100") < 0 && JSON.stringify(theirs).indexOf("jane@x.com") < 0, "no contact details in messages or lists");
+assert.ok(JSON.stringify(theirs).indexOf("5125550100") < 0 && JSON.stringify(theirs).indexOf("jane@x.com") < 0, "no phone numbers or emails in the lists");
 
 // ---------------------------------------------------------------- a customer who asked before signing up
 const early = await lead("late@x.com");

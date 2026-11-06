@@ -7,7 +7,7 @@ export default function AccountMessages() {
   return (
     <>
       <p className="mb-5 max-w-3xl text-sm text-slate-700">
-        A business can write to you here once it has unlocked your request. You can then reply or write back. Your phone number and email stay private unless you share them.
+        A business can write to you here once it has unlocked your request. You can then reply or write back. Your phone number stays private. The business sees your email address on your messages.
       </p>
       <MessageCenter role="customer" startLead={params.get("lead")} startListing={params.get("listing")} />
     </>

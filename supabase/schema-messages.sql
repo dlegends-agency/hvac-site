@@ -2,7 +2,7 @@
 -- Messages between a customer and a business that received their request.
 --   * A conversation opens when the business has paid to unlock the customer's request. Until then it is locked for both sides.
 --   * Once unlocked, the business can write to the customer and the customer can reply or write to that business.
---   * Messages stay inside the site. A business never sees the customer's phone or email through a message.
+--   * Messages stay inside the site. Each message shows who wrote it: the business name, or the customer's email address.
 --   * Nobody reads the table directly: every read and write goes through the functions below, which check who is asking.
 --   * It also adds the customer-facing request log (my_request_log).
 
@@ -141,7 +141,7 @@ $$;
 -- Returns the messages to whoever is in the conversation, and marks the other side's messages as read.
 drop function if exists public.conversation_messages(uuid, uuid);
 create or replace function public.conversation_messages(p_lead uuid, p_listing uuid)
-returns table (id bigint, created_at timestamptz, sender text, body text, mine boolean, read_at timestamptz)
+returns table (id bigint, created_at timestamptz, sender text, sender_name text, body text, mine boolean, read_at timestamptz)
 language plpgsql
 security definer
 set search_path = public
@@ -157,8 +157,15 @@ begin
   update public.lead_messages m set read_at = now()
    where m.lead_id = p_lead and m.listing_id = p_listing and m.sender <> v_role and m.read_at is null;
   return query
-    select m.id, m.created_at, m.sender, m.body, (m.sender = v_role), m.read_at
-      from public.lead_messages m where m.lead_id = p_lead and m.listing_id = p_listing order by m.id;
+    -- Who wrote each message: the business name, or the customer's account email (the request's email if the account has none).
+    select m.id, m.created_at, m.sender,
+           case m.sender when 'business' then b.business_name else coalesce(u.email, l.email) end,
+           m.body, (m.sender = v_role), m.read_at
+      from public.lead_messages m
+      join public.listings b on b.id = m.listing_id
+      join public.leads l on l.id = m.lead_id
+      left join auth.users u on u.id = m.sender_id
+     where m.lead_id = p_lead and m.listing_id = p_listing order by m.id;
 end;
 $$;
 

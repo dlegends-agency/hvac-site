@@ -181,6 +181,7 @@ function Thread({ role, conversation: c, upgradeHref, onBack, onChanged }: { rol
         {messages?.map((m) => (
           <div key={m.id} className={`flex ${m.mine ? "justify-end" : "justify-start"}`}>
             <div className={`max-w-[85%] rounded-2xl px-3.5 py-2 text-sm ${m.mine ? "bg-primary text-white" : "border border-slate-200 bg-white text-slate-800"}`}>
+              <p className={`mb-0.5 text-xs font-semibold break-all ${m.mine ? "text-blue-100" : "text-navy"}`}>{m.sender_name}{m.mine ? " (you)" : ""}</p>
               <p className="break-words whitespace-pre-line">{m.body}</p>
               <p className={`mt-1 text-[11px] ${m.mine ? "text-blue-100" : "text-slate-500"}`}>{when(m.created_at)}{m.mine && m.read_at ? " · Seen" : ""}</p>
             </div>

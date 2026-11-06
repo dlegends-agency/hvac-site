@@ -18,6 +18,8 @@ export interface ChatMessage {
   id: number;
   created_at: string;
   sender: "business" | "customer";
+  /** The business name, or the customer's email address. */
+  sender_name: string;
   body: string;
   mine: boolean;
   read_at: string | null;
