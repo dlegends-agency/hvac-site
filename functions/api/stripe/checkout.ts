@@ -1,9 +1,10 @@
 // POST /api/stripe/checkout  { plan: "featured", interval: "month" | "year" }  (Authorization: Bearer <Supabase access token>)
 // Starts a Stripe Checkout subscription for the signed-in contractor's listing and returns { url }.
-import { billingFor, getUser, isInterval, isPlan, json, ownedListingId, priceFor, siteOrigin, stripe, type Env } from "../../_lib/stripe";
+import { notConfigured, billingFor, getUser, isInterval, isPlan, json, ownedListingId, priceFor, siteOrigin, stripe, type Env } from "../../_lib/stripe";
 
 export const onRequestPost = async ({ env, request }: { env: Env; request: Request }) => {
-  if (!env.STRIPE_SECRET_KEY || !env.SUPABASE_SERVICE_ROLE_KEY) return json({ error: "Payments are not configured" }, 501);
+  const notReady = notConfigured(env);
+  if (notReady) return notReady;
 
   const user = await getUser(env, request);
   if (!user) return json({ error: "Sign in required" }, 401);
@@ -13,7 +14,7 @@ export const onRequestPost = async ({ env, request }: { env: Env; request: Reque
   const interval = body.interval ?? "month";
   if (!isPlan(plan) || !isInterval(interval)) return json({ error: "Unknown plan" }, 400);
   const price = priceFor(env, plan, interval);
-  if (!price) return json({ error: "Payments are not configured" }, 501);
+  if (!price) return json({ error: "Payments are not configured", missing: [interval === "year" ? "STRIPE_PRICE_FEATURED_YEARLY" : "STRIPE_PRICE_FEATURED"] }, 501);
 
   const listingId = await ownedListingId(env, user.id);
   if (!listingId) return json({ error: "No approved listing on this account" }, 403);

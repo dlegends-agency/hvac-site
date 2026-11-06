@@ -9,7 +9,7 @@ import { leadPrice } from "@/config/pricing";
 import { activePlan } from "@/lib/plans";
 import { getSupabaseBrowser } from "@/lib/supabase";
 import { CONTRACTOR_LEAD_STATUSES, type ContractorLead, type ContractorLeadStatus } from "@/lib/types";
-import { callApi } from "./api";
+import { callApi, paymentsNotReady } from "./api";
 import { useContractor } from "./context";
 import { ago, useMyLeads } from "./useMyLeads";
 
@@ -29,13 +29,13 @@ function Locked({ lead, price }: { lead: ContractorLead; price: number }) {
   async function unlock() {
     setBusy(true);
     setError(null);
-    const res = await callApi<{ url?: string }>("/api/stripe/unlock", { leadId: lead.id });
+    const res = await callApi<{ url?: string; missing?: string[]; detail?: string }>("/api/stripe/unlock", { leadId: lead.id });
     if (res.data.url) return void window.location.assign(res.data.url);
     setBusy(false);
     setError(
-      res.status === 501 ? "Online payments aren't switched on yet. Please contact us."
+      res.status === 501 ? paymentsNotReady(res, "Online payments aren't switched on yet. Please contact us.")
         : res.status === 409 ? "This request is already unlocked. Refresh the page."
-          : "We couldn't start the payment. Please try again.",
+          : `We couldn't start the payment. Please try again.${res.data.detail ? ` (${res.data.detail})` : ""}`,
     );
   }
 

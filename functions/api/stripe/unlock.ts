@@ -3,12 +3,13 @@
 // The price is decided here, never by the browser: $5 for a contractor on the paid plan, $10 otherwise.
 // The lead is unlocked by the Stripe webhook after the payment succeeds.
 import { isPaidNow } from "../../_lib/google";
-import { LEAD_PRICE_CENTS, billingFor, db, getUser, json, ownedListingId, siteOrigin, stripe, type Env } from "../../_lib/stripe";
+import { notConfigured, LEAD_PRICE_CENTS, billingFor, db, getUser, json, ownedListingId, siteOrigin, stripe, type Env } from "../../_lib/stripe";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export const onRequestPost = async ({ env, request }: { env: Env; request: Request }) => {
-  if (!env.STRIPE_SECRET_KEY || !env.SUPABASE_SERVICE_ROLE_KEY) return json({ error: "Payments are not configured" }, 501);
+  const notReady = notConfigured(env);
+  if (notReady) return notReady;
 
   const user = await getUser(env, request);
   if (!user) return json({ error: "Sign in required" }, 401);
@@ -58,7 +59,7 @@ export const onRequestPost = async ({ env, request }: { env: Env; request: Reque
   try {
     const session = await stripe<{ url: string }>(env, "POST", "/checkout/sessions", params);
     return json({ url: session.url, cents });
-  } catch {
-    return json({ error: "Could not start checkout" }, 502);
+  } catch (e) {
+    return json({ error: "Could not start checkout", detail: e instanceof Error ? e.message : undefined }, 502);
   }
 };

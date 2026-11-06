@@ -1,10 +1,11 @@
 // POST /api/stripe/portal  (Authorization: Bearer <Supabase access token>)
 // Opens Stripe's hosted billing portal (update card, change plan, cancel, invoices) and returns { url }.
 // Body { flow: "card" } opens it straight on the page for changing the card.
-import { billingFor, getUser, json, ownedListingId, siteOrigin, stripe, type Env } from "../../_lib/stripe";
+import { notConfigured, billingFor, getUser, json, ownedListingId, siteOrigin, stripe, type Env } from "../../_lib/stripe";
 
 export const onRequestPost = async ({ env, request }: { env: Env; request: Request }) => {
-  if (!env.STRIPE_SECRET_KEY || !env.SUPABASE_SERVICE_ROLE_KEY) return json({ error: "Payments are not configured" }, 501);
+  const notReady = notConfigured(env);
+  if (notReady) return notReady;
 
   const user = await getUser(env, request);
   if (!user) return json({ error: "Sign in required" }, 401);
