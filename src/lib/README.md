@@ -8,6 +8,8 @@ Shared non-visual logic: Supabase client and data hooks, domain types, plan enti
 - `types.ts`: `Lead`, `ContractorLead`, `Post`, `PageView`, `Listing`, `ListingClaim`, `ListingBilling`, `ListingPrivate`, `DiscoveryJob`, `ListingCandidate`, `DiscoveryRun`, `PlanId`, `LeadStatus`, `ListingStatus`, `LEAD_STATUSES`, `CONTRACTOR_LEAD_STATUSES`, `LISTING_STATUSES`.
 - `plans.ts`: `activePlan`, `isFeatured`, `isVerified`, `sortByPlan`, `publicView`.
 - `listing-images.ts`: `imageUrl`, `uploadListingImage`, `removeListingImage`, `coverCrop`, `IMAGE_RULES` (photos go to the public `listing-images` Storage bucket, resized in the browser first).
+- `flow.ts`: `ADMIN_EVENTS`, `CONTRACTOR_EVENTS`, `eventInfo`, `PROBLEM_EVENTS`, `TONE_CLASS`, `money`, `shortHours` (names for the steps in the request flow log).
+- `messages.ts`: `Conversation`, `ChatMessage`, `requestLogLabel`, `preview`, `sendError`, `MAX_MESSAGE`; `use-unread-messages.ts`: `useUnreadMessages` (the badge counts).
 - `auth-link.ts`: `parseAuthLinkError`, `authLinkMessage`, `rememberAuthLinkError`, `peekAuthLinkError`, `forgetAuthLinkError` (a bad sign-up or reset email link comes back as `#error=...`; `AuthLinkErrorHandler` sends the person to the sign-in page, which explains it and offers a new link).
 - `post-form.ts`: `postForm` (sends a public form to `/api/submit/*` with its CAPTCHA token and the customer's session if signed in).
 - `use-google-photo.ts`: `useGooglePhoto` (a paid connected listing's Google photo as its profile picture).

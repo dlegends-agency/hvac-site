@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { LeadTimeline } from "./LeadTimeline";
 import { Link } from "react-router-dom";
 import { useParams } from "react-router-dom";
 import { ArrowLeft, Mail, Phone } from "lucide-react";
@@ -237,6 +238,7 @@ export function LeadDetail() {
                   <Button variant="secondary" onClick={routeNow} disabled={saving} className="mt-3 w-full !py-2 text-sm">Send to matching contractors</Button>
                   <p className="mt-2 text-xs text-slate-500">Contractors see only the customer&apos;s name and the problem until they pay to unlock the lead ($10 on Free, $5 on Featured). Each keeps their own status and notes.</p>
                 </Panel>
+                <LeadTimeline leadId={lead.id} />
                 <Panel title="Internal notes">
                   <label htmlFor="notes" className="sr-only">Internal notes</label>
                   <textarea id="notes" rows={6} value={notes} onChange={(e) => setNotes(e.target.value)} className={inputClass}

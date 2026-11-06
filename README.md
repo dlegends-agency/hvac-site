@@ -175,6 +175,27 @@ The confirmation and password-reset emails link back to the site through Supabas
 
 Each link works once. Some email programs open links automatically to check them, which uses the link up and gives `otp_expired`. If someone sees that, the sign-in page explains it and can send a new link; if they already opened the link once, their email is probably confirmed and they can just sign in. (Supabase > Authentication > Providers > Email also lets you change how long a link lasts.)
 
+### Messages and the customer dashboard
+
+Run `supabase/schema-messages.sql` to switch on messages between customers and businesses.
+
+- **Customer dashboard** (`/account`): three tabs. *My requests* (status, progress line, and an **Activity log** for each request), *Messages*, and *Account* (name, phone, change email, change password).
+- **Contractor dashboard** > *Messages*: Featured businesses write to customers who sent them a request and read the replies. A **Message customer** link is on every request. A free business can read what a customer wrote but not reply, and sees a note about the Featured plan.
+- **Customers** can write to, and reply to, any Featured business that received their request (a **Message** link next to each business).
+- Messages stay on the site. A business never sees a customer's phone or email through a message, and the customer's first name shows only once the request is unlocked. Nobody can read the table directly: every read and write goes through functions that check who is asking. Limit: 20 messages per hour per side of a conversation.
+- Unread counts show on the *Messages* tab and menu. Messages are **not emailed** yet, so people see them when they open their dashboard.
+
+### Logs and request flow
+
+Every step a customer request goes through is written to a log as it happens (`lead_events`): received, sent to businesses (or "no business matched"), email alerts queued, sent or failed, unlocked, and what the business did next (contacted, won, lost). Run `supabase/schema-flow.sql` to switch it on; requests and assignments from before get their first steps filled in.
+
+- **Admin > Overview** shows *Request flow health*: requests in the last 24 hours, requests nobody received, failed and waiting alert emails, unlocked-but-not-contacted leads, and unlocks in the last 30 days. A tile turns red or amber when something needs a person.
+- **Admin > Logs** lists the latest 200 steps (filter by step or "problems only") and the requests nobody received. Each request's **Timeline** is on its lead page.
+- **Contractor dashboard** shows *Your last 30 days* (received, unlocked, contacted, won, spend, typical time to contact) and a **History** link on each lead (only that business's own steps).
+- **Customers** see a progress line on each request under *My Requests*: received, sent to businesses, a business has been in touch.
+
+The log never stores a customer's name, phone or email, and a contractor never sees other businesses' steps or the customer's details through it.
+
 ### Customer accounts
 
 A customer can create an account at `/account/login` (linked as **My Requests** in the menu) to follow their requests: which businesses received each one and whether the business has marked it as contacted. Requests sent while signed in are linked to the account; older requests with the same email address show up once that email address is confirmed. Run `supabase/schema-customers.sql` to switch it on. A signed-in customer is not a contractor or an admin; those are separate roles.

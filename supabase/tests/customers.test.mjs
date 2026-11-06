@@ -59,7 +59,7 @@ let rows = await mine(ann);
 assert.deepEqual(rows.map((r) => r.id).sort(), [l1, l2].sort(), "her linked request and her older one with the same confirmed email, not bob's and not spam");
 const first = rows.find((r) => r.id === l1);
 assert.equal(first.businesses.length, 1, "only published businesses");
-assert.deepEqual(Object.keys(first.businesses[0]).sort(), ["city", "contacted_at", "name", "phone", "sent_at", "slug", "state", "status"], "public business details and status only");
+assert.deepEqual(Object.keys(first.businesses[0]).sort(), ["city", "contacted_at", "listing_id", "messages", "name", "phone", "sent_at", "slug", "state", "status"], "public business details and status only");
 assert.equal(first.businesses[0].status, "contacted");
 assert.ok(!JSON.stringify(first).includes("secret note"), "never the contractor's private notes");
 assert.deepEqual((await mine(bob)).map((r) => r.id), [l3]);

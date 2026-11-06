@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { CreditCard, ExternalLink, LayoutDashboard, Loader2, LogOut, Settings, ThumbsUp, UserCog, Users } from "lucide-react";
+import { CreditCard, ExternalLink, LayoutDashboard, Loader2, LogOut, MessageSquare, Settings, ThumbsUp, UserCog, Users } from "lucide-react";
 import { Logo } from "@/components/Logo";
+import { useUnreadMessages } from "@/lib/use-unread-messages";
 import { getSupabaseBrowser, isSupabaseConfigured } from "@/lib/supabase";
 import type { Listing, ListingBilling, ListingClaim } from "@/lib/types";
 import { usePageMeta } from "@/lib/use-page-meta";
@@ -10,6 +11,7 @@ import { ContractorContext, type ContractorState } from "./context";
 const links = [
   { href: "/contractor", label: "Dashboard", icon: LayoutDashboard },
   { href: "/contractor/leads", label: "Leads", icon: Users },
+  { href: "/contractor/messages", label: "Messages", icon: MessageSquare },
   { href: "/contractor/business", label: "My business", icon: UserCog },
   { href: "/contractor/recommendations", label: "Recommendations", icon: ThumbsUp },
   { href: "/contractor/billing", label: "Plan & billing", icon: CreditCard },
@@ -24,6 +26,7 @@ export default function ContractorLayout() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [state, setState] = useState<Loaded | null>(null);
+  const unread = useUnreadMessages().business;
 
   const load = useCallback(async () => {
     const supabase = getSupabaseBrowser();
@@ -88,6 +91,7 @@ export default function ContractorLayout() {
                 <Link key={href} to={href} aria-current={active ? "page" : undefined}
                   className={`flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${active ? "bg-blue-50 text-primary" : "text-slate-700 hover:bg-slate-50"}`}>
                   <Icon className="size-4" aria-hidden /> {label}
+                  {href === "/contractor/messages" && unread > 0 && <span className="rounded-full bg-primary px-2 py-0.5 text-xs font-bold text-white" aria-label={`${unread} unread`}>{unread}</span>}
                 </Link>
               );
             })}

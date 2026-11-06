@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useLocation, useNavigate } from "react-router-dom";
-import { BarChart3, Building2, ClipboardCheck, FileText, MessageSquare, LayoutDashboard, Loader2, LogOut, Users } from "lucide-react";
+import { Activity, BarChart3, Building2, ClipboardCheck, FileText, MessageSquare, LayoutDashboard, Loader2, LogOut, Users } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Logo } from "@/components/Logo";
 import { getSupabaseBrowser, isSupabaseConfigured } from "@/lib/supabase";
@@ -12,6 +12,7 @@ const links = [
   { href: "/admin/listings", label: "Directory", icon: Building2 },
   { href: "/admin/blog", label: "Blog", icon: FileText },
   { href: "/admin/messages", label: "Messages", icon: MessageSquare },
+  { href: "/admin/logs", label: "Logs", icon: Activity },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/admin/seo-audit", label: "SEO Audit", icon: ClipboardCheck },
 ];

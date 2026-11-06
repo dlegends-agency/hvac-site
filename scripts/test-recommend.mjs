@@ -6,6 +6,8 @@ import { onRequestGet as confirm } from "../functions/api/recommend/confirm.ts";
 import { parseHours } from "../functions/_lib/google.ts";
 import { cleanHours, openStatus } from "../src/lib/hours.ts";
 import { authLinkMessage, parseAuthLinkError } from "../src/lib/auth-link.ts";
+import { eventInfo, money, shortHours } from "../src/lib/flow.ts";
+import { preview, requestLogLabel, sendError } from "../src/lib/messages.ts";
 
 // --- names: only first name and last initial are ever shown
 assert.equal(displayName("Maria Lopez-Diaz"), "Maria L.");
@@ -129,5 +131,24 @@ assert.deepEqual(parseAuthLinkError("#error=server_error"), { code: "server_erro
 for (const none of ["", "#", "#access_token=abc&type=signup", "#/section"]) assert.equal(parseAuthLinkError(none), null, none);
 assert.ok(authLinkMessage({ code: "otp_expired", description: "" }).includes("send yourself a new link"));
 assert.ok(authLinkMessage({ code: "server_error", description: "boom" }).includes("boom"));
+
+// --- request flow labels
+assert.equal(money(500), "$5"); assert.equal(money(1250), "$12.50"); assert.equal(money(0), "$0");
+assert.equal(shortHours(0.25), "15 min"); assert.equal(shortHours(2), "2 h"); assert.equal(shortHours(2.5), "2.5 h"); assert.equal(shortHours(72), "3 days"); assert.equal(shortHours(null), "No data yet");
+assert.deepEqual(eventInfo("alert_failed"), { label: "Email alert failed", tone: "bad" });
+assert.deepEqual(eventInfo("something_new"), { label: "something_new", tone: "info" }, "an unknown step is shown as it is");
+
+// --- messages
+assert.equal(requestLogLabel("sent", "Acme HVAC"), "Sent to Acme HVAC");
+assert.equal(requestLogLabel("message_in", "Acme HVAC"), "Acme HVAC sent you a message");
+assert.equal(requestLogLabel("message_out", null), "You sent A business a message");
+assert.equal(requestLogLabel("something_new", null), "something_new", "an unknown step is shown as it is");
+assert.equal(preview({ last_body: null, last_sender: null }, "customer"), "No messages yet");
+assert.equal(preview({ last_body: "See you at 9", last_sender: "customer" }, "customer"), "You: See you at 9");
+assert.equal(preview({ last_body: "See you at 9", last_sender: "customer" }, "business"), "See you at 9");
+assert.ok(preview({ last_body: "x".repeat(200), last_sender: "business" }, "customer").length <= 71, "long messages are clipped");
+assert.match(sendError("Messages are for Featured businesses"), /Featured/);
+assert.match(sendError("Too many messages. Please wait a little."), /wait/);
+assert.match(sendError("boom"), /try again/);
 
 console.log("recommendations and hours: all passed");
