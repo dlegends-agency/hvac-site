@@ -1,5 +1,6 @@
 import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
+import { AuthLinkErrorHandler } from "@/components/AuthLinkErrorHandler";
 import { PageViewTracker } from "@/components/PageViewTracker";
 import { ScrollManager } from "@/components/ScrollManager";
 import { RevealManager } from "@/components/RevealManager";
@@ -54,6 +55,7 @@ export default function App() {
       <ScrollManager />
       <RevealManager />
       <PageViewTracker />
+      <AuthLinkErrorHandler />
       <Suspense fallback={<p className="p-8 text-slate-600">Loading…</p>}>
         <Routes>
           <Route path="/" element={<HomePage />} />

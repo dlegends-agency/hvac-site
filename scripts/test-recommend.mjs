@@ -5,6 +5,7 @@ import { onRequestPost as submit } from "../functions/api/recommend/submit.ts";
 import { onRequestGet as confirm } from "../functions/api/recommend/confirm.ts";
 import { parseHours } from "../functions/_lib/google.ts";
 import { cleanHours, openStatus } from "../src/lib/hours.ts";
+import { authLinkMessage, parseAuthLinkError } from "../src/lib/auth-link.ts";
 
 // --- names: only first name and last initial are ever shown
 assert.equal(displayName("Maria Lopez-Diaz"), "Maria L.");
@@ -121,5 +122,12 @@ assert.deepEqual(parseHours({ regularOpeningHours: { weekdayDescriptions: ["Mond
 assert.equal(parseHours({ regularOpeningHours: { weekdayDescriptions: [] } }), null);
 assert.equal(parseHours({}), null); assert.equal(parseHours(null), null);
 assert.equal(parseHours({ regularOpeningHours: { weekdayDescriptions: ["x".repeat(200), 5] } }), null, "over-long or non-text lines are dropped");
+
+// --- a bad email link
+assert.deepEqual(parseAuthLinkError("#error=access_denied&error_code=otp_expired&error_description=Email+link+is+invalid+or+has+expired&sb="), { code: "otp_expired", description: "Email link is invalid or has expired" });
+assert.deepEqual(parseAuthLinkError("#error=server_error"), { code: "server_error", description: "" });
+for (const none of ["", "#", "#access_token=abc&type=signup", "#/section"]) assert.equal(parseAuthLinkError(none), null, none);
+assert.ok(authLinkMessage({ code: "otp_expired", description: "" }).includes("send yourself a new link"));
+assert.ok(authLinkMessage({ code: "server_error", description: "boom" }).includes("boom"));
 
 console.log("recommendations and hours: all passed");

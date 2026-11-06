@@ -164,6 +164,17 @@ Every sign-up, sign-in and public form (service request, contact, list your busi
 
 The service request, contact and list-your-business forms are sent to `/api/submit/lead`, `/api/submit/contact` and `/api/submit/listing`, which check the CAPTCHA and then save with the server key. `npm run test:submit` tests them offline.
 
+### Sign-up emails: tell Supabase your site address
+
+The confirmation and password-reset emails link back to the site through Supabase. If Supabase does not know your site address, it sends people to its default (`http://localhost:3000`) with an error such as `#error=access_denied&error_code=otp_expired`.
+
+1. Supabase > Authentication > **URL Configuration**.
+2. **Site URL**: your live address, for example `https://hvac-site-4i7.pages.dev` (use your own domain once you have one).
+3. **Redirect URLs**: add `https://hvac-site-4i7.pages.dev/**` (and your own domain with `/**`). For local testing also add `http://localhost:3100/**`.
+4. Save, then sign up again with a fresh email address or use "Send me a new confirmation email" on the sign-in page. Always open the **newest** email.
+
+Each link works once. Some email programs open links automatically to check them, which uses the link up and gives `otp_expired`. If someone sees that, the sign-in page explains it and can send a new link; if they already opened the link once, their email is probably confirmed and they can just sign in. (Supabase > Authentication > Providers > Email also lets you change how long a link lasts.)
+
 ### Customer accounts
 
 A customer can create an account at `/account/login` (linked as **My Requests** in the menu) to follow their requests: which businesses received each one and whether the business has marked it as contacted. Requests sent while signed in are linked to the account; older requests with the same email address show up once that email address is confirmed. Run `supabase/schema-customers.sql` to switch it on. A signed-in customer is not a contractor or an admin; those are separate roles.
