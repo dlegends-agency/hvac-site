@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/Button";
 import { Field, inputClass } from "@/components/ui/Field";
 import { useCaptcha } from "@/components/ui/Turnstile";
+import { authLinkMessage, forgetAuthLinkError, peekAuthLinkError } from "@/lib/auth-link";
 import { getSupabaseBrowser, isSupabaseConfigured } from "@/lib/supabase";
 import { usePageMeta } from "@/lib/use-page-meta";
 
@@ -24,6 +25,15 @@ export function AuthPage({ audience }: { audience: Audience }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+  // A bad link in an email brings people here with the problem remembered; explain it and offer a new link.
+  const [linkProblem] = useState(() => peekAuthLinkError());
+  const [canResend, setCanResend] = useState(Boolean(linkProblem));
+  useEffect(() => {
+    // It is shown now; do not show it again on a later visit.
+    const t = window.setTimeout(forgetAuthLinkError, 1000);
+    return () => window.clearTimeout(t);
+  }, []);
 
   const after = customer ? "/account" : plan === "featured" ? `/contractor/billing?plan=featured&interval=${params.get("interval") === "month" ? "month" : "year"}` : "/contractor";
 
@@ -54,13 +64,35 @@ export function AuthPage({ audience }: { audience: Audience }) {
       setBusy(false);
       if (err) return setError(err.message.toLowerCase().includes("registered") ? "An account with that email already exists. Try signing in." : "We couldn't create the account. Please try again.");
       if (res.session) return navigate(after, { replace: true });
-      return setNotice("Check your email and click the confirmation link, then sign in.");
+      setCanResend(true);
+      return setNotice("Check your email and click the confirmation link, then sign in. The link works once and expires, so open it soon, in the same browser if you can.");
     }
     const { error: err } = await auth.signInWithPassword({ email, password, options: { captchaToken: captcha.token ?? undefined } });
     captcha.reset();
     setBusy(false);
-    if (err) return setError("Sign-in failed. Check your email and password.");
+    if (err) {
+      if (/not confirmed/i.test(err.message)) {
+        setCanResend(true);
+        return setError("Your email address is not confirmed yet. Open the link in the confirmation email, or send a new one below.");
+      }
+      return setError("Sign-in failed. Check your email and password.");
+    }
     navigate(after, { replace: true });
+  }
+
+  /** Sends a fresh confirmation email to the address typed in the form. */
+  async function resend() {
+    if (busy) return;
+    const email = String(new FormData(formRef.current ?? undefined).get("email") ?? "").trim();
+    if (!email) return setError("Enter your email address above first.");
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    const { error: err } = await getSupabaseBrowser().auth.resend({ type: "signup", email, options: { emailRedirectTo: `${window.location.origin}${after}`, captchaToken: captcha.token ?? undefined } });
+    captcha.reset();
+    setBusy(false);
+    if (err) return setError("We could not send a new email. Wait a minute and try again.");
+    setNotice("If that address has an unconfirmed account, we sent a new confirmation email. Open the newest one only.");
   }
 
   const who = customer ? "" : "contractor ";
@@ -70,13 +102,14 @@ export function AuthPage({ audience }: { audience: Audience }) {
     <div className="min-h-screen bg-surface">
       <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-4 py-10">
         <Link to="/" aria-label="HVACHelp home" className="mb-6 self-center"><Logo /></Link>
-        <form onSubmit={onSubmit} className="w-full space-y-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-lg shadow-slate-900/5 sm:p-8">
+        <form ref={formRef} onSubmit={onSubmit} className="w-full space-y-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-lg shadow-slate-900/5 sm:p-8">
           <h1 className="text-2xl font-bold text-navy">{title}</h1>
           {mode === "signup" && (customer
             ? <p className="text-sm text-slate-600">Use the same email address you gave in your request. After you confirm it, your requests show up here, with the businesses that received them.</p>
             : <p className="text-sm text-slate-600">One account per business. After signing up you can claim your listing or add your business. We review every claim.</p>)}
           {mode === "signin" && customer && <p className="text-sm text-slate-600">Follow the requests you sent: which businesses received them and whether they have been in touch.</p>}
           {!isSupabaseConfigured && <p className="rounded-xl border border-orange-200 bg-orange-50 p-3 text-sm text-orange-900">Accounts are not available yet (Supabase is not configured).</p>}
+          {linkProblem && <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{authLinkMessage(linkProblem)}</p>}
           <Field id="email" label="Email">
             {(a) => <input id="email" name="email" type="email" autoComplete="email" required className={inputClass} {...a} />}
           </Field>
@@ -88,6 +121,11 @@ export function AuthPage({ audience }: { audience: Audience }) {
           <div role="alert">{error && <p className="text-sm font-medium text-red-700">{error}</p>}</div>
           {notice && <p role="status" className="rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-900">{notice}</p>}
           {captcha.widget}
+          {canResend && mode !== "reset" && (
+            <button type="button" onClick={resend} disabled={busy || captcha.blocked} className="text-sm font-semibold text-primary hover:underline disabled:opacity-60">
+              Send me a new confirmation email
+            </button>
+          )}
           <Button type="submit" className="w-full" disabled={busy || captcha.blocked || !isSupabaseConfigured}>
             {busy && <Loader2 className="size-4 animate-spin" aria-hidden />} {mode === "signup" ? "Create account" : mode === "reset" ? "Send reset link" : "Sign in"}
           </Button>

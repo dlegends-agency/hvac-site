@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { FlowHealth } from "./FlowHealth";
 import { Link } from "react-router-dom";
 import { ArrowDownRight, ArrowUpRight, Building2, Check, ExternalLink, EyeOff, MapPin, Minus, RefreshCw, Users } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -220,6 +221,8 @@ export function OverviewDashboard() {
           <span className="text-xs text-slate-500" aria-live="off">{updatedAt ? `Updated ${timeAgo(now - updatedAt)}` : "Loading…"}</span>
         </div>
       </PageTitle>
+
+      <FlowHealth />
 
       {failed && (
         <p className="mb-5 rounded-2xl border border-orange-200 bg-orange-50 p-4 text-sm text-orange-900">

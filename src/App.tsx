@@ -1,5 +1,6 @@
 import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
+import { AuthLinkErrorHandler } from "@/components/AuthLinkErrorHandler";
 import { PageViewTracker } from "@/components/PageViewTracker";
 import { ScrollManager } from "@/components/ScrollManager";
 import { RevealManager } from "@/components/RevealManager";
@@ -36,7 +37,11 @@ const SeoAudit = lazy(() => import("@/components/admin/SeoAudit").then((m) => ({
 // The contractor dashboard is its own chunk too.
 const ContractorLoginPage = lazy(() => import("@/components/contractor/ContractorLoginPage"));
 const CustomerLoginPage = lazy(() => import("@/components/account/CustomerLoginPage"));
+const AccountLayout = lazy(() => import("@/components/account/AccountLayout"));
 const AccountPage = lazy(() => import("@/components/account/AccountPage"));
+const AccountMessages = lazy(() => import("@/components/account/AccountMessages"));
+const AccountSettings = lazy(() => import("@/components/account/AccountSettings"));
+const ContractorMessages = lazy(() => import("@/components/contractor/ContractorMessages"));
 const ContractorLayout = lazy(() => import("@/components/contractor/ContractorLayout"));
 const ContractorHome = lazy(() => import("@/components/contractor/ContractorHome"));
 const ContractorLeads = lazy(() => import("@/components/contractor/ContractorLeads"));
@@ -46,6 +51,7 @@ const ContractorAccount = lazy(() => import("@/components/contractor/ContractorA
 const ContractorRecommendations = lazy(() => import("@/components/contractor/ContractorRecommendations"));
 const ClaimsAdmin = lazy(() => import("@/components/admin/ClaimsAdmin").then((m) => ({ default: m.ClaimsAdmin })));
 const RecommendationsAdmin = lazy(() => import("@/components/admin/RecommendationsAdmin").then((m) => ({ default: m.RecommendationsAdmin })));
+const FlowLogs = lazy(() => import("@/components/admin/FlowLogs").then((m) => ({ default: m.FlowLogs })));
 const AnalyticsReport = lazy(() => import("@/components/admin/AnalyticsReport").then((m) => ({ default: m.AnalyticsReport })));
 
 export default function App() {
@@ -54,6 +60,7 @@ export default function App() {
       <ScrollManager />
       <RevealManager />
       <PageViewTracker />
+      <AuthLinkErrorHandler />
       <Suspense fallback={<p className="p-8 text-slate-600">Loading…</p>}>
         <Routes>
           <Route path="/" element={<HomePage />} />
@@ -71,10 +78,15 @@ export default function App() {
           <Route path="/pricing" element={<PricingPage />} />
           <Route path="/contractor/login" element={<ContractorLoginPage />} />
           <Route path="/account/login" element={<CustomerLoginPage />} />
-          <Route path="/account" element={<AccountPage />} />
+          <Route path="/account" element={<AccountLayout />}>
+            <Route index element={<AccountPage />} />
+            <Route path="messages" element={<AccountMessages />} />
+            <Route path="settings" element={<AccountSettings />} />
+          </Route>
           <Route path="/contractor" element={<ContractorLayout />}>
             <Route index element={<ContractorHome />} />
             <Route path="leads" element={<ContractorLeads />} />
+            <Route path="messages" element={<ContractorMessages />} />
             <Route path="business" element={<ContractorBusiness />} />
             <Route path="recommendations" element={<ContractorRecommendations />} />
             <Route path="profile" element={<Navigate to="/contractor/business" replace />} />
@@ -96,6 +108,7 @@ export default function App() {
             <Route path="listings/new" element={<ListingEditor />} />
             <Route path="listings/:id" element={<ListingEditor />} />
             <Route path="messages" element={<MessagesAdmin />} />
+            <Route path="logs" element={<FlowLogs />} />
             <Route path="seo-audit" element={<SeoAudit />} />
             <Route path="analytics" element={<AnalyticsReport />} />
           </Route>

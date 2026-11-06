@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { PerformancePanel } from "./PerformancePanel";
 import { Link } from "react-router-dom";
 import { Bell, BellOff, CheckCircle2, Circle, Clock, MapPin } from "lucide-react";
 import { PageTitle, Panel, StatCard } from "@/components/admin/widgets";
@@ -119,6 +120,10 @@ export default function ContractorHome() {
         <StatCard label="Locked" value={leads ? locked : "…"} hint={`$${price} each to unlock`} />
         <StatCard label="Contacted" value={count("contacted")} hint={`${count("won")} won`} />
         <StatCard label="Current plan" value={planName(plan)} hint={plan === "free" ? `Go Featured: $${leadPrice.paid} per request` : endsSoon ? `Ends ${new Date(listing.plan_until as string).toLocaleDateString()}` : undefined} />
+      </div>
+
+      <div className="mt-6">
+        <PerformancePanel />
       </div>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-2">

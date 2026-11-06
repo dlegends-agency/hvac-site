@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
+import { LeadHistory } from "./LeadHistory";
 import { Link, useSearchParams } from "react-router-dom";
-import { Clock, Loader2, Lock, Mail, MapPin, Phone, Search, Users } from "lucide-react";
+import { Clock, Loader2, Lock, Mail, MapPin, MessageSquare, Phone, Search, Users } from "lucide-react";
 import { PageTitle, Panel } from "@/components/admin/widgets";
 import { Button, buttonClass } from "@/components/ui/Button";
 import { inputClass } from "@/components/ui/Field";
@@ -127,6 +128,10 @@ function LeadCard({ lead, price, onSaved }: { lead: ContractorLead; price: numbe
         </div>
       </div>
       {lead.unlocked ? <Details lead={lead} onSaved={onSaved} /> : <Locked lead={lead} price={price} />}
+      <div className="mt-3 border-t border-slate-100 pt-3">
+        <Link to={`/contractor/messages?lead=${lead.id}`} className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"><MessageSquare className="size-4" aria-hidden /> Message customer</Link>
+      </div>
+      <LeadHistory leadId={lead.id} />
     </li>
   );
 }
