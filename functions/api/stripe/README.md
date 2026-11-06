@@ -8,6 +8,7 @@ Billing endpoints for contractors: subscription checkout, billing portal, accoun
 - `portal.ts`: `POST /api/stripe/portal` `{ flow?: "card" }` (bearer token). Returns `{ url }` for Stripe's billing portal; `flow: "card"` deep-links to payment method update and falls back to the normal portal.
 - `account.ts`: `POST /api/stripe/account` (bearer token). Returns `{ card, subscription, invoices }` (brand, last4, expiry only; non-draft invoices, up to 24).
 - `unlock.ts`: `POST /api/stripe/unlock` `{ leadId }` (bearer token). Returns `{ url, cents }` for a one-time Checkout payment.
+- `confirm.ts`: `POST /api/stripe/confirm { sessionId }`. Runs when the contractor returns from Stripe: asks Stripe if the Checkout session was paid, checks it belongs to the signed-in contractor's listing, and grants the plan or unlocks the request (the same code as the webhook, in `functions/_lib/fulfil.ts`), so a late or missing webhook never leaves a paid request locked.
 - `webhook.ts`: `POST /api/stripe/webhook`. Handles `checkout.session.completed`, `checkout.session.async_payment_succeeded` and `customer.subscription.*`; returns `{ received: true }`.
 
 ## Invariants

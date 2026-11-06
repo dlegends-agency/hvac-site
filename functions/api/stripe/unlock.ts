@@ -42,7 +42,7 @@ export const onRequestPost = async ({ env, request }: { env: Env; request: Reque
     "line_items[0][price_data][currency]": "usd",
     "line_items[0][price_data][unit_amount]": String(cents),
     "line_items[0][price_data][product_data][name]": name,
-    success_url: `${origin}/contractor/leads?unlocked=1&lead=${body.leadId}`,
+    success_url: `${origin}/contractor/leads?unlocked=1&lead=${body.leadId}&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${origin}/contractor/leads`,
     client_reference_id: listingId,
     "invoice_creation[enabled]": "true",

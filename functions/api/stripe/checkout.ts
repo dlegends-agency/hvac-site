@@ -29,7 +29,7 @@ export const onRequestPost = async ({ env, request }: { env: Env; request: Reque
     mode: "subscription",
     "line_items[0][price]": price,
     "line_items[0][quantity]": "1",
-    success_url: `${origin}/contractor/billing?status=success`,
+    success_url: `${origin}/contractor/billing?status=success&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${origin}/contractor/billing`,
     client_reference_id: listingId,
     "metadata[listing_id]": listingId,

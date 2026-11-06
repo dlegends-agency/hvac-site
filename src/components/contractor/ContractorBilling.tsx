@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Check, Loader2, Lock } from "lucide-react";
 import { PageTitle, Panel } from "@/components/admin/widgets";
@@ -11,8 +11,14 @@ import { useContractor } from "./context";
 type Interval = "month" | "year";
 
 export default function ContractorBilling() {
-  const { listing, billing } = useContractor();
+  const { listing, billing, reload } = useContractor();
   const [params] = useSearchParams();
+  const sessionId = params.get("session_id");
+
+  // Coming back from Stripe: have the server check the payment with Stripe and switch the plan on right away.
+  useEffect(() => {
+    if (sessionId) void callApi("/api/stripe/confirm", { sessionId }).then(() => reload());
+  }, [sessionId, reload]);
   const [interval, setInterval] = useState<Interval>(params.get("interval") === "month" ? "month" : "year");
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);

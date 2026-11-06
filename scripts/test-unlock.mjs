@@ -72,7 +72,7 @@ assert.deepEqual([f["metadata[kind]"], f["metadata[lead_id]"], f["metadata[listi
 assert.deepEqual([f["payment_intent_data[metadata][kind]"], f["payment_intent_data[metadata][lead_id]"]], ["lead_unlock", LEAD], "metadata also on the payment itself");
 assert.equal(f["invoice_creation[enabled]"], "true", "a receipt is created for payment history");
 assert.deepEqual([f.customer_creation, f.customer_email, f.customer], ["always", "o@a.com", undefined], "new customer is created and remembered");
-assert.equal(f.success_url, `https://site.test/contractor/leads?unlocked=1&lead=${LEAD}`, "returns to the page and names the request, so it can show it unlocking");
+assert.equal(f.success_url, `https://site.test/contractor/leads?unlocked=1&lead=${LEAD}&session_id={CHECKOUT_SESSION_ID}`, "returns to the page and names the request, so it can show it unlocking");
 
 // $5 on the paid plan (monthly or yearly), but only while it is active.
 reset(); state.listing = [{ plan: "featured", plan_until: future }];
@@ -142,5 +142,34 @@ const billing = JSON.parse(log.find((l) => l.url.includes("listing_billing") && 
 assert.deepEqual([billing.plan, billing.billing_interval, billing.status, billing.current_period_end], ["featured", "year", "active", new Date(1_900_000_000 * 1000).toISOString()]);
 const patch = JSON.parse(log.find((l) => l.url.includes("/rest/v1/listings") && l.method === "PATCH").body);
 assert.deepEqual(patch, { plan: "featured", plan_until: new Date(1_900_000_000 * 1000).toISOString() });
+
+// ------------------------------------------------------------ coming back from Stripe: /api/stripe/confirm
+const confirmMod = await import("../functions/api/stripe/confirm.ts");
+const confirm = confirmMod.onRequestPost;
+const cs = (over = {}) => ({ id: "cs_test_abc123", mode: "payment", payment_status: "paid", customer: "cus_9", amount_total: 500, client_reference_id: LISTING, metadata: { kind: "lead_unlock", lead_id: LEAD, listing_id: LISTING }, ...over });
+const unlocked = () => log.some((l) => l.url.endsWith("/rpc/unlock_lead"));
+
+reset(); stripeReply = () => cs();
+assert.equal((await confirm({ env, request: req({ sessionId: "cs_test_abc123" }, "") })).status, 401, "not signed in");
+assert.equal((await confirm({ env, request: req({ sessionId: "nonsense" }) })).status, 400, "not a Checkout session id");
+assert.equal((await confirm({ env: { ...env, STRIPE_SECRET_KEY: undefined }, request: req({ sessionId: "cs_test_abc123" }) })).status, 501);
+res = await confirm({ env, request: req({ sessionId: "cs_test_abc123" }) });
+assert.deepEqual([res.status, (await res.json()).paid], [200, true]);
+assert.ok(unlocked(), "a paid lead payment unlocks the request without waiting for the webhook");
+assert.equal(JSON.parse(log.find((l) => l.url.endsWith("/rpc/unlock_lead")).body).p_ref, "cs_test_abc123", "the same payment reference as the webhook, so it is unlocked once");
+
+reset(); stripeReply = () => cs({ payment_status: "unpaid" });
+res = await confirm({ env, request: req({ sessionId: "cs_test_abc123" }) });
+assert.equal((await res.json()).paid, false);
+assert.ok(!unlocked(), "an unpaid session unlocks nothing");
+
+reset(); stripeReply = () => cs({ metadata: { kind: "lead_unlock", lead_id: LEAD, listing_id: "99999999-9999-4999-8999-999999999999" }, client_reference_id: "99999999-9999-4999-8999-999999999999" });
+assert.equal((await confirm({ env, request: req({ sessionId: "cs_test_abc123" }) })).status, 403, "someone else's payment");
+assert.ok(!unlocked());
+
+reset(); stripeReply = () => cs({ mode: "subscription", subscription: "sub_1", metadata: {} });
+res = await confirm({ env, request: req({ sessionId: "cs_test_abc123" }) });
+assert.equal((await res.json()).paid, true);
+assert.ok(log.some((l) => l.url.includes("/rest/v1/listings") && l.method === "PATCH"), "a paid subscription switches the plan on");
 
 console.log("unlock + webhook: all checks passed");
