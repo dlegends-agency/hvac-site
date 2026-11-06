@@ -180,9 +180,9 @@ Each link works once. Some email programs open links automatically to check them
 Run `supabase/schema-messages.sql` to switch on messages between customers and businesses.
 
 - **Customer dashboard** (`/account`): three tabs. *My requests* (status, progress line, and an **Activity log** for each request), *Messages*, and *Account* (name, phone, change email, change password).
-- **Contractor dashboard** > *Messages*: Featured businesses write to customers who sent them a request and read the replies. A **Message customer** link is on every request. A free business can read what a customer wrote but not reply, and sees a note about the Featured plan.
-- **Customers** can write to, and reply to, any Featured business that received their request (a **Message** link next to each business).
-- Messages stay on the site. A business never sees a customer's phone or email through a message, and the customer's first name shows only once the request is unlocked. Nobody can read the table directly: every read and write goes through functions that check who is asking. Limit: 20 messages per hour per side of a conversation.
+- **Contractor dashboard** > *Messages*: a business can message a customer only after it has paid to unlock that request (any plan). Until then the **Message customer** link on the request shows as locked.
+- **Customers** can reply or write back to a business once it has unlocked their request (a **Message** link then appears next to that business).
+- Messages stay on the site. Each message shows who wrote it: the business name, or the customer's email address. Messaging only opens after the business has unlocked the request, so the email is shared only then. Nobody can read the table directly: every read and write goes through functions that check who is asking. Limit: 20 messages per hour per side of a conversation.
 - Unread counts show on the *Messages* tab and menu. Messages are **not emailed** yet, so people see them when they open their dashboard.
 
 ### Logs and request flow

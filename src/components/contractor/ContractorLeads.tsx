@@ -129,7 +129,11 @@ function LeadCard({ lead, price, onSaved }: { lead: ContractorLead; price: numbe
       </div>
       {lead.unlocked ? <Details lead={lead} onSaved={onSaved} /> : <Locked lead={lead} price={price} />}
       <div className="mt-3 border-t border-slate-100 pt-3">
-        <Link to={`/contractor/messages?lead=${lead.id}`} className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"><MessageSquare className="size-4" aria-hidden /> Message customer</Link>
+        {lead.unlocked ? (
+          <Link to={`/contractor/messages?lead=${lead.id}`} className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"><MessageSquare className="size-4" aria-hidden /> Message customer</Link>
+        ) : (
+          <span className="inline-flex items-center gap-1.5 text-sm text-slate-500"><Lock className="size-4" aria-hidden /> Messaging is locked until you unlock this request</span>
+        )}
       </div>
       <LeadHistory leadId={lead.id} />
     </li>

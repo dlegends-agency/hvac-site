@@ -51,14 +51,17 @@ const lead = async (email = "jane@x.com", customerId = null) =>
 const L = await lead("jane@x.com", customer);
 assert.equal((await q("select count(*)::int n from public.lead_assignments where lead_id=$1", [L]))[0].n, 3, "the request went to all three");
 
+// The two businesses that paid to unlock the request; Cheap Cool has not.
+await q("update public.lead_assignments set unlocked_at = now() where lead_id=$1 and listing_id in ($2,$3)", [L, A.id, B.id]);
+
 // ---------------------------------------------------------------- sending
 const send = (user, l, listing, text) => as(user, () => db.query("select public.send_message($1,$2,$3) as id", [l, listing, text]));
 await send(A.user, L, A.id, "Hi Jane, I can come tomorrow morning. What time suits you?");
 await send(customer, L, A.id, "9am would be great, thank you.");
 await send(customer, L, B.id, "Do you work on heat pumps?");
 
-await assert.rejects(() => send(C.user, L, C.id, "hello"), /Featured/, "a free business cannot send");
-await assert.rejects(() => send(customer, L, C.id, "hello"), /Featured/, "nor receive new messages");
+await assert.rejects(() => send(C.user, L, C.id, "hello"), /Unlock/, "a business that has not unlocked the request cannot send");
+await assert.rejects(() => send(customer, L, C.id, "hello"), /Unlock/, "and the customer cannot write to it either");
 await assert.rejects(() => send(stranger, L, A.id, "hi"), /Not allowed/, "someone else's request");
 await assert.rejects(() => send(A.user, L, B.id, "hi"), /Not allowed/, "a business cannot write as another business");
 const otherLead = await lead("other@x.com");
@@ -73,10 +76,6 @@ const farLead = await lead("jane@x.com", customer);
 await q("delete from public.lead_assignments where lead_id=$1 and listing_id=$2", [farLead, A.id]);
 await assert.rejects(() => send(A.user, farLead, A.id, "hi"), /did not receive/);
 
-// A business that lets its plan lapse can no longer send.
-await q("update public.listings set plan_until = now() - interval '1 day' where id=$1", [B.id]);
-await assert.rejects(() => send(B.user, L, B.id, "hi"), /Featured/, "an expired plan is a free plan");
-await q("update public.listings set plan_until = null where id=$1", [B.id]);
 
 // Limit: 20 per hour per side of a conversation.
 for (let i = 0; i < 19; i++) await send(customer, L, A.id, `message ${i}`);
@@ -88,6 +87,7 @@ const thread = await rows(customer, "select * from public.conversation_messages(
 assert.equal(thread[0].body.startsWith("Hi Jane"), true);
 assert.equal(thread[0].mine, false, "the customer did not write the first message");
 assert.equal(thread[1].mine, true);
+assert.deepEqual([thread[0].sender_name, thread[1].sender_name], ["Acme HVAC", "jane@x.com"], "each message names its writer: the business, or the customer's email");
 assert.deepEqual(await rows(stranger, "select * from public.conversation_messages($1,$2)", [L, A.id]), [], "a stranger reads nothing");
 assert.deepEqual(await rows(B.user, "select * from public.conversation_messages($1,$2)", [L, A.id]), [], "nor another business");
 assert.deepEqual(await rows(A.user, "select * from public.conversation_messages($1,$2)", [L, B.id]), [], "nor a business a thread that is not its own");
@@ -100,6 +100,8 @@ assert.ok(unread.as_business >= 18 && unread.as_customer === 0);
 await rows(A.user, "select * from public.conversation_messages($1,$2)", [L, A.id]);
 unread = (await rows(A.user, "select public.my_unread_messages() as u"))[0].u;
 assert.equal(unread.as_business, 0, "opening the conversation marks it read");
+const seen = await rows(A.user, "select * from public.conversation_messages($1,$2)", [L, A.id]);
+assert.equal(seen[1].sender_name, "jane@x.com", "the business sees the customer's email");
 await send(A.user, L, A.id, "See you then.");
 unread = (await rows(customer, "select public.my_unread_messages() as u"))[0].u;
 assert.equal(unread.as_customer, 1, "the customer has not opened the business's newest message");
@@ -108,26 +110,25 @@ assert.equal((await rows(customer, "select public.my_unread_messages() as u"))[0
 // ---------------------------------------------------------------- lists
 const mine = await rows(customer, "select * from public.my_conversations()");
 const names = mine.map((r) => `${r.business_name}:${r.lead_id === L ? "L" : "far"}`).sort();
-assert.ok(names.includes("Acme HVAC:L") && names.includes("Bravo Air:L"), "paid businesses that got the request");
-assert.ok(!names.includes("Cheap Cool:L"), "a free business with no messages is not offered");
+assert.ok(names.includes("Acme HVAC:L") && names.includes("Bravo Air:L"), "businesses that unlocked the request");
+assert.ok(!names.includes("Cheap Cool:L"), "a business that has not unlocked and has no messages is not offered");
 assert.equal(mine.find((r) => r.business_name === "Acme HVAC" && r.lead_id === L).unread, 1);
 assert.equal((await rows(stranger, "select * from public.my_conversations()")).length, 0);
 
 const theirs = await rows(A.user, "select * from public.business_conversations()");
-assert.deepEqual(theirs.map((r) => [r.lead_id, r.customer]), [[L, "Customer"]], "only conversations with messages; the name is hidden while locked");
-await q("update public.lead_assignments set unlocked_at = now() where lead_id=$1 and listing_id=$2", [L, A.id]);
-assert.equal((await rows(A.user, "select * from public.business_conversations()"))[0].customer, "Jane", "the first name shows once unlocked");
+assert.deepEqual(theirs.map((r) => [r.lead_id, r.customer]), [[L, "Jane"]], "only conversations with messages; the first name shows once unlocked");
 const started = await rows(C.user, "select * from public.business_conversations($1)", [L]);
 assert.equal(started.length, 1, "naming a request offers to start a conversation on it");
-assert.equal(started[0].can_send, false, "a free business can see it but not send");
+assert.equal(started[0].can_send, false, "a business that has not unlocked can see it but not send");
+assert.equal(started[0].customer, "Customer", "and the name stays hidden while locked");
 assert.equal((await rows(A.user, "select * from public.business_conversations($1)", [farLead])).filter((r) => r.lead_id === farLead).length, 0, "a request the business did not receive cannot be started");
 assert.equal((await rows(stranger, "select * from public.business_conversations($1)", [L])).length, 0, "someone with no business sees nothing");
-assert.ok(JSON.stringify(theirs).indexOf("5125550100") < 0 && JSON.stringify(theirs).indexOf("jane@x.com") < 0, "no contact details in messages or lists");
+assert.ok(JSON.stringify(theirs).indexOf("5125550100") < 0 && JSON.stringify(theirs).indexOf("jane@x.com") < 0, "no phone numbers or emails in the lists");
 
 // ---------------------------------------------------------------- a customer who asked before signing up
 const early = await lead("late@x.com");
 const lateUnconfirmed = await uid("late@x.com", false);
-await q("update public.lead_assignments set unlocked_at = unlocked_at where lead_id=$1", [early]);
+await q("update public.lead_assignments set unlocked_at = now() where lead_id=$1", [early]);
 await assert.rejects(() => send(lateUnconfirmed, early, A.id, "hi"), /Not allowed/, "an unconfirmed email does not claim earlier requests");
 await q("update auth.users set email_confirmed_at = now() where id=$1", [lateUnconfirmed]);
 await send(lateUnconfirmed, early, A.id, "hi, now confirmed");
@@ -145,6 +146,11 @@ assert.deepEqual(await rows(stranger, "select * from public.my_request_log($1)",
 assert.deepEqual(await rows(A.user, "select * from public.my_request_log($1)", [L]), [], "a business does not read the customer's log");
 await q("update public.leads set status='spam' where id=$1", [early]);
 assert.deepEqual(await rows(lateUnconfirmed, "select * from public.my_request_log($1)", [early]), [], "spam is hidden");
+
+// a free business that pays for the request can message: the plan does not matter
+await q("update public.lead_assignments set unlocked_at = now() where lead_id=$1 and listing_id=$2", [L, C.id]);
+await send(C.user, L, C.id, "Hello from a free plan that unlocked the request");
+await send(customer, L, C.id, "Thanks, replying");
 
 // deleting a request deletes its messages
 await q("delete from public.leads where id=$1", [L]);

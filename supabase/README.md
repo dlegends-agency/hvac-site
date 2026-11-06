@@ -76,7 +76,7 @@ RLS is enabled on every table above. Policies by table:
 - Seeds insert 24 listings and 9 posts.
 
 ## Verification
-- Run: `node supabase/tests/messages.test.mjs` (needs PGlite): checks who can send and read messages, the Featured-only rule, the hourly limit, read marks, privacy of contact details and the customer's request log.
+- Run: `node supabase/tests/messages.test.mjs` (needs PGlite): checks who can send and read messages (and who wrote each one), the unlock-first rule, the hourly limit, read marks, privacy of contact details and the customer's request log.
 - Run: `node supabase/tests/flow.test.mjs` (needs PGlite): checks the order of logged steps, who can read the log, the admin health numbers and the contractor performance and history functions.
 - Run: `node supabase/tests/customers.test.mjs` (needs PGlite): loads every real schema file in order, then checks customer requests and that the lock-down closes the public insert doors.
 - Run: `node supabase/tests/profiles.test.mjs` (needs `npm i --no-save @electric-sql/pglite`): loads `schema-contractors.sql` then `schema-profiles.sql` and checks the verified mark, license check, paid-only hours, public-submission limits the recommendation functions and the public recommendation views.

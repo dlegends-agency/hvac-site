@@ -350,7 +350,7 @@ as $$
   select l.id, l.created_at, l.issue, l.urgency, l.city, l.state, l.postal_code, l.street, l.description, l.status,
          coalesce((
            select jsonb_agg(jsonb_build_object(
-                    'listing_id', b.id, 'messages', (b.plan = 'featured' and (b.plan_until is null or b.plan_until > now())),
+                    'listing_id', b.id, 'messages', (a.unlocked_at is not null),
                     'name', b.business_name, 'slug', b.slug, 'city', b.city, 'state', b.state, 'phone', b.phone,
                     'status', a.contractor_status, 'sent_at', a.assigned_at, 'contacted_at', a.contacted_at
                   ) order by a.assigned_at)
@@ -626,9 +626,9 @@ grant execute on function public.my_lead_events(uuid) to authenticated;
 -- ==================================================================================================
 -- Run AFTER schema-flow.sql. Supabase: SQL Editor > New query > paste > Run. Safe to re-run.
 -- Messages between a customer and a business that received their request.
---   * Only Featured (paid) businesses can send messages, and only to customers of requests they received.
---   * A customer can write to, and reply to, any Featured business that received their request.
---   * Messages stay inside the site. A business never sees the customer's phone or email through a message.
+--   * A conversation opens when the business has paid to unlock the customer's request. Until then it is locked for both sides.
+--   * Once unlocked, the business can write to the customer and the customer can reply or write to that business.
+--   * Messages stay inside the site. Each message shows who wrote it: the business name, or the customer's email address.
 --   * Nobody reads the table directly: every read and write goes through the functions below, which check who is asking.
 --   * It also adds the customer-facing request log (my_request_log).
 
@@ -696,8 +696,8 @@ begin
   elsif public.is_customer_of_lead(p_lead) then v_sender := 'customer';
   else raise exception 'Not allowed' using errcode = '42501';
   end if;
-  if not public.listing_is_paid(p_listing) then
-    raise exception 'Messages are for Featured businesses' using errcode = '42501';
+  if not exists (select 1 from public.lead_assignments a where a.lead_id = p_lead and a.listing_id = p_listing and a.unlocked_at is not null) then
+    raise exception 'Unlock this request to send messages' using errcode = '42501';
   end if;
   if (select count(*) from public.lead_messages m where m.lead_id = p_lead and m.listing_id = p_listing and m.sender = v_sender
         and m.created_at > now() - interval '1 hour') >= 20 then
@@ -721,7 +721,7 @@ set search_path = public
 stable
 as $$
   select a.lead_id, a.listing_id, b.business_name, b.slug, l.issue, l.created_at,
-         public.listing_is_paid(b.id),
+         (a.unlocked_at is not null),
          lm.body, lm.sender, lm.created_at,
          (select count(*)::int from public.lead_messages m where m.lead_id = a.lead_id and m.listing_id = a.listing_id and m.sender = 'business' and m.read_at is null)
     from public.lead_assignments a
@@ -730,7 +730,7 @@ as $$
     left join lateral (select m.body, m.sender, m.created_at from public.lead_messages m
                         where m.lead_id = a.lead_id and m.listing_id = a.listing_id order by m.id desc limit 1) lm on true
    where public.is_customer_of_lead(a.lead_id)
-     and (lm.body is not null or public.listing_is_paid(b.id))
+     and (lm.body is not null or a.unlocked_at is not null)
    order by lm.created_at desc nulls last, a.assigned_at desc;
 $$;
 
@@ -751,7 +751,7 @@ as $$
   select a.lead_id, a.listing_id,
          case when a.unlocked_at is not null then l.first_name else 'Customer' end,
          l.issue, l.city, l.state, l.created_at,
-         public.listing_is_paid(a.listing_id),
+         (a.unlocked_at is not null),
          lm.body, lm.sender, lm.created_at,
          (select count(*)::int from public.lead_messages m where m.lead_id = a.lead_id and m.listing_id = a.listing_id and m.sender = 'customer' and m.read_at is null)
     from public.lead_assignments a
@@ -767,7 +767,7 @@ $$;
 -- Returns the messages to whoever is in the conversation, and marks the other side's messages as read.
 drop function if exists public.conversation_messages(uuid, uuid);
 create or replace function public.conversation_messages(p_lead uuid, p_listing uuid)
-returns table (id bigint, created_at timestamptz, sender text, body text, mine boolean, read_at timestamptz)
+returns table (id bigint, created_at timestamptz, sender text, sender_name text, body text, mine boolean, read_at timestamptz)
 language plpgsql
 security definer
 set search_path = public
@@ -783,8 +783,15 @@ begin
   update public.lead_messages m set read_at = now()
    where m.lead_id = p_lead and m.listing_id = p_listing and m.sender <> v_role and m.read_at is null;
   return query
-    select m.id, m.created_at, m.sender, m.body, (m.sender = v_role), m.read_at
-      from public.lead_messages m where m.lead_id = p_lead and m.listing_id = p_listing order by m.id;
+    -- Who wrote each message: the business name, or the customer's account email (the request's email if the account has none).
+    select m.id, m.created_at, m.sender,
+           case m.sender when 'business' then b.business_name else coalesce(u.email, l.email) end,
+           m.body, (m.sender = v_role), m.read_at
+      from public.lead_messages m
+      join public.listings b on b.id = m.listing_id
+      join public.leads l on l.id = m.lead_id
+      left join auth.users u on u.id = m.sender_id
+     where m.lead_id = p_lead and m.listing_id = p_listing order by m.id;
 end;
 $$;
 
