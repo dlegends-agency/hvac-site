@@ -785,7 +785,7 @@ begin
   return query
     -- Who wrote each message: the business name, or the customer's account email (the request's email if the account has none).
     select m.id, m.created_at, m.sender,
-           case m.sender when 'business' then b.business_name else coalesce(u.email, l.email) end,
+           (case m.sender when 'business' then b.business_name::text else coalesce(u.email::text, l.email::text) end),
            m.body, (m.sender = v_role), m.read_at
       from public.lead_messages m
       join public.listings b on b.id = m.listing_id

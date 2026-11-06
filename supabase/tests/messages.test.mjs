@@ -10,7 +10,7 @@ const db = new PGlite();
 await db.exec(`
 create role anon; create role authenticated; create role service_role;
 create schema auth;
-create table auth.users (id uuid primary key default gen_random_uuid(), email text, email_confirmed_at timestamptz);
+create table auth.users (id uuid primary key default gen_random_uuid(), email varchar(255), email_confirmed_at timestamptz);
 create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
 create function auth.jwt() returns jsonb language sql stable as $$ select jsonb_build_object('email', current_setting('request.jwt.claim.email', true)) $$;
 create function auth.role() returns text language sql stable as $$ select nullif(current_setting('request.jwt.claim.role', true), '') $$;

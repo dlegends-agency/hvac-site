@@ -127,12 +127,17 @@ function Thread({ role, conversation: c, upgradeHref, onBack, onChanged }: { rol
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const end = useRef<HTMLDivElement>(null);
   const count = useRef(0);
 
   const load = useCallback(async () => {
     const { data, error: err } = await getSupabaseBrowser().rpc("conversation_messages", { p_lead: c.lead_id, p_listing: c.listing_id });
-    if (err) return;
+    if (err) {
+      setLoadError(err.message || "unknown error");
+      return;
+    }
+    setLoadError(null);
     const rows = ((data as ChatMessage[] | null) ?? []).map((m) => ({ ...m, id: Number(m.id) }));
     setMessages(rows);
     if (rows.length !== count.current) {
@@ -176,7 +181,14 @@ function Thread({ role, conversation: c, upgradeHref, onBack, onChanged }: { rol
       </header>
 
       <div className="flex-1 space-y-3 overflow-y-auto bg-slate-50 px-4 py-4" role="log" aria-label="Messages" aria-live="polite">
-        {messages === null && <p className="flex items-center gap-2 text-sm text-slate-600"><Loader2 className="size-4 animate-spin" aria-hidden /> Loading…</p>}
+        {messages === null && !loadError && <p className="flex items-center gap-2 text-sm text-slate-600"><Loader2 className="size-4 animate-spin" aria-hidden /> Loading…</p>}
+        {loadError && (
+          <div role="alert" className="rounded-xl border border-orange-200 bg-orange-50 p-3 text-sm text-orange-900">
+            <p>This conversation couldn&apos;t be loaded. Make sure the latest <code>schema-messages.sql</code> has been run.</p>
+            <p className="mt-1 text-xs break-words text-orange-800">Details: {loadError}</p>
+            <button type="button" onClick={() => void load()} className="mt-2 font-semibold underline">Try again</button>
+          </div>
+        )}
         {messages?.length === 0 && <p className="text-center text-sm text-slate-500">No messages yet. Say hello below.</p>}
         {messages?.map((m) => (
           <div key={m.id} className={`flex ${m.mine ? "justify-end" : "justify-start"}`}>
