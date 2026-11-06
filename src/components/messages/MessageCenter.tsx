@@ -87,9 +87,9 @@ export function MessageCenter({ role, startLead, startListing, upgradeHref }: Pr
           <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-700">
             <MessageSquare className="mb-2 size-6 text-slate-400" aria-hidden />
             {role === "customer" ? (
-              <p>No messages yet. When a Featured business that received your request writes to you, it shows up here. You can also message one from <Link to="/account" className="font-semibold text-primary underline">your requests</Link>.</p>
+              <p>No messages yet. When a business that received your request unlocks it and writes to you, it shows up here.</p>
             ) : (
-              <p>No messages yet. Open a request on the <Link to="/contractor/leads" className="font-semibold text-primary underline">Leads</Link> page and choose <strong>Message</strong> to write to a customer.</p>
+              <p>No messages yet. Unlock a request on the <Link to="/contractor/leads" className="font-semibold text-primary underline">Leads</Link> page, then choose <strong>Message customer</strong>.</p>
             )}
           </div>
         ) : (
@@ -206,9 +206,9 @@ function Thread({ role, conversation: c, upgradeHref, onBack, onChanged }: { rol
       ) : (
         <p className="border-t border-slate-100 bg-amber-50 p-3 text-sm text-amber-900">
           {role === "business" ? (
-            <>Sending messages is part of the Featured plan.{upgradeHref && <> <Link to={upgradeHref} className="font-semibold underline">See plans</Link>.</>}</>
+            <>Messaging is locked. Unlock this request to message the customer.{upgradeHref && <> <Link to={upgradeHref} className="font-semibold underline">Go to your requests</Link>.</>}</>
           ) : (
-            "This business can't take new messages right now. You can call them from your requests."
+            "This business hasn't unlocked your request yet, so messaging isn't open. You can call them from your requests."
           )}
         </p>
       )}

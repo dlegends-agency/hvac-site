@@ -1,7 +1,6 @@
 import { Link, useSearchParams } from "react-router-dom";
 import { PageTitle, Panel } from "@/components/admin/widgets";
 import { MessageCenter } from "@/components/messages/MessageCenter";
-import { activePlan } from "@/lib/plans";
 import { useContractor } from "./context";
 
 /** Conversations with customers. ?lead=… opens (or starts) the conversation about one request. */
@@ -17,16 +16,13 @@ export default function ContractorMessages() {
       </>
     );
   }
-  const paid = activePlan(listing) !== "free";
-
   return (
     <>
       <PageTitle title="Messages" />
       <p className="mb-5 max-w-3xl text-sm text-slate-700">
-        Write to customers who sent you a request, and read their replies. Messages stay on HVACHelp, so the customer&apos;s phone and email stay private until you unlock the request.
-        {!paid && <> Sending messages is part of the Featured plan. <Link to="/contractor/billing" className="font-semibold text-primary underline">See plans</Link>.</>}
+        Write to customers who sent you a request, and read their replies. Messaging opens for a request once you have unlocked it. Until then it is locked.
       </p>
-      <MessageCenter role="business" startLead={params.get("lead")} startListing={listing.id} upgradeHref="/contractor/billing" />
+      <MessageCenter role="business" startLead={params.get("lead")} startListing={listing.id} upgradeHref="/contractor/leads" />
     </>
   );
 }

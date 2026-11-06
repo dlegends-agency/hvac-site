@@ -53,7 +53,7 @@ export function preview(c: Pick<Conversation, "last_body" | "last_sender">, role
 /** Turns what the database says went wrong into a sentence for a person. */
 export function sendError(message: string | undefined): string {
   const m = message ?? "";
-  if (/Featured/i.test(m)) return "Messages are for Featured businesses. This business can't take messages right now.";
+  if (/Unlock/i.test(m)) return "Messaging opens once the business has unlocked this request.";
   if (/Too many/i.test(m)) return "You've sent a lot of messages. Please wait a little before sending more.";
   if (/1 to 2000/.test(m)) return `A message must be between 1 and ${MAX_MESSAGE} characters.`;
   if (/Sign in/i.test(m)) return "Please sign in again.";

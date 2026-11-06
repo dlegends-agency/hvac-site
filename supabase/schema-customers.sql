@@ -23,7 +23,7 @@ as $$
   select l.id, l.created_at, l.issue, l.urgency, l.city, l.state, l.postal_code, l.street, l.description, l.status,
          coalesce((
            select jsonb_agg(jsonb_build_object(
-                    'listing_id', b.id, 'messages', (b.plan = 'featured' and (b.plan_until is null or b.plan_until > now())),
+                    'listing_id', b.id, 'messages', (a.unlocked_at is not null),
                     'name', b.business_name, 'slug', b.slug, 'city', b.city, 'state', b.state, 'phone', b.phone,
                     'status', a.contractor_status, 'sent_at', a.assigned_at, 'contacted_at', a.contacted_at
                   ) order by a.assigned_at)

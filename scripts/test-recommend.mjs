@@ -147,7 +147,7 @@ assert.equal(preview({ last_body: null, last_sender: null }, "customer"), "No me
 assert.equal(preview({ last_body: "See you at 9", last_sender: "customer" }, "customer"), "You: See you at 9");
 assert.equal(preview({ last_body: "See you at 9", last_sender: "customer" }, "business"), "See you at 9");
 assert.ok(preview({ last_body: "x".repeat(200), last_sender: "business" }, "customer").length <= 71, "long messages are clipped");
-assert.match(sendError("Messages are for Featured businesses"), /Featured/);
+assert.match(sendError("Unlock this request to send messages"), /unlocked/);
 assert.match(sendError("Too many messages. Please wait a little."), /wait/);
 assert.match(sendError("boom"), /try again/);
 

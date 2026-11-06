@@ -1,7 +1,7 @@
 -- Run AFTER schema-flow.sql. Supabase: SQL Editor > New query > paste > Run. Safe to re-run.
 -- Messages between a customer and a business that received their request.
---   * Only Featured (paid) businesses can send messages, and only to customers of requests they received.
---   * A customer can write to, and reply to, any Featured business that received their request.
+--   * A conversation opens when the business has paid to unlock the customer's request. Until then it is locked for both sides.
+--   * Once unlocked, the business can write to the customer and the customer can reply or write to that business.
 --   * Messages stay inside the site. A business never sees the customer's phone or email through a message.
 --   * Nobody reads the table directly: every read and write goes through the functions below, which check who is asking.
 --   * It also adds the customer-facing request log (my_request_log).
@@ -70,8 +70,8 @@ begin
   elsif public.is_customer_of_lead(p_lead) then v_sender := 'customer';
   else raise exception 'Not allowed' using errcode = '42501';
   end if;
-  if not public.listing_is_paid(p_listing) then
-    raise exception 'Messages are for Featured businesses' using errcode = '42501';
+  if not exists (select 1 from public.lead_assignments a where a.lead_id = p_lead and a.listing_id = p_listing and a.unlocked_at is not null) then
+    raise exception 'Unlock this request to send messages' using errcode = '42501';
   end if;
   if (select count(*) from public.lead_messages m where m.lead_id = p_lead and m.listing_id = p_listing and m.sender = v_sender
         and m.created_at > now() - interval '1 hour') >= 20 then
@@ -95,7 +95,7 @@ set search_path = public
 stable
 as $$
   select a.lead_id, a.listing_id, b.business_name, b.slug, l.issue, l.created_at,
-         public.listing_is_paid(b.id),
+         (a.unlocked_at is not null),
          lm.body, lm.sender, lm.created_at,
          (select count(*)::int from public.lead_messages m where m.lead_id = a.lead_id and m.listing_id = a.listing_id and m.sender = 'business' and m.read_at is null)
     from public.lead_assignments a
@@ -104,7 +104,7 @@ as $$
     left join lateral (select m.body, m.sender, m.created_at from public.lead_messages m
                         where m.lead_id = a.lead_id and m.listing_id = a.listing_id order by m.id desc limit 1) lm on true
    where public.is_customer_of_lead(a.lead_id)
-     and (lm.body is not null or public.listing_is_paid(b.id))
+     and (lm.body is not null or a.unlocked_at is not null)
    order by lm.created_at desc nulls last, a.assigned_at desc;
 $$;
 
@@ -125,7 +125,7 @@ as $$
   select a.lead_id, a.listing_id,
          case when a.unlocked_at is not null then l.first_name else 'Customer' end,
          l.issue, l.city, l.state, l.created_at,
-         public.listing_is_paid(a.listing_id),
+         (a.unlocked_at is not null),
          lm.body, lm.sender, lm.created_at,
          (select count(*)::int from public.lead_messages m where m.lead_id = a.lead_id and m.listing_id = a.listing_id and m.sender = 'customer' and m.read_at is null)
     from public.lead_assignments a
