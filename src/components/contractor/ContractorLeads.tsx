@@ -152,9 +152,12 @@ export default function ContractorLeads() {
   const paid = listing ? activePlan(listing) !== "free" : false;
   const price = paid ? leadPrice.paid : leadPrice.free;
 
-  // Coming back from Stripe: the webhook unlocks the request a moment after the payment, so check a few times.
+  // Coming back from Stripe: ask the server to check the payment with Stripe and unlock the request right away. The webhook does the
+  // same a moment later, so check a few more times in case it is the one that finishes.
+  const sessionId = params.get("session_id");
   useEffect(() => {
     if (!justPaid) return;
+    if (sessionId) void callApi("/api/stripe/confirm", { sessionId }).then(() => reload());
     let tries = 0;
     const timer = window.setInterval(() => {
       tries++;
@@ -165,7 +168,7 @@ export default function ContractorLeads() {
       }
     }, 3000);
     return () => window.clearInterval(timer);
-  }, [justPaid, reload]);
+  }, [justPaid, sessionId, reload]);
 
   // Stop saying "unlocking" as soon as the request that was just paid for has unlocked.
   const paidLead = params.get("lead");
@@ -218,6 +221,12 @@ export default function ContractorLeads() {
       {stillWaiting && (
         <p role="status" className="mb-5 flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-900">
           <Loader2 className="size-4 animate-spin" aria-hidden /> Payment received. Unlocking your request, this takes a few seconds…
+        </p>
+      )}
+
+      {justPaid && !waiting && !paidLeadOpen && (
+        <p role="alert" className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          Your payment went through but the request has not unlocked yet. Refresh this page in a minute. If it is still locked, contact us with the time of your payment and we will unlock it.
         </p>
       )}
 
