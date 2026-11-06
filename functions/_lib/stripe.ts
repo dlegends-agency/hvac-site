@@ -25,6 +25,14 @@ export const LEAD_PRICE_CENTS = { free: 1000, paid: 500 } as const;
 export const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 
+/** 501 naming the settings that are missing on the server (names only, never values), or null when payments are set up. */
+export function notConfigured(env: Env, also: [string, string | undefined][] = []): Response | null {
+  const missing = ([["STRIPE_SECRET_KEY", env.STRIPE_SECRET_KEY], ["SUPABASE_SERVICE_ROLE_KEY", env.SUPABASE_SERVICE_ROLE_KEY], ...also] as [string, string | undefined][])
+    .filter(([, value]) => !value)
+    .map(([name]) => name);
+  return missing.length ? json({ error: "Payments are not configured", missing }, 501) : null;
+}
+
 export const isPlan = (v: unknown): v is Plan => v === "featured";
 export const isInterval = (v: unknown): v is Interval => v === "month" || v === "year";
 

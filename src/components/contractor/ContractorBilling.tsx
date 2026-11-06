@@ -5,7 +5,7 @@ import { PageTitle, Panel } from "@/components/admin/widgets";
 import { Button } from "@/components/ui/Button";
 import { leadPrice, planName, plans, yearlySaving } from "@/config/pricing";
 import { activePlan } from "@/lib/plans";
-import { callApi } from "./api";
+import { callApi, paymentsNotReady } from "./api";
 import { useContractor } from "./context";
 
 type Interval = "month" | "year";
@@ -32,12 +32,12 @@ export default function ContractorBilling() {
   async function go(path: string, body: unknown, key: string) {
     setBusy(key);
     setError(null);
-    const res = await callApi<{ url?: string }>(path, body);
+    const res = await callApi<{ url?: string; missing?: string[] }>(path, body);
     if (res.data.url) return void window.location.assign(res.data.url);
     setBusy(null);
     setError(
       res.status === 501
-        ? "Online payments aren't switched on yet. Please contact us and we'll set up your plan."
+        ? paymentsNotReady(res, "Online payments aren't switched on yet. Please contact us and we'll set up your plan.")
         : res.status === 409
           ? "You already have an active subscription. Use \"Manage subscription\" below to change it."
           : "We couldn't start that. Please try again, or contact us if it keeps happening.",

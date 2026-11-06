@@ -1,7 +1,7 @@
 // POST /api/stripe/account  (Authorization: Bearer <Supabase access token>)
 // The signed-in contractor's card on file (brand, last 4, expiry only) and payment history, read from Stripe.
 // Full card numbers never reach this site: Stripe only ever returns the brand, last four digits and expiry.
-import { billingFor, getUser, json, ownedListingId, planForPrice, stripe, type Env } from "../../_lib/stripe";
+import { notConfigured, billingFor, getUser, json, ownedListingId, planForPrice, stripe, type Env } from "../../_lib/stripe";
 
 interface StripeCard {
   brand?: string;
@@ -39,7 +39,8 @@ const asCard = (pm: unknown) => {
 };
 
 export const onRequestPost = async ({ env, request }: { env: Env; request: Request }) => {
-  if (!env.STRIPE_SECRET_KEY || !env.SUPABASE_SERVICE_ROLE_KEY) return json({ error: "Payments are not configured" }, 501);
+  const notReady = notConfigured(env);
+  if (notReady) return notReady;
 
   const user = await getUser(env, request);
   if (!user) return json({ error: "Sign in required" }, 401);
