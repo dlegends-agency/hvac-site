@@ -1,0 +1,33 @@
+name: Permits import
+
+# Pulls recent public building permits from city open-data portals (Austin, Dallas) into the public_permits table.
+# Run it by hand: Actions > Permits import > Run workflow. See scripts/permits/README.md.
+
+on:
+  workflow_dispatch:
+    inputs:
+      perCity:
+        description: "How many of the newest permits to save for each city."
+        required: false
+        default: "10"
+
+permissions:
+  contents: read
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Import permits
+        run: node scripts/permits/index.mjs --per-city ${{ github.event.inputs.perCity || '10' }}
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SOCRATA_APP_TOKEN: ${{ secrets.SOCRATA_APP_TOKEN }}

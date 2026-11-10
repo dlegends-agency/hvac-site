@@ -52,6 +52,7 @@ const ContractorRecommendations = lazy(() => import("@/components/contractor/Con
 const ClaimsAdmin = lazy(() => import("@/components/admin/ClaimsAdmin").then((m) => ({ default: m.ClaimsAdmin })));
 const RecommendationsAdmin = lazy(() => import("@/components/admin/RecommendationsAdmin").then((m) => ({ default: m.RecommendationsAdmin })));
 const FlowLogs = lazy(() => import("@/components/admin/FlowLogs").then((m) => ({ default: m.FlowLogs })));
+const PermitsAdmin = lazy(() => import("@/components/admin/PermitsAdmin").then((m) => ({ default: m.PermitsAdmin })));
 const AnalyticsReport = lazy(() => import("@/components/admin/AnalyticsReport").then((m) => ({ default: m.AnalyticsReport })));
 
 export default function App() {
@@ -109,6 +110,7 @@ export default function App() {
             <Route path="listings/:id" element={<ListingEditor />} />
             <Route path="messages" element={<MessagesAdmin />} />
             <Route path="logs" element={<FlowLogs />} />
+            <Route path="permits" element={<PermitsAdmin />} />
             <Route path="seo-audit" element={<SeoAudit />} />
             <Route path="analytics" element={<AnalyticsReport />} />
           </Route>
