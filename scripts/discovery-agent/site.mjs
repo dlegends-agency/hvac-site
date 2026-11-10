@@ -1,6 +1,7 @@
 // Reads a business's OWN website politely (robots.txt respected) and extracts verifiable details.
 
 import * as cheerio from "cheerio";
+import { bestEmail, collectEmails } from "./email.mjs";
 import { BOT_NAME, STATES, UA, formatPhone, phoneDigits, sleep } from "./util.mjs";
 
 // ---------------------------------------------------------------- robots.txt
@@ -176,10 +177,11 @@ export function extractFromHtml(html) {
   }
   const address = addressFromJsonLd(ld?.address) ?? parseAddressText(text);
   const { services, emergency } = deriveServices(text);
-  return { title, h1, text, phone, address, ldName: ld?.name ?? null, hasJsonLd: Boolean(ld), services, emergency, score: hvacScore(text, `${title} ${h1}`), contactLink };
+  const emails = collectEmails($, typeof ld?.email === "string" ? ld.email : null, text);
+  return { title, h1, text, phone, address, emails, ldName: ld?.name ?? null, hasJsonLd: Boolean(ld), services, emergency, score: hvacScore(text, `${title} ${h1}`), contactLink };
 }
 
-/** Visits the homepage (and a contact page when phone/address are missing) and merges what it finds. */
+/** Visits the homepage (and up to two contact pages when the phone, address or email is missing) and merges what it finds. */
 export async function readSite(url, { politeMs = 800 } = {}) {
   const first = await fetchHtml(url);
   if (first.blocked) return { ok: false, reason: "robots.txt disallows reading this site" };
@@ -187,26 +189,34 @@ export async function readSite(url, { politeMs = 800 } = {}) {
   const page = extractFromHtml(first.html);
   const pages = [first.finalUrl ?? url];
 
-  if ((!page.phone || !page.address) && page.contactLink) {
-    try {
-      const next = new URL(page.contactLink, first.finalUrl ?? url);
-      if (next.origin === new URL(first.finalUrl ?? url).origin && next.href !== (first.finalUrl ?? url)) {
+  const base = first.finalUrl ?? url;
+  const missing = () => !page.phone || !page.address || !bestEmail(page.emails, base);
+  if (missing()) {
+    // The contact link on the page first, then the usual contact page addresses. Same site only, and never more than two extra pages.
+    const tries = [page.contactLink, "/contact", "/contact-us"].filter(Boolean);
+    let visited = 0;
+    for (const link of tries) {
+      if (visited >= 2 || !missing()) break;
+      try {
+        const next = new URL(link, base);
+        if (next.origin !== new URL(base).origin || pages.includes(next.href) || next.href === base) continue;
         await sleep(politeMs);
         const second = await fetchHtml(next.href);
-        if (second.html) {
-          const more = extractFromHtml(second.html);
-          pages.push(next.href);
-          page.phone ??= more.phone;
-          page.address ??= more.address;
-          page.text = `${page.text} ${more.text}`.slice(0, 60_000);
-          const merged = deriveServices(page.text);
-          page.services = merged.services;
-          page.emergency = merged.emergency;
-        }
+        visited++;
+        if (!second.html) continue;
+        const more = extractFromHtml(second.html);
+        pages.push(next.href);
+        page.phone ??= more.phone;
+        page.address ??= more.address;
+        page.emails = [...page.emails, ...more.emails];
+        page.text = `${page.text} ${more.text}`.slice(0, 60_000);
+        const merged = deriveServices(page.text);
+        page.services = merged.services;
+        page.emergency = merged.emergency;
+      } catch {
+        // ignore a bad contact link
       }
-    } catch {
-      // ignore a bad contact link
     }
   }
-  return { ok: true, pages, ...page };
+  return { ok: true, pages, email: bestEmail(page.emails, base), ...page };
 }

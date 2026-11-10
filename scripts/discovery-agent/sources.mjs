@@ -1,5 +1,6 @@
 // Lead sources. Both are free: OpenStreetMap (Nominatim + Overpass, no key) and an optional Tavily web search (free tier key).
 
+import { cleanEmail } from "./email.mjs";
 import { UA, cleanUrl, formatPhone, hostOf, isBlockedHost, sleep, stateName } from "./util.mjs";
 
 const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter", "https://overpass.kumi.systems/api/interpreter"];
@@ -40,6 +41,7 @@ export function mapOsmElement(el) {
     externalId: `osm:${el.type}/${el.id}`,
     name: t.name,
     phone: formatPhone(t.phone || t["contact:phone"]),
+    email: cleanEmail(t.email || t["contact:email"]),
     website: website && !isBlockedHost(host) ? website : null,
     street,
     city: t["addr:city"] ?? null,

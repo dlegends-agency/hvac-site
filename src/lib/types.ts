@@ -197,6 +197,7 @@ export interface ListingCandidate {
   state: string | null;
   postal_code: string | null;
   phone: string | null;
+  email: string | null;
   website: string | null;
   source_url: string | null;
   services: string[];

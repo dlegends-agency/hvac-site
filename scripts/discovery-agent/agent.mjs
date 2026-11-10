@@ -27,6 +27,7 @@ export function decide(lead, site, llm, location) {
   const verified = Boolean(site?.ok && (llm ? llm.isHvac : site.score >= MIN_SCORE));
   const addr = site?.address;
   const phone = formatPhone(llm?.phone) ?? site?.phone ?? lead.phone ?? null;
+  const email = site?.ok && site.email ? site.email : lead.email ?? null; // from the business's own website first, then OpenStreetMap
   const city = llm?.city ?? addr?.city ?? lead.city ?? (lead.origin === "osm" ? target.city : null);
   const state = stateName(llm?.state ?? addr?.state) ?? lead.state ?? target.state;
   const street = llm?.street ?? addr?.street ?? lead.street ?? null;
@@ -35,6 +36,7 @@ export function decide(lead, site, llm, location) {
   const emergency = Boolean(llm?.emergency || (site?.ok && site.emergency));
 
   if (!phone) notes.push("No phone number found");
+  if (!email) notes.push("No email address found");
   if (lead.origin === "web" && llm && !llm.servesTarget) notes.push("May not serve the target area");
   if (verified) notes.push("Details read from the business's own website");
 
@@ -42,6 +44,7 @@ export function decide(lead, site, llm, location) {
   if (lead.origin === "osm") confidence += 15;
   if (verified) confidence += 30;
   if (phone) confidence += 15;
+  if (email) confidence += 5;
   if (street && city) confidence += 10;
   if (services.length) confidence += 5;
   if (site?.hasJsonLd) confidence += 5;
@@ -59,6 +62,7 @@ export function decide(lead, site, llm, location) {
       state,
       postal_code: postal,
       phone,
+      email,
       website: lead.website,
       source_url: site?.ok ? site.pages[0] : lead.origin === "osm" ? `https://www.openstreetmap.org/${lead.externalId.slice(4)}` : lead.website,
       services,
@@ -68,6 +72,46 @@ export function decide(lead, site, llm, location) {
       notes: notes.join(". "),
     },
   };
+}
+
+/**
+ * Looks for the public contact email of businesses that have a website but no email yet (directory listings and candidates).
+ * Reads each business's own site (robots.txt respected, about one request a second) and fills only an empty email field.
+ * `readSiteFn` can be replaced in tests.
+ */
+export async function runBackfill(db, { limit = 40, log = () => {}, dryRun = false, readSiteFn = readSite } = {}) {
+  const lines = [];
+  const say = (m) => {
+    lines.push(m);
+    log(m);
+  };
+  const runId = dryRun ? null : await db.startRun(null);
+  let status = "ok";
+  let checked = 0;
+  let found = 0;
+  try {
+    const items = await db.listMissingEmail(limit);
+    say(`Email search: ${items.length} businesses with a website and no email address.`);
+    await mapConcurrent(items, 3, async (item) => {
+      const site = await readSiteFn(item.website);
+      const email = site?.ok ? site.email ?? null : null;
+      checked++;
+      if (email) {
+        found++;
+        if (!dryRun) await db.saveEmail(item, email);
+        say(`Email found: ${item.name} (${email}).`);
+      } else {
+        say(`No email: ${item.name} (${site?.ok ? "none published on the site" : site?.reason ?? "site not read"}).`);
+      }
+      if (!dryRun) await db.markChecked(item, Boolean(email));
+    });
+    say(`Email search done: ${found} of ${checked} businesses have an email address now.`);
+  } catch (e) {
+    status = `error: ${e.message}`;
+    say(`Email search failed: ${e.message}`);
+  }
+  if (!dryRun) await db.finishRun(runId, { status, found, log: lines.slice(-200) });
+  return { status, checked, found, lines };
 }
 
 /** Runs one job. `env` supplies optional keys (TAVILY_API_KEY, GEMINI_API_KEY, GROQ_API_KEY). */
