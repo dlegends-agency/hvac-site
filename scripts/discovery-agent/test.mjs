@@ -1,20 +1,28 @@
 // Offline tests for the agent's pure logic. Run: npm run discover:test
 import assert from "node:assert/strict";
-import { decide } from "./agent.mjs";
-import { buildKnown, isKnown } from "./db.mjs";
+import { decide, runBackfill } from "./agent.mjs";
+import { bestEmail, cleanEmail, collectEmails, decodeCfEmail, deobfuscate } from "./email.mjs";
+import * as cheerio from "cheerio";
+import { buildKnown, createMemoryDb, isKnown } from "./db.mjs";
 import { validateExtraction } from "./llm.mjs";
 import { mapOsmElement } from "./sources.mjs";
 import { deriveServices, extractFromHtml, parseAddressText, parseRobots, robotsAllows } from "./site.mjs";
 import { cleanUrl, formatPhone, hostOf, isBlockedHost, isDue, mapConcurrent, parseLocation } from "./util.mjs";
 
 let passed = 0;
+const pending = [];
+const fail = (name, e) => {
+  console.error(`FAIL ${name}
+`, e);
+  process.exitCode = 1;
+};
 const test = (name, fn) => {
   try {
-    fn();
-    passed++;
+    const result = fn();
+    if (result && typeof result.then === "function") pending.push(result.then(() => void passed++, (e) => fail(name, e)));
+    else passed++;
   } catch (e) {
-    console.error(`FAIL ${name}\n`, e);
-    process.exitCode = 1;
+    fail(name, e);
   }
 };
 
@@ -139,4 +147,56 @@ test("mapConcurrent keeps order", async () => {
   assert.deepEqual(out, [6, 2, 4]);
 });
 
+test("email: cleaning and ranking", () => {
+  assert.equal(cleanEmail("mailto:Info@Acme-HVAC.com?subject=Hi"), "info@acme-hvac.com");
+  assert.equal(cleanEmail("logo@2x.png"), null, "an image file name is not an email");
+  assert.equal(cleanEmail("you@example.com"), null, "a placeholder");
+  assert.equal(cleanEmail("noreply@acme.com"), null);
+  assert.equal(cleanEmail("a@b"), null);
+  assert.equal(deobfuscate("info [at] acme [dot] com"), "info@acme.com");
+  // same domain beats everything, a role box beats a personal one, and a third party's address is ignored
+  assert.equal(bestEmail(["bob@gmail.com", "info@acme-hvac.com", "designer@webagency.com"], "https://www.acme-hvac.com"), "info@acme-hvac.com");
+  assert.equal(bestEmail(["jim@acme-hvac.com", "office@acme-hvac.com"], "https://acme-hvac.com"), "office@acme-hvac.com");
+  assert.equal(bestEmail(["acmehvac@gmail.com"], "https://acme-hvac.com"), "acmehvac@gmail.com", "small contractors often use a free mailbox");
+  assert.equal(bestEmail(["designer@webagency.com"], "https://acme-hvac.com"), null);
+});
+
+test("email: found in mailto, schema.org, Cloudflare protection and plain text", () => {
+  const hex = (email, key = 0x42) => key.toString(16).padStart(2, "0") + [...email].map((c) => (c.charCodeAt(0) ^ key).toString(16).padStart(2, "0")).join("");
+  assert.equal(decodeCfEmail(hex("office@acme-hvac.com")), "office@acme-hvac.com");
+  const html = `<html><body><a href="mailto:Service@Acme-HVAC.com">Email us</a><span class="__cf_email__" data-cfemail="${hex("office@acme-hvac.com")}">[email protected]</span><p>Or write sales (at) acme-hvac.com</p><img src="logo@2x.png"></body></html>`;
+  const $ = cheerio.load(html);
+  const found = collectEmails($, "info@acme-hvac.com", $("body").text());
+  assert.ok(found.includes("info@acme-hvac.com") && found.includes("service@acme-hvac.com") && found.includes("office@acme-hvac.com"));
+  assert.ok(!found.some((e) => e.includes("2x.png")));
+  const page = extractFromHtml(`<html><head><title>Acme HVAC</title></head><body><h1>HVAC</h1><a href="mailto:hello@acme-hvac.com">hi</a></body></html>`);
+  assert.deepEqual(page.emails, ["hello@acme-hvac.com"]);
+});
+
+test("email: a candidate carries the email (own site first, then OpenStreetMap)", () => {
+  const lead = { origin: "osm", externalId: "osm:node/1", name: "Acme Heating", phone: null, email: "osm@acme-hvac.com", website: "https://acme-hvac.com", street: null, city: "Austin", state: "Texas", postal_code: null };
+  assert.equal(decide(lead, null, null, "Austin, TX").row.email, "osm@acme-hvac.com");
+  const site = { ok: true, pages: ["https://acme-hvac.com"], phone: null, address: null, services: [], emergency: false, score: 10, hasJsonLd: false, email: "info@acme-hvac.com", text: "" };
+  assert.equal(decide(lead, site, null, "Austin, TX").row.email, "info@acme-hvac.com", "the business's own site wins");
+  assert.match(decide({ ...lead, email: null }, null, null, "Austin, TX").row.notes, /No email address found/);
+  assert.equal(mapOsmElement({ type: "node", id: 1, tags: { name: "Acme", "contact:email": "Info@Acme.com" } }).email, "info@acme.com");
+});
+
+test("email: the search for existing businesses fills only what it finds", async () => {
+  const missing = [
+    { ref: "listing:1", id: "1", kind: "listing", name: "Has Email Co", website: "https://a.test" },
+    { ref: "listing:2", id: "2", kind: "listing", name: "No Email Co", website: "https://b.test" },
+    { ref: "candidate:3", id: "3", kind: "candidate", name: "Blocked Co", website: "https://c.test" },
+  ];
+  const db = createMemoryDb({ missing });
+  const sites = { "https://a.test": { ok: true, email: "info@a.test" }, "https://b.test": { ok: true, email: null }, "https://c.test": { ok: false, reason: "robots.txt disallows reading this site" } };
+  const result = await runBackfill(db, { limit: 10, readSiteFn: async (u) => sites[u] });
+  assert.deepEqual([result.status, result.checked, result.found], ["ok", 3, 1]);
+  assert.deepEqual(db.state.saved, [{ ref: "listing:1", email: "info@a.test" }]);
+  assert.deepEqual([...db.state.checked.entries()].sort(), [["candidate:3", false], ["listing:1", true], ["listing:2", false]]);
+  const again = await runBackfill(db, { limit: 10, readSiteFn: async () => assert.fail("already checked, so not visited again") });
+  assert.equal(again.checked, 0, "businesses already looked at are skipped");
+});
+
+await Promise.all(pending);
 console.log(`${passed} tests passed${process.exitCode ? " (with failures)" : ""}`);

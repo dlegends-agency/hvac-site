@@ -1,9 +1,10 @@
 // CLI entry. Usage:
 //   node scripts/discovery-agent/index.mjs                         run every due job (needs SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY)
 //   node scripts/discovery-agent/index.mjs --job <uuid>            run one job now
+//   node scripts/discovery-agent/index.mjs --backfill-emails [--limit 200]   look for the email of businesses that have a website but no email
 //   node scripts/discovery-agent/index.mjs --dry-run --location "Austin, TX" [--max 10]   no database needed; prints what it would save
 
-import { runJob } from "./agent.mjs";
+import { runBackfill, runJob } from "./agent.mjs";
 import { buildKnown, createMemoryDb, createSupabaseDb } from "./db.mjs";
 import { isDue } from "./util.mjs";
 
@@ -34,11 +35,17 @@ if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
 }
 
 const db = createSupabaseDb(env);
+
+if (flag("backfill-emails")) {
+  const result = await runBackfill(db, { limit: Number(arg("limit") ?? 200), log });
+  process.exit(result.status === "ok" ? 0 : 1);
+}
+
 const only = arg("job") ?? (env.JOB_ID || undefined);
 const jobs = only ? [await db.getJob(only)].filter(Boolean) : (await db.listJobs()).filter((j) => isDue(j));
 if (!jobs.length) {
-  log(only ? `Job ${only} not found.` : "No jobs are due.");
-  process.exit(0);
+  log(only ? `Job ${only} not found.` : "No searches are due.");
+  if (only) process.exit(0);
 }
 let failed = false;
 for (const job of jobs) {
@@ -46,4 +53,8 @@ for (const job of jobs) {
   const result = await runJob(job, db, env, { log });
   if (result.status !== "ok") failed = true;
 }
+// Every scheduled run also looks for the email of a batch of businesses that have none yet.
+log("\n=== Email search ===");
+const emailRun = await runBackfill(db, { limit: Number(env.BACKFILL_LIMIT ?? 40), log });
+if (emailRun.status !== "ok") failed = true;
 process.exit(failed ? 1 : 0);

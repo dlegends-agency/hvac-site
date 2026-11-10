@@ -52,13 +52,29 @@ export function createSupabaseDb(env) {
       if (rows.length) must(await sb.from("listing_candidates").upsert(rows, { onConflict: "external_id", ignoreDuplicates: true }));
     },
     updateJob: async (id, patch) => must(await sb.from("discovery_jobs").update(patch).eq("id", id)),
+    // Businesses with a website but no email yet (directory listings and candidates), skipping any looked at in the last 30 days.
+    listMissingEmail: async (limit) => {
+      const since = new Date(Date.now() - 30 * 864e5).toISOString();
+      const recent = new Set(must(await sb.from("discovery_email_checks").select("ref").gt("checked_at", since)).map((r) => r.ref));
+      const listings = must(await sb.from("listings").select("id,business_name,website").not("website", "is", null).or("email.is.null,email.eq.").order("created_at", { ascending: false }).limit(1000))
+        .filter((l) => l.website && !recent.has(`listing:${l.id}`)).map((l) => ({ ref: `listing:${l.id}`, id: l.id, kind: "listing", name: l.business_name, website: l.website }));
+      const candidates = must(await sb.from("listing_candidates").select("id,name,website").not("website", "is", null).is("email", null).limit(1000))
+        .filter((c) => c.website && !recent.has(`candidate:${c.id}`)).map((c) => ({ ref: `candidate:${c.id}`, id: c.id, kind: "candidate", name: c.name, website: c.website }));
+      return [...candidates, ...listings].slice(0, limit);
+    },
+    // Only fills an empty email: an address a contractor or an admin typed in is never overwritten.
+    saveEmail: async (item, email) => {
+      if (item.kind === "listing") must(await sb.from("listings").update({ email }).eq("id", item.id).or("email.is.null,email.eq."));
+      else must(await sb.from("listing_candidates").update({ email }).eq("id", item.id).is("email", null));
+    },
+    markChecked: async (item, found) => must(await sb.from("discovery_email_checks").upsert({ ref: item.ref, found, checked_at: new Date().toISOString() }, { onConflict: "ref" })),
     startRun: async (jobId) => (must(await sb.from("discovery_runs").insert({ job_id: jobId, status: "running" }).select("id")))[0]?.id,
     finishRun: async (runId, patch) => must(await sb.from("discovery_runs").update({ ...patch, finished_at: new Date().toISOString() }).eq("id", runId)),
   };
 }
 
-export function createMemoryDb({ jobs = [], known = buildKnown({}) } = {}) {
-  const state = { candidates: [], runs: [], jobs };
+export function createMemoryDb({ jobs = [], known = buildKnown({}), missing = [] } = {}) {
+  const state = { candidates: [], runs: [], jobs, missing, saved: [], checked: new Map() };
   return {
     kind: "memory",
     state,
@@ -67,6 +83,9 @@ export function createMemoryDb({ jobs = [], known = buildKnown({}) } = {}) {
     loadKnown: async () => known,
     insertCandidates: async (rows) => void state.candidates.push(...rows),
     updateJob: async (id, patch) => void Object.assign(state.jobs.find((j) => j.id === id) ?? {}, patch),
+    listMissingEmail: async (limit) => state.missing.filter((m) => !state.checked.has(m.ref)).slice(0, limit),
+    saveEmail: async (item, email) => void state.saved.push({ ref: item.ref, email }),
+    markChecked: async (item, found) => void state.checked.set(item.ref, found),
     startRun: async () => {
       state.runs.push({ log: [] });
       return state.runs.length - 1;

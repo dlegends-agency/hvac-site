@@ -11,11 +11,19 @@ For each search (location + max results) it:
 3. **Skips** anything already in your directory, already a candidate, or previously rejected (matched by website, phone and name).
 4. **Checks each business's own website** (robots.txt respected, identifies itself as `HVACHelpBot`, about 1 request per second): reads structured data, `tel:` links, address and the services it offers, and whether it advertises 24/7 or emergency service.
 5. **Decides**: drops directories, social pages, parts suppliers and sites that don't read like an HVAC contractor. Scores the rest (0-100 confidence). Details confirmed on the business's own site are marked **Verified**.
-6. **Saves candidates** to Supabase and writes a run log you can read in the admin ("Agent activity").
+6. **Reads the public contact email** from the business's own site: `mailto:` links, schema.org data, Cloudflare-protected addresses and plain text (also "info [at] name [dot] com"), checking up to two contact pages. Only an address on the business's own domain or a free mailbox such as Gmail counts, so a web designer's address is ignored; role boxes (`info@`, `office@`) rank first. It is a lead for an admin to check and is never emailed automatically.
+7. **Saves candidates** to Supabase and writes a run log you can read in the admin ("Agent activity").
 
 Nothing is published automatically: an admin imports a candidate as a **pending** listing and publishes it after checking.
 
 Optional free AI help: set `GEMINI_API_KEY` (Google AI Studio, no billing) or `GROQ_API_KEY` and the agent also asks a model to classify each site and extract fields. Website text is treated as untrusted data and the model's answer is validated field by field.
+
+## Email search for businesses already in the directory
+
+Every scheduled run also checks a batch (40) of directory listings and candidates that have a website but no email, reads the site and fills the empty email field. It never overwrites an email someone typed in, and it skips businesses it looked at in the last 30 days (`discovery_email_checks`).
+
+- Run it for everything now: GitHub > **Actions > Discovery agent > Run workflow**, set **emailsOnly** to `true` and **emailLimit** to how many to check (for example 300). Or locally: `node scripts/discovery-agent/index.mjs --backfill-emails --limit 300` (needs `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`).
+- Needs the column from `supabase/update-2026-11-10-emails.sql` (or the latest `schema-discovery.sql`).
 
 ## Setup (about 10 minutes)
 
@@ -57,6 +65,8 @@ SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... node scripts/discovery-agent/inde
 - `agent.mjs`: `decide(lead, site, llm, location)`, `runJob(job, db, env, { log, dryRun })`.
 - `db.mjs`: `buildKnown`, `isKnown`, `createSupabaseDb(env)`, `createMemoryDb(...)`.
 - `sources.mjs`: `geocode`, `mapOsmElement`, `findOsm` (fixture via `OSM_FIXTURE`), `findWeb`.
+- `email.mjs`: `cleanEmail`, `rankEmails`, `bestEmail`, `collectEmails`, `decodeCfEmail`, `deobfuscate`.
+- `agent.mjs` also exports `runBackfill(db, { limit, log, dryRun })`.
 - `site.mjs`: `parseRobots`, `robotsAllows`, `parseAddressText`, `deriveServices`, `hvacScore`, `extractFromHtml`, `readSite`.
 - `llm.mjs`: `detectProvider`, `validateExtraction`, `extractWithLlm` (Gemini or Groq).
 - `util.mjs`: `SITE_URL`, `BOT_NAME`, `UA`, `sleep`, `BLOCKED_HOSTS`, `hostOf`, `isBlockedHost`, `cleanUrl`, `phoneDigits`, `formatPhone`, `STATES`, `stateName`, `parseLocation`, `isDue`, `mapConcurrent`.

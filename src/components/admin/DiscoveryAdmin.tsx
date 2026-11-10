@@ -131,7 +131,7 @@ export function DiscoveryAdmin() {
         row: {
           id, slug: `${slugify(`${c.name} ${city}`)}-${id.slice(0, 4)}`, status: "pending", source: "agent", source_url: c.source_url,
           attribution: c.origin === "osm" && !c.verified ? OSM_ATTRIBUTION : null,
-          business_name: c.name, phone: c.phone, website: c.website, address: c.address, city, state: c.state ?? "Texas", postal_code: c.postal_code,
+          business_name: c.name, phone: c.phone, email: c.email, website: c.website, address: c.address, city, state: c.state ?? "Texas", postal_code: c.postal_code,
           services: c.services, emergency_service: c.emergency,
         },
       };
@@ -145,7 +145,7 @@ export function DiscoveryAdmin() {
     await supabase.from("listing_private").insert(
       rows.map(({ candidate: c, row }) => ({
         listing_id: row.id,
-        admin_notes: `Found by the discovery agent on ${date} (confidence ${c.confidence}%). ${c.notes ?? ""} Verify every detail on the business's own website before publishing.`.trim(),
+        admin_notes: `Found by the discovery agent on ${date} (confidence ${c.confidence}%). ${c.notes ?? ""} ${c.email ? `Email read from the business's own website (${c.email}). ` : ""}Verify every detail on the business's own website before publishing.`.trim(),
       })),
     );
     await supabase.from("listing_candidates").delete().in("id", list.map((c) => c.id));
@@ -167,7 +167,8 @@ export function DiscoveryAdmin() {
         <Info className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden />
         <p>
           The <strong>discovery agent</strong> is free to run: it looks up HVAC businesses on OpenStreetMap (and web search when configured), then visits each business&apos;s
-          <strong> own website</strong> to confirm the phone, address and services, respecting robots.txt. It does not scrape Google. Candidates it can confirm are marked
+          <strong> own website</strong> to confirm the phone, address and services and to read the public contact <strong>email address</strong>, respecting robots.txt. It does not scrape Google.
+          It also looks for the email of businesses already in the directory that have a website but no email. Emails are for you to review: nothing is sent to them automatically. Candidates it can confirm are marked
           <strong> Verified</strong>; you still review each one before it becomes a pending listing.
         </p>
       </div>
@@ -305,7 +306,10 @@ export function DiscoveryAdmin() {
                           {c.emergency && <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700">24/7 emergency</span>}
                         </p>
                         <p className="text-sm text-slate-600">{[c.address, c.city, c.state, c.postal_code].filter(Boolean).join(", ") || "No address"}</p>
-                        <p className="mt-0.5 text-sm text-slate-600">{c.phone ?? "No phone"}</p>
+                        <p className="mt-0.5 flex flex-wrap gap-x-4 text-sm text-slate-600">
+                          <span>{c.phone ?? "No phone"}</span>
+                          {c.email ? <a href={`mailto:${c.email}`} className="font-medium text-primary hover:underline">{c.email}</a> : <span className="text-slate-400">No email found</span>}
+                        </p>
                         {c.services.length > 0 && (
                           <ul className="mt-2 flex flex-wrap gap-1.5">
                             {c.services.map((s) => <li key={s} className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">{s}</li>)}
