@@ -19,12 +19,16 @@ create table if not exists public.public_permits (
   address        text,
   zip            text,
   contractor_name text,
+  people         jsonb not null default '[]'::jsonb,                            -- contractors and applicant: role, company, name, phone, email, address
   source_url     text,
   unique (source, source_id)
 );
 create index if not exists public_permits_issued_idx on public.public_permits (issued_on desc nulls last);
 create index if not exists public_permits_trade_idx on public.public_permits (trade);
 create index if not exists public_permits_city_idx on public.public_permits (city);
+
+-- Added later: the people on the permit.
+alter table public.public_permits add column if not exists people jsonb not null default '[]'::jsonb;
 
 -- Only heating, cooling and ventilation permits are kept. Anything else saved earlier is removed, and the database refuses new ones.
 delete from public.public_permits where trade <> 'HVAC';

@@ -1,9 +1,9 @@
 // Offline tests for the permit classifier and the city mappers. Run: npm run permits:test
 import assert from "node:assert/strict";
-import { buildPermit, classifyProperty, classifyTrade, cleanDescription, dedupe, summarize } from "./classify.mjs";
+import { buildPermit, buildPerson, phoneText, classifyProperty, classifyTrade, cleanDescription, dedupe, summarize } from "./classify.mjs";
 import { dallasDate, mapAustin, mapDallas } from "./sources.mjs";
 import { ageInDays, scorePermit } from "../../src/lib/permit-score.ts";
-import { permitTitle } from "../../src/lib/permits.ts";
+import { matchDirectory, permitTitle } from "../../src/lib/permits.ts";
 
 let passed = 0;
 const test = (name, fn) => {
@@ -115,6 +115,41 @@ test("card title is short and readable", () => {
   assert.equal(permitTitle({ description: "", permit_type: "Mechanical Permit" }), "Mechanical Permit");
   assert.ok(permitTitle({ description: "word ".repeat(40), permit_type: "x" }).length <= 66);
   assert.equal(permitTitle({ description: "Replacement of complete existing central heat and air system", permit_type: "x" }), "Replacement of complete existing central heat and air system");
+});
+
+test("people on a permit: contractor details from the open data", () => {
+  assert.equal(phoneText("5129943000"), "(512) 994-3000");
+  assert.equal(phoneText("15129943000"), "(512) 994-3000");
+  assert.equal(phoneText("994-3000"), null);
+  assert.equal(buildPerson({ role: "Mechanical Contractor" }), null, "no company and no name is not a person");
+  const a = mapAustin({ permit_number: "2026-145369 MP", permit_type_desc: "Mechanical Permit", issue_date: "2026-11-09T00:00:00.000", mechanical_valuation: "1000000", original_address1: "13401 ESCARPMENT BLVD", link: { url: "https://abc.austintexas.gov/x" },
+    contractor_trade: "Mechanical Contractor", contractor_company_name: "Team Services", contractor_full_name: "Glen Smith", contractor_phone: "5129943000", contractor_address2: "2201  PATTER", contractor_city: "PFLUGERVILLE", contractor_zip: "78660-____" });
+  assert.equal(a.people.length, 1);
+  assert.deepEqual(a.people[0], { role: "Mechanical Contractor", company: "Team Services", name: "Glen Smith", phone: "(512) 994-3000", email: null, address: "2201 PATTER", city: "PFLUGERVILLE", state: "TX", zip: "78660" });
+  const withApplicant = mapAustin({ permit_number: "2", permit_type_desc: "Mechanical Permit", issue_date: "2026-11-09T00:00:00.000", contractor_company_name: "Cool Co", applicant_full_name: "Pat Lee", applicant_org: "Navcon Group", applicant_phone: "5125312800", applicant_address1: "4801 University Blvd" });
+  assert.deepEqual(withApplicant.people.map((p) => [p.role, p.company, p.phone]), [["Contractor", "Cool Co", null], ["Applicant", "Navcon Group", "(512) 531-2800"]]);
+  const d = mapDallas({ permit_number: "COM-ME-1", permit_type: "Commercial Mechanical Permit", issued_date: "10/15/26", street_address: "1 A St, Dallas, TX", contractor: "ACME MECHANICAL" });
+  assert.deepEqual(d.people.map((p) => [p.role, p.company]), [["Contractor", "ACME MECHANICAL"]]);
+  assert.deepEqual(mapAustin({ permit_number: "3", permit_type_desc: "Mechanical Permit", issue_date: "2026-11-09T00:00:00.000" }).people, [], "none when the city lists none");
+});
+
+test("a contractor is matched to the directory by phone or by name", () => {
+  const dir = [
+    { id: "1", business_name: "Team Services, LLC", slug: "team", phone: "(512) 994-3000", email: "info@teamservicestx.com", website: null, city: "Pflugerville" },
+    { id: "2", business_name: "McCullough Heating & Air", slug: "mc", phone: null, email: "hi@mccullough.com", website: "https://mccullough.com", city: "Austin" },
+  ];
+  assert.equal(matchDirectory({ company: "Someone Else", name: null, phone: "(512) 994-3000" }, dir)?.id, "1", "same phone number");
+  assert.equal(matchDirectory({ company: "McCullough Heating & Air Inc.", name: null, phone: null }, dir)?.id, "2", "same name, ignoring Inc and punctuation");
+  assert.equal(matchDirectory({ company: "Unknown HVAC", name: "Bob", phone: "(555) 123-4567" }, dir), null);
+  assert.equal(matchDirectory({ company: "Co", name: null, phone: null }, dir), null, "a name that short is not matched");
+});
+
+test("the score has four parts that add up", () => {
+  const cover = { cities: new Set(["austin"]), stateCovered: true };
+  const r = scorePermit({ issued_on: "2026-11-09", value_usd: 30000, city: "Austin", description: "replace condenser", permit_type: "Mechanical Permit", property_class: "residential" }, cover, Date.parse("2026-11-11T00:00:00Z"));
+  assert.deepEqual(r.parts.map((x) => x.label), ["Freshness", "Project value", "Kind and size of job", "Service area"]);
+  assert.equal(r.parts.reduce((s, x) => s + x.points, 0), r.score);
+  assert.ok(r.parts.every((x) => x.points <= x.max));
 });
 
 console.log(`${passed} permit tests passed`);
