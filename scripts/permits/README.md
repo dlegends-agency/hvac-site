@@ -26,6 +26,12 @@ For each permit it:
 
 Each permit keeps the people the city publishes: the contractor's **role** (for example Mechanical Contractor), **company**, **contact name**, **phone**, **address**, city and ZIP, and the applicant when the city lists one. In Admin > Permits, click a permit to see them. Austin's open data has no **email addresses** and no **general contractor** (those are on the city's own People Details page, which sits behind a bot check that this importer does not bypass), and it cuts the street name off at 12 characters. Dallas lists only the contractor's name. The admin page fills in an email when the same phone number or business name is already in your directory ("from your directory"), and every permit links to the city record.
 
+## Contractor emails
+
+The city data has no emails, so every import also looks for each contractor's email, in this order, and stops at the first answer: (1) a business in your directory or the discovery candidates with the same **phone number or name**, (2) a **web search** for the company when `TAVILY_API_KEY` is set (free key from tavily.com, 1,000 searches a month, add it as a GitHub secret), (3) likely **website addresses** built from the company name (for example `teamservicestx.com`). A website only counts when the contractor's own **phone number is on it**, then its published email is read by the same code as the discovery agent (robots.txt respected, about one request a second). Answers, including "none found", are remembered for 30 days in `contractor_contacts`, so only new contractors are looked up each day (150 per run, `--email-limit`; `--no-emails` skips this step).
+
+Without the search key about 1 contractor in 10 gets an email (name guessing is hit or miss, and many contractors' sites block automated visits or publish only a contact form). The search key is what makes it work for most. Some contractors publish no email at all.
+
 Property owners' names are never read or saved. Permit records are public, but nothing here contacts anyone.
 
 ## Run it
@@ -47,5 +53,6 @@ The same permit is never saved twice (`source` + the city's permit number).
 
 - `classify.mjs`: `classifyTrade`, `classifyProperty`, `cleanDescription`, `summarize`, `dedupe`, `buildPermit`.
 - `sources.mjs`: `fetchAustin`, `fetchDallas`, `mapAustin`, `mapDallas`, `dallasDate`, `SOURCES`.
+- `contacts.mjs`: `contactKey`, `domainGuesses`, `pageHasPhone`, `findContractorEmail`, `enrichPermits`, `makeSearch` (contractor emails).
 - `index.mjs`: the command line (`--days`, `--per-city`, `--cities`, `--dry-run`, `--served`).
 - `test.mjs`: offline tests.
