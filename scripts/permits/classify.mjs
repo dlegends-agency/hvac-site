@@ -106,8 +106,32 @@ export function dedupe(permits) {
   });
 }
 
+const tidy = (v) => (v === null || v === undefined ? null : String(v).replace(/_+/g, "").replace(/\s+/g, " ").trim() || null);
+
+/** "5129943000" becomes "(512) 994-3000"; anything that is not a 10 digit number is dropped. */
+export function phoneText(v) {
+  const d = String(v ?? "").replace(/\D/g, "").replace(/^1(?=\d{10}$)/, "");
+  return d.length === 10 ? `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}` : null;
+}
+
+/** One person or company on a permit (a contractor or the applicant), with only the details that exist. */
+export function buildPerson({ role, company, name, phone, email, address, city, state, zip }) {
+  const person = {
+    role: tidy(role) ?? "Contractor",
+    company: tidy(company),
+    name: tidy(name),
+    phone: phoneText(phone),
+    email: tidy(email)?.toLowerCase() ?? null,
+    address: tidy(address),
+    city: tidy(city),
+    state: tidy(state),
+    zip: tidy(zip)?.replace(/-$/, "") ?? null,
+  };
+  return person.company || person.name ? person : null;
+}
+
 /** Turns the pieces a source gives us into the row we save. */
-export function buildPermit({ source, sourceId, city, type, workClass, description, contractorTrade, label, landUse, issuedOn, valueUsd, address, zip, contractor, url }) {
+export function buildPermit({ source, sourceId, city, type, workClass, description, contractorTrade, label, landUse, issuedOn, valueUsd, address, zip, contractor, url, people = [] }) {
   const trade = classifyTrade({ type, workClass, description, contractorTrade });
   const propertyClass = classifyProperty({ label, type, landUse });
   // A value under $100 is a placeholder (some cities record $1 when none was given), so it counts as not listed.
@@ -127,6 +151,7 @@ export function buildPermit({ source, sourceId, city, type, workClass, descripti
     address: address ?? null,
     zip: zip ? String(zip).slice(0, 10) : null,
     contractor_name: contractor ? String(contractor).slice(0, 200) : null,
+    people: people.filter(Boolean),
     source_url: url ?? null,
   };
 }

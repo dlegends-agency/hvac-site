@@ -43,6 +43,9 @@ await assert.rejects(() => insert(), /unique|duplicate/i, "the same permit is no
 await insert({ source: "austin", source_id: "COM-ME-1" }); // the same number in another city is a different permit
 await assert.rejects(() => insert({ source_id: "x", property_class: "mixed" }), /property_class/, "residential, commercial or unknown only");
 await assert.rejects(() => insert({ source_id: "y", value_usd: -5 }), /value_usd/, "no negative values");
+await q("update public.public_permits set people = $1::jsonb where source_id = 'COM-ME-1' and source = 'dallas'", [JSON.stringify([{ role: "Mechanical Contractor", company: "Team Services", phone: "(512) 994-3000" }])]);
+assert.equal((await q("select people->0->>'company' c from public.public_permits where source_id = 'COM-ME-1' and source = 'dallas'"))[0].c, "Team Services", "the people on the permit are kept");
+assert.deepEqual((await q("select people from public.public_permits where source = 'austin' and source_id = '2026-1 MP'"))[0].people, [], "none by default");
 await assert.rejects(() => insert({ source_id: "z", summary: null }), /null value/, "every permit has a summary");
 await assert.rejects(() => insert({ source_id: "p", trade: "Plumbing" }), /hvac_only|trade/, "only HVAC permits are kept");
 

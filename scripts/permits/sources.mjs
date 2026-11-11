@@ -1,7 +1,7 @@
 // Public permit data from Socrata open-data portals (the same platform as data.texas.gov). No key is needed; set SOCRATA_APP_TOKEN
 // (free) to avoid being throttled. Property owners' names are never read or saved.
 
-import { buildPermit, dedupe } from "./classify.mjs";
+import { buildPerson, buildPermit, dedupe } from "./classify.mjs";
 
 const UA = "HVACHelpBot/1.0 (business directory research)";
 
@@ -36,6 +36,18 @@ export function mapAustin(r) {
     zip: r.original_zip,
     contractor: r.contractor_company_name || r.contractor_full_name,
     url: r.link?.url ?? null,
+    // The open data lists the permit's contractor (the street name is cut off at 12 characters by the city) and, sometimes, the applicant.
+    // It has no email addresses and no general contractor: those are only on the city's own People Details page.
+    people: [
+      buildPerson({
+        role: r.contractor_trade || "Contractor", company: r.contractor_company_name, name: r.contractor_full_name, phone: r.contractor_phone,
+        address: r.contractor_address1 || r.contractor_address2, city: r.contractor_city, state: "TX", zip: r.contractor_zip,
+      }),
+      buildPerson({
+        role: "Applicant", company: r.applicant_org, name: r.applicant_full_name, phone: r.applicant_phone,
+        address: r.applicant_address1 || r.applicant_address2, city: r.applicant_city, zip: r.applicantzip,
+      }),
+    ],
   });
 }
 
@@ -78,6 +90,7 @@ export function mapDallas(r) {
     zip: r.zip_code,
     contractor: r.contractor,
     url: null,
+    people: [buildPerson({ role: "Contractor", company: r.contractor })],
   });
 }
 

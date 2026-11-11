@@ -7,6 +7,8 @@ export interface Scored {
   tier: Tier;
   /** Plain reasons, like "fresh, high value, new system or replacement, in a city we serve". */
   why: string;
+  /** The four parts of the score, for the detail view. */
+  parts: { label: string; points: number; max: number; reason: string }[];
   ageDays: number | null;
 }
 
@@ -87,11 +89,13 @@ type Scorable = Pick<PublicPermit, "issued_on" | "value_usd" | "city" | "descrip
 /** Scores one HVAC permit from 0 to 100: freshness (35), project value (25), job type and size (20) and whether we serve the city (20). */
 export function scorePermit(p: Scorable, cover: Coverage, now = Date.now()): Scored {
   const age = ageInDays(p.issued_on, now);
-  const parts = [freshness(age), valuePoints(p.value_usd), jobPoints(p), areaPoints(p.city, cover)];
-  const score = Math.min(100, parts.reduce((s, [n]) => s + n, 0));
+  const raw = [freshness(age), valuePoints(p.value_usd), jobPoints(p), areaPoints(p.city, cover)];
+  const labels: [string, number][] = [["Freshness", 35], ["Project value", 25], ["Kind and size of job", 20], ["Service area", 20]];
+  const parts = raw.map(([points, reason], i) => ({ label: labels[i][0], max: labels[i][1], points, reason }));
+  const score = Math.min(100, parts.reduce((s, x) => s + x.points, 0));
   const tier: Tier = score >= TIERS.hot.min ? "hot" : score >= TIERS.warm.min ? "warm" : "cold";
-  const why = parts.map(([, text]) => text).join(", ");
-  return { score, tier, why: `${why[0].toUpperCase()}${why.slice(1)}.`, ageDays: age };
+  const why = parts.map((x) => x.reason).join(", ");
+  return { score, tier, why: `${why[0].toUpperCase()}${why.slice(1)}.`, parts, ageDays: age };
 }
 
 export const ageText = (age: number | null) => (age === null ? "no date" : age === 0 ? "issued today" : age === 1 ? "issued yesterday" : `issued ${age} days ago`);

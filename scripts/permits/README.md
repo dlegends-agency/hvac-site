@@ -22,6 +22,10 @@ For each permit it:
 | Collin County | [Collin CAD Building Permits](https://data.texas.gov/resource/82ee-gbj5) on data.texas.gov | not added yet |
 | Houston | none | Houston does not publish its permits as an open data feed, and its permitting site blocks automated access, so it is not included |
 
+## People details
+
+Each permit keeps the people the city publishes: the contractor's **role** (for example Mechanical Contractor), **company**, **contact name**, **phone**, **address**, city and ZIP, and the applicant when the city lists one. In Admin > Permits, click a permit to see them. Austin's open data has no **email addresses** and no **general contractor** (those are on the city's own People Details page, which sits behind a bot check that this importer does not bypass), and it cuts the street name off at 12 characters. Dallas lists only the contractor's name. The admin page fills in an email when the same phone number or business name is already in your directory ("from your directory"), and every permit links to the city record.
+
 Property owners' names are never read or saved. Permit records are public, but nothing here contacts anyone.
 
 ## Run it

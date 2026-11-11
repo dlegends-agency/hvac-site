@@ -15,7 +15,48 @@ export interface PublicPermit {
   address: string | null;
   zip: string | null;
   contractor_name: string | null;
+  /** Contractors and the applicant, with the details the city publishes. */
+  people: PermitPerson[];
   source_url: string | null;
+}
+
+export interface PermitPerson {
+  role: string;
+  company: string | null;
+  name: string | null;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  zip: string | null;
+}
+
+/** A business in the directory that can be matched to a contractor on a permit. */
+export interface DirectoryBusiness {
+  id: string;
+  business_name: string;
+  slug: string;
+  phone: string | null;
+  email: string | null;
+  website: string | null;
+  city: string | null;
+}
+
+const digits = (s: string | null | undefined) => String(s ?? "").replace(/\D/g, "").replace(/^1(?=\d{10}$)/, "");
+const plainName = (s: string | null | undefined) =>
+  String(s ?? "").toLowerCase().replace(/\b(llc|l\.l\.c|inc|incorporated|corp|corporation|co|company|ltd|lp|the)\b/g, " ").replace(/[^a-z0-9]+/g, " ").trim();
+
+/** The directory listing for a contractor on a permit: the same phone number, or the same business name. Null when there is none. */
+export function matchDirectory(person: Pick<PermitPerson, "company" | "name" | "phone">, directory: DirectoryBusiness[]): DirectoryBusiness | null {
+  const phone = digits(person.phone);
+  if (phone.length === 10) {
+    const byPhone = directory.find((b) => digits(b.phone) === phone);
+    if (byPhone) return byPhone;
+  }
+  const name = plainName(person.company ?? person.name);
+  if (name.length >= 4) return directory.find((b) => plainName(b.business_name) === name) ?? null;
+  return null;
 }
 
 export const PERMIT_CLASS_STYLE: Record<PublicPermit["property_class"], string> = {
