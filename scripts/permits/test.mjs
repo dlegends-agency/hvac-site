@@ -4,15 +4,21 @@ import { buildPermit, buildPerson, phoneText, classifyProperty, classifyTrade, c
 import { dallasDate, mapAustin, mapDallas } from "./sources.mjs";
 import { ageInDays, scorePermit } from "../../src/lib/permit-score.ts";
 import { matchDirectory, permitTitle } from "../../src/lib/permits.ts";
+import { contactKey, domainGuesses, enrichPermits, findContractorEmail, pageHasPhone, plainCompany } from "./contacts.mjs";
 
 let passed = 0;
+const pending = [];
+const fail = (name, e) => {
+  console.error(`FAIL ${name}\n`, e);
+  process.exitCode = 1;
+};
 const test = (name, fn) => {
   try {
-    fn();
-    passed++;
+    const result = fn();
+    if (result && typeof result.then === "function") pending.push(result.then(() => void passed++, (e) => fail(name, e)));
+    else passed++;
   } catch (e) {
-    console.error(`FAIL ${name}\n`, e);
-    process.exitCode = 1;
+    fail(name, e);
   }
 };
 
@@ -125,7 +131,7 @@ test("people on a permit: contractor details from the open data", () => {
   const a = mapAustin({ permit_number: "2026-145369 MP", permit_type_desc: "Mechanical Permit", issue_date: "2026-11-09T00:00:00.000", mechanical_valuation: "1000000", original_address1: "13401 ESCARPMENT BLVD", link: { url: "https://abc.austintexas.gov/x" },
     contractor_trade: "Mechanical Contractor", contractor_company_name: "Team Services", contractor_full_name: "Glen Smith", contractor_phone: "5129943000", contractor_address2: "2201  PATTER", contractor_city: "PFLUGERVILLE", contractor_zip: "78660-____" });
   assert.equal(a.people.length, 1);
-  assert.deepEqual(a.people[0], { role: "Mechanical Contractor", company: "Team Services", name: "Glen Smith", phone: "(512) 994-3000", email: null, address: "2201 PATTER", city: "PFLUGERVILLE", state: "TX", zip: "78660" });
+  assert.deepEqual(a.people[0], { role: "Mechanical Contractor", company: "Team Services", name: "Glen Smith", phone: "(512) 994-3000", email: null, website: null, address: "2201 PATTER", city: "PFLUGERVILLE", state: "TX", zip: "78660" });
   const withApplicant = mapAustin({ permit_number: "2", permit_type_desc: "Mechanical Permit", issue_date: "2026-11-09T00:00:00.000", contractor_company_name: "Cool Co", applicant_full_name: "Pat Lee", applicant_org: "Navcon Group", applicant_phone: "5125312800", applicant_address1: "4801 University Blvd" });
   assert.deepEqual(withApplicant.people.map((p) => [p.role, p.company, p.phone]), [["Contractor", "Cool Co", null], ["Applicant", "Navcon Group", "(512) 531-2800"]]);
   const d = mapDallas({ permit_number: "COM-ME-1", permit_type: "Commercial Mechanical Permit", issued_date: "10/15/26", street_address: "1 A St, Dallas, TX", contractor: "ACME MECHANICAL" });
@@ -152,4 +158,77 @@ test("the score has four parts that add up", () => {
   assert.ok(r.parts.every((x) => x.points <= x.max));
 });
 
+test("contractor email: keys and likely website addresses", () => {
+  assert.equal(plainCompany("Team Services, LLC"), "team services");
+  assert.equal(plainCompany("McCullough Heating & Air"), "mccullough heating and air");
+  assert.equal(contactKey({ company: "Team Services", phone: "(512) 994-3000" }), "phone:5129943000", "the phone number is the key when there is one");
+  assert.equal(contactKey({ company: "Team Services LLC", name: null, phone: null }), "name:team services");
+  assert.equal(contactKey({ company: "Co", phone: null }), "", "a name that short is not a key");
+  assert.deepEqual(domainGuesses("Team Services", "Pflugerville", 3), ["https://www.teamservices.com", "https://www.team-services.com", "https://www.teamservicestx.com"]);
+  assert.ok(domainGuesses("McCullough Heating & Air").includes("https://www.mcculloughheatingandair.com"));
+  assert.deepEqual(domainGuesses("AC"), [], "too short to guess");
+  assert.ok(pageHasPhone("Call us: 512.994.3000 today", "(512) 994-3000"));
+  assert.ok(!pageHasPhone("Call us: 512-111-2222", "(512) 994-3000"));
+  assert.ok(!pageHasPhone("anything", null));
+});
+
+test("contractor email: where it comes from", async () => {
+  const person = { role: "Mechanical Contractor", company: "Team Services", name: "Glen Smith", phone: "(512) 994-3000" };
+  const never = async () => assert.fail("must not visit a site");
+  // 1. the directory already has it
+  const known = new Map([["phone:5129943000", { email: "info@teamservicestx.com", website: "https://teamservicestx.com" }]]);
+  assert.deepEqual(await findContractorEmail(person, { known, readSiteFn: never }), { email: "info@teamservicestx.com", website: "https://teamservicestx.com", source: "directory", found: true });
+  // 2. a guessed website counts only when it shows the contractor's own phone number
+  const pages = {
+    "https://www.teamservices.com": { ok: true, text: "Team Services Inc, call 800-555-0000", email: "wrong@teamservices.com", pages: ["https://www.teamservices.com/"] },
+    "https://www.team-services.com": { ok: false, reason: "HTTP 403" },
+    "https://www.teamservicestx.com": { ok: true, text: "Team Services Texas (512) 994-3000", email: "info@teamservicestx.com", pages: ["https://www.teamservicestx.com/"] },
+  };
+  const visited = [];
+  const read = async (u) => (visited.push(u), pages[u] ?? { ok: false, reason: "fetch failed" });
+  const r = await findContractorEmail(person, { readSiteFn: read, city: "Pflugerville" });
+  assert.deepEqual([r.email, r.found, r.source], ["info@teamservicestx.com", true, "website"]);
+  assert.ok(visited.includes("https://www.teamservices.com"), "the wrong business was looked at");
+  assert.notEqual(r.email, "wrong@teamservices.com", "but its email was not taken, because its phone number did not match");
+  // 3. a search result is tried before the guesses
+  const searched = await findContractorEmail(person, { readSiteFn: async (u) => (u === "https://teamservicestx.com/contact" ? { ok: true, text: "(512) 994-3000", email: "office@teamservicestx.com", pages: [u] } : { ok: false, reason: "x" }), searchFn: async () => ["https://teamservicestx.com/contact"] });
+  assert.deepEqual([searched.email, searched.source], ["office@teamservicestx.com", "search"]);
+  // 4. nothing found
+  const none = await findContractorEmail(person, { readSiteFn: async () => ({ ok: false, reason: "HTTP 403" }) });
+  assert.deepEqual(none, { email: null, website: null, source: "none", found: false });
+  // a site that shows the phone but publishes no email is remembered as a website without an email
+  const noMail = await findContractorEmail(person, { readSiteFn: async (u) => (u === "https://www.teamservices.com" ? { ok: true, text: "512-994-3000", email: null, emails: [], pages: [u] } : { ok: false }) });
+  assert.deepEqual([noMail.email, noMail.found, noMail.website], [null, false, "https://www.teamservices.com"]);
+  // a guess is not trusted when the contractor has no phone number to check
+  const noPhone = await findContractorEmail({ role: "Contractor", company: "Team Services", phone: null }, { readSiteFn: async (u) => ({ ok: true, text: "x", email: "a@teamservices.com", pages: [u] }) });
+  assert.equal(noPhone.found, false);
+});
+
+test("contractor email: the daily enrichment fills permits, remembers answers and respects the limit", async () => {
+  const mk = (id, date, company, phone) => ({ source: "austin", source_id: id, city: "Austin", issued_on: date, people: [{ role: "Mechanical Contractor", company, name: null, phone, email: null, website: null }] });
+  const permits = [mk("1", "2026-11-09", "Alpha Air", "(512) 000-0001"), mk("2", "2026-11-08", "Beta Heating", "(512) 000-0002"), mk("3", "2026-11-07", "Gamma Cooling", "(512) 000-0003"), mk("4", "2026-11-06", "Alpha Air", "(512) 000-0001")];
+  const saved = [];
+  const store = {
+    loadCache: async () => [{ key: "phone:5120000002", email: "hi@beta.com", website: "https://beta.com", found: true, checked_at: new Date().toISOString() }],
+    loadKnown: async () => new Map(),
+    saveCache: async (rows) => void saved.push(...rows),
+  };
+  const sites = { "https://www.alphaair.com": { ok: true, text: "512-000-0001", email: "info@alphaair.com", pages: ["https://www.alphaair.com/"] } };
+  const looked = [];
+  const readSiteFn = async (u) => (looked.push(u), sites[u] ?? { ok: false, reason: "HTTP 404" });
+  const out = await enrichPermits(permits, { store, limit: 1, readSiteFn });
+  assert.deepEqual([out.contractors, out.looked], [3, 1], "Beta is remembered, so only one of the other two is looked up (the limit)");
+  assert.equal(permits[0].people[0].email, "info@alphaair.com", "the newest permit's contractor was looked up first");
+  assert.equal(permits[3].people[0].email, "info@alphaair.com", "and the same contractor on another permit gets it too");
+  assert.equal(permits[1].people[0].email, "hi@beta.com", "a remembered answer is used without a lookup");
+  assert.equal(permits[2].people[0].email, null);
+  assert.equal(looked.filter((u) => u.includes("beta")).length, 0);
+  assert.deepEqual(saved.map((r) => [r.key, r.found]), [["phone:5120000001", true]], "the new answer is remembered");
+  assert.equal(out.permitsWithEmail, 3);
+  // remembered "none found" answers are not looked up again within 30 days
+  const again = await enrichPermits(permits, { store: { loadCache: async () => [{ key: "phone:5120000003", email: null, found: false, checked_at: new Date().toISOString() }, { key: "phone:5120000001", email: "info@alphaair.com", found: true, checked_at: new Date().toISOString() }, { key: "phone:5120000002", email: "hi@beta.com", found: true, checked_at: new Date().toISOString() }], loadKnown: async () => new Map() }, readSiteFn: async () => assert.fail("nothing to look up") });
+  assert.equal(again.looked, 0);
+});
+
+await Promise.all(pending);
 console.log(`${passed} permit tests passed`);
