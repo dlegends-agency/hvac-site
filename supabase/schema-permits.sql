@@ -11,7 +11,7 @@ create table if not exists public.public_permits (
   city           text not null,
   permit_type    text,
   issued_on      date,
-  trade          text not null default 'Other',                                   -- HVAC, Plumbing, Electrical, Roofing, ...
+  trade          text not null default 'HVAC' check (trade = 'HVAC'),             -- only HVAC permits are kept
   value_usd      numeric(14, 2) check (value_usd is null or value_usd >= 0),       -- project value; null when the city gave none
   property_class text not null default 'unknown' check (property_class in ('residential', 'commercial', 'unknown')),
   summary        text not null,
@@ -25,6 +25,11 @@ create table if not exists public.public_permits (
 create index if not exists public_permits_issued_idx on public.public_permits (issued_on desc nulls last);
 create index if not exists public_permits_trade_idx on public.public_permits (trade);
 create index if not exists public_permits_city_idx on public.public_permits (city);
+
+-- Only heating, cooling and ventilation permits are kept. Anything else saved earlier is removed, and the database refuses new ones.
+delete from public.public_permits where trade <> 'HVAC';
+alter table public.public_permits drop constraint if exists public_permits_hvac_only;
+alter table public.public_permits add constraint public_permits_hvac_only check (trade = 'HVAC');
 
 alter table public.public_permits enable row level security;
 revoke all on public.public_permits from anon, authenticated;

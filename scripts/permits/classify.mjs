@@ -91,7 +91,8 @@ export function summarize({ propertyClass, trade, description, type, valueUsd, a
   const work = cleanDescription(description);
   const what = work ? sentence(work) : String(type || "permit").toLowerCase();
   const where = [address, city].filter(Boolean).join(", ");
-  return `${who}${trade}: ${what}, ${money(valueUsd)}${where ? ` at ${where}` : ""}.`.replace(/^([a-z])/, (c) => c.toUpperCase());
+  const price = valueUsd === null || valueUsd === undefined ? "" : `, ${money(valueUsd)}`;
+  return `${who}${trade}: ${what}${price}${where ? ` at ${where}` : ""}.`.replace(/^([a-z])/, (c) => c.toUpperCase());
 }
 
 /** Drops repeats of the same piece of work (one permit is often recorded once per unit or per property). */

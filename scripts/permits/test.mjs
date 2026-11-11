@@ -2,6 +2,8 @@
 import assert from "node:assert/strict";
 import { buildPermit, classifyProperty, classifyTrade, cleanDescription, dedupe, summarize } from "./classify.mjs";
 import { dallasDate, mapAustin, mapDallas } from "./sources.mjs";
+import { ageInDays, scorePermit } from "../../src/lib/permit-score.ts";
+import { permitTitle } from "../../src/lib/permits.ts";
 
 let passed = 0;
 const test = (name, fn) => {
@@ -59,7 +61,7 @@ test("summary is one readable line", () => {
   const line = summarize({ propertyClass: "residential", trade: "HVAC", description: "REPLACE FURNACE PER CPR DEC 2023 PERMIT REPORT;", type: "Miscellaneous", valueUsd: 7163, address: "1202 CRESTWICK DR", city: "Murphy" });
   assert.equal(line, "Residential HVAC: replace furnace, $7,163 at 1202 CRESTWICK DR, Murphy.");
   assert.ok(!line.includes("\n"));
-  assert.equal(summarize({ propertyClass: "unknown", trade: "Other", description: "", type: "Miscellaneous", valueUsd: null, address: null, city: "Austin" }), "Other: miscellaneous, value not listed at Austin.");
+  assert.equal(summarize({ propertyClass: "unknown", trade: "Other", description: "", type: "Miscellaneous", valueUsd: null, address: null, city: "Austin" }), "Other: miscellaneous at Austin.");
   assert.match(summarize({ propertyClass: "commercial", trade: "Solar", description: "DISD RESOURCE CENTER Addition", type: "x", valueUsd: 4e6, address: "1 A St", city: "Dallas" }), /^Commercial Solar: DISD RESOURCE CENTER/, "an acronym keeps its capitals");
 });
 
@@ -82,6 +84,37 @@ test("Austin and Dallas rows map to the same shape", () => {
 test("repeats of the same work are dropped", () => {
   const one = { source: "dallas", address: "4805 LIVE OAK ST", permit_type: "Commercial Mechanical Permit", issued_on: "2026-10-26", value_usd: 128571, description: "x" };
   assert.equal(dedupe([one, { ...one, source_id: "b" }, { ...one, address: "5 Other St" }]).length, 2);
+});
+
+test("score: fresh, valuable, local HVAC replacement is hot; old, small, unserved is cold", () => {
+  const now = Date.parse("2026-11-11T00:00:00Z");
+  const cover = { cities: new Set(["houston"]), stateCovered: true };
+  const hot = scorePermit({ issued_on: "2026-11-09", value_usd: 42000, city: "Houston", description: "replace 5 ton condenser and furnace", permit_type: "Mechanical Permit", property_class: "residential" }, cover, now);
+  assert.equal(hot.tier, "hot");
+  assert.equal(hot.score, 35 + 22 + (10 + 4) + 20, "fresh 35, high value 22, replacement 10 plus 4 for a 5 ton job, our city 20");
+  assert.match(hot.why, /^Fresh, high value, new system or replacement, big job, in a city we serve\.$/);
+  const warm = scorePermit({ issued_on: "2026-10-30", value_usd: 8000, city: "Austin", description: "ac repair", permit_type: "Mechanical Permit", property_class: "residential" }, cover, now);
+  assert.equal(warm.tier, "warm");
+  const cold = scorePermit({ issued_on: "2026-08-01", value_usd: null, city: "Elsewhere", description: "", permit_type: "Mechanical Permit", property_class: "residential" }, { cities: new Set(), stateCovered: false }, now);
+  assert.equal(cold.tier, "cold");
+  assert.ok(cold.score < 20);
+  assert.equal(scorePermit({ issued_on: null, value_usd: 500, city: "X", description: null, permit_type: null, property_class: "unknown" }, cover, now).tier, "cold", "no date");
+  assert.equal(scorePermit({ issued_on: "2026-11-11", value_usd: 1e7, city: "Houston", description: "install complete building", permit_type: "x", property_class: "commercial" }, cover, now).score, 100, "never above 100");
+  // With no value listed (the usual case) the job and the city decide: a fresh commercial replacement in a city we serve is hot, the same residential one in a city we do not serve is warm.
+  const noValue = { issued_on: "2026-11-09", value_usd: null, description: "replace rooftop unit", permit_type: "Mechanical Permit" };
+  assert.equal(scorePermit({ ...noValue, city: "Houston", property_class: "commercial" }, cover, now).tier, "hot");
+  assert.equal(scorePermit({ ...noValue, city: "Dallas", property_class: "residential" }, cover, now).tier, "warm");
+  assert.equal(scorePermit({ ...noValue, issued_on: "2026-10-15", city: "Dallas", property_class: "residential", description: "ac repair" }, cover, now).tier, "cold");
+  assert.equal(ageInDays("2026-11-08", now), 3);
+  assert.equal(ageInDays("2027-01-01", now), 0, "a future date is not negative");
+  assert.equal(ageInDays(null, now), null);
+});
+
+test("card title is short and readable", () => {
+  assert.equal(permitTitle({ description: "REPLACE FURNACE PER CPR DEC 2023 PERMIT REPORT;", permit_type: "x" }), "Replace furnace");
+  assert.equal(permitTitle({ description: "", permit_type: "Mechanical Permit" }), "Mechanical Permit");
+  assert.ok(permitTitle({ description: "word ".repeat(40), permit_type: "x" }).length <= 66);
+  assert.equal(permitTitle({ description: "Replacement of complete existing central heat and air system", permit_type: "x" }), "Replacement of complete existing central heat and air system");
 });
 
 console.log(`${passed} permit tests passed`);

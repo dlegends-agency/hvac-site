@@ -18,13 +18,27 @@ export interface PublicPermit {
   source_url: string | null;
 }
 
-export const PERMIT_TRADES = ["HVAC", "Plumbing", "Electrical", "Roofing", "Solar", "Pool & Spa", "Foundation", "Irrigation", "Demolition", "Fence & Walls", "Sign", "Windows & Doors", "General construction", "Other"];
-
 export const PERMIT_CLASS_STYLE: Record<PublicPermit["property_class"], string> = {
   residential: "bg-green-100 text-green-800",
   commercial: "bg-blue-100 text-blue-800",
   unknown: "bg-slate-100 text-slate-600",
 };
+
+/** A short heading for a card: the work in a few words, or the permit type when there is no description. */
+export function permitTitle(p: Pick<PublicPermit, "description" | "permit_type">): string {
+  const text = (p.description ?? "")
+    .replace(/\s+/g, " ")
+    .replace(/\bper\b[^;]*\bpermit report\b[^;]*;?/gi, "")
+    .replace(/^(e-?plan|express|qteam( qr)?)\s*[:-]?\s*/i, "")
+    .replace(/^(residential|commercial) expedited review\s*-\s*/i, "")
+    .replace(/[;,.\s]+$/g, "")
+    .trim();
+  if (!text) return p.permit_type ?? "HVAC permit";
+  const clipped = text.length > 64 ? `${text.slice(0, 64).replace(/\s+\S*$/, "")}…` : text;
+  // ALL CAPS descriptions are common; make them read normally.
+  const body = clipped === clipped.toUpperCase() ? clipped.toLowerCase() : clipped;
+  return body.charAt(0).toUpperCase() + body.slice(1);
+}
 
 /** "$128,571", or "Value not listed" when the city gave none. */
 export const permitValue = (n: number | null) => (n === null || !Number.isFinite(Number(n)) ? "Value not listed" : `$${Math.round(Number(n)).toLocaleString("en-US")}`);
