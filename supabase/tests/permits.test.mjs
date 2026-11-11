@@ -37,18 +37,26 @@ const insert = (over = {}) => {
   return q(`insert into public.public_permits (${keys.join(",")}) values (${keys.map((_, i) => `$${i + 1}`).join(",")}) returning id`, keys.map((k) => r[k]));
 };
 await insert();
-await insert({ source: "austin", source_id: "2026-1 MP", city: "Austin", trade: "Plumbing", value_usd: null, property_class: "residential" });
+await insert({ source: "austin", source_id: "2026-1 MP", city: "Austin", value_usd: null, property_class: "residential" });
 
 await assert.rejects(() => insert(), /unique|duplicate/i, "the same permit is not saved twice");
 await insert({ source: "austin", source_id: "COM-ME-1" }); // the same number in another city is a different permit
 await assert.rejects(() => insert({ source_id: "x", property_class: "mixed" }), /property_class/, "residential, commercial or unknown only");
 await assert.rejects(() => insert({ source_id: "y", value_usd: -5 }), /value_usd/, "no negative values");
 await assert.rejects(() => insert({ source_id: "z", summary: null }), /null value/, "every permit has a summary");
+await assert.rejects(() => insert({ source_id: "p", trade: "Plumbing" }), /hvac_only|trade/, "only HVAC permits are kept");
+
+// anything that is not HVAC and was saved before the rule existed is removed when the script is run again
+await db.exec("alter table public.public_permits drop constraint public_permits_hvac_only; alter table public.public_permits drop constraint public_permits_trade_check");
+await insert({ source_id: "old-roof", trade: "Roofing" });
+await db.exec(read("schema-permits.sql"));
+assert.equal((await q("select count(*)::int n from public.public_permits where source_id = 'old-roof'"))[0].n, 0, "non-HVAC permits are removed");
+await assert.rejects(() => insert({ source_id: "p2", trade: "Roofing" }), /hvac_only/, "and refused afterwards");
 
 // upsert (what the importer does) updates in place
-await q(`insert into public.public_permits (source, source_id, city, trade, summary) values ('dallas','COM-ME-1','Dallas','Electrical','changed')
+await q(`insert into public.public_permits (source, source_id, city, trade, summary) values ('dallas','COM-ME-1','Dallas','HVAC','changed')
          on conflict (source, source_id) do update set trade = excluded.trade, summary = excluded.summary`);
-assert.equal((await q("select trade from public.public_permits where source='dallas' and source_id='COM-ME-1'"))[0].trade, "Electrical");
+assert.equal((await q("select summary from public.public_permits where source='dallas' and source_id='COM-ME-1'"))[0].summary, "changed");
 assert.equal((await q("select count(*)::int n from public.public_permits"))[0].n, 3);
 
 // who can read it

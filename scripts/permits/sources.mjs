@@ -39,13 +39,19 @@ export function mapAustin(r) {
   });
 }
 
-export async function fetchAustin(count) {
+/** SQL fragments that pick out heating, cooling and ventilation work in a free-text column. */
+const HVAC_WORDS = ["HVAC", "A/C", "AIR COND", "FURNACE", "HEAT PUMP", "CONDENSER", "MINI SPLIT", "MINI-SPLIT", "AIR HANDLER", "DUCT", "THERMOSTAT", "COOLING", "HEATING"];
+const likeAny = (column) => HVAC_WORDS.map((w) => `upper(${column}) like '%${w}%'`).join(" OR ");
+const isoDaysAgo = (days, now = new Date()) => new Date(now.getTime() - days * 86_400_000).toISOString().slice(0, 10);
+
+/** Only heating, cooling and ventilation permits, issued in the last `days` days, newest first. */
+export async function fetchAustin({ limit = 200, days = 30, now = new Date() } = {}) {
   const rows = await soda("data.austintexas.gov", "3syk-w9eu", {
-    $where: "issue_date is not null AND total_job_valuation >= 100 AND permit_location is not null",
+    $where: `issue_date >= '${isoDaysAgo(days, now)}' AND permit_location is not null AND (permit_type_desc = 'Mechanical Permit' OR ${likeAny("description")})`,
     $order: "issue_date DESC, permit_number DESC",
-    $limit: String(count * 3),
+    $limit: String(limit * 2),
   });
-  return dedupe(rows.map(mapAustin)).slice(0, count);
+  return dedupe(rows.map(mapAustin).filter((p) => p.trade === "HVAC")).slice(0, limit);
 }
 
 // ---------------------------------------------------------------- Dallas: "Building Permits" (www.dallasopendata.com e7gq-4sah)
@@ -75,20 +81,24 @@ export function mapDallas(r) {
   });
 }
 
-export async function fetchDallas(count, now = new Date()) {
-  // The date is text, so it cannot be sorted by the server. Read one month at a time, newest first, until there are enough.
+/** Only heating, cooling and ventilation permits, issued in the last `days` days, newest first. */
+export async function fetchDallas({ limit = 200, days = 30, now = new Date() } = {}) {
+  // The date is text, so the server cannot sort or compare it. Read one month at a time and keep what falls inside the window.
+  const cutoff = isoDaysAgo(days, now);
   const found = [];
-  for (let back = 0; back < 8 && found.length < count; back++) {
+  for (let back = 0; back <= Math.ceil(days / 28) + 1; back++) {
     const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - back, 1));
     const pattern = `${String(d.getUTCMonth() + 1).padStart(2, "0")}/%/${String(d.getUTCFullYear()).slice(2)}`;
     const rows = await soda("www.dallasopendata.com", "e7gq-4sah", {
-      $where: `issued_date like '${pattern}' AND value >= 100 AND street_address is not null`,
-      $limit: "1000",
+      $where: `issued_date like '${pattern}' AND street_address is not null AND (upper(permit_type) like '%MECHANICAL%' OR ${likeAny("work_description")})`,
+      $limit: "5000",
     });
     found.push(...rows.map(mapDallas));
   }
-  const newest = found.filter((p) => p.issued_on).sort((a, b) => b.issued_on.localeCompare(a.issued_on) || a.source_id.localeCompare(b.source_id));
-  return dedupe(newest).slice(0, count);
+  const newest = found
+    .filter((p) => p.trade === "HVAC" && p.issued_on && p.issued_on >= cutoff)
+    .sort((a, b) => b.issued_on.localeCompare(a.issued_on) || a.source_id.localeCompare(b.source_id));
+  return dedupe(newest).slice(0, limit);
 }
 
 export const SOURCES = {
