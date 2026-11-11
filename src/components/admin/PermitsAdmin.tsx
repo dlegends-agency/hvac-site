@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ExternalLink, Mail, MapPin, Phone, X } from "lucide-react";
+import { ExternalLink, Globe, Mail, MapPin, Phone, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useLiveQuery } from "@/lib/admin-hooks";
 import { TIERS, ageText, scorePermit, type Coverage, type Scored, type Tier } from "@/lib/permit-score";
@@ -54,7 +54,8 @@ function Person({ person, directory }: { person: PermitPerson; directory: Direct
       {person.company && person.name && <p className="text-slate-700">{person.name}</p>}
       <dl className="mt-2 space-y-1 text-slate-700">
         <div className="flex items-start gap-2"><Phone className="mt-0.5 size-4 shrink-0 text-slate-400" aria-hidden /><dd>{person.phone ? <a href={`tel:${person.phone.replace(/\D/g, "")}`} className="text-primary hover:underline">{person.phone}</a> : <span className="text-slate-400">No phone listed</span>}</dd></div>
-        <div className="flex items-start gap-2"><Mail className="mt-0.5 size-4 shrink-0 text-slate-400" aria-hidden /><dd>{email ? <a href={`mailto:${email}`} className="text-primary hover:underline">{email}</a> : <span className="text-slate-400">No email in the open data</span>}{!person.email && email && <span className="ml-1 text-xs text-slate-500">(from your directory)</span>}</dd></div>
+        <div className="flex items-start gap-2"><Mail className="mt-0.5 size-4 shrink-0 text-slate-400" aria-hidden /><dd>{email ? <a href={`mailto:${email}`} className="text-primary hover:underline">{email}</a> : <span className="text-slate-400">No email found</span>}{!person.email && email && <span className="ml-1 text-xs text-slate-500">(from your directory)</span>}</dd></div>
+        {(person.website || directory?.website) && <div className="flex items-start gap-2"><Globe className="mt-0.5 size-4 shrink-0 text-slate-400" aria-hidden /><dd className="min-w-0 break-all"><a href={person.website ?? directory?.website ?? "#"} target="_blank" rel="noreferrer" className="text-primary hover:underline">{(person.website ?? directory?.website ?? "").replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")}</a></dd></div>}
         <div className="flex items-start gap-2"><MapPin className="mt-0.5 size-4 shrink-0 text-slate-400" aria-hidden /><dd>{person.address || place ? <>{person.address}{person.address && place ? ", " : ""}{place}</> : <span className="text-slate-400">No address listed</span>}</dd></div>
       </dl>
       {directory && (
@@ -125,9 +126,9 @@ function Detail({ row, directory, onClose }: { row: Row; directory: DirectoryBus
           </ul>
         )}
         <p className="mt-3 text-xs text-slate-500">
-          The city&apos;s open data lists the contractor&apos;s company, contact, phone and a shortened address. It does not include email addresses or the general contractor: those are on the city&apos;s own People Details page
+          The city&apos;s open data lists the contractor&apos;s company, contact, phone and a shortened address. The email comes from the contractor&apos;s own website (found by the daily scrape) or from your directory. The general contractor is only on the city&apos;s own People Details page
           {p.source_url ? <>, open it with <a href={p.source_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-medium text-primary hover:underline">City record <ExternalLink className="size-3" aria-hidden /></a>.</> : "."}
-          {" "}An email shown as &quot;from your directory&quot; comes from a listing with the same phone number or name.
+          {" "}A website only counts when it shows the contractor&apos;s phone number. Some contractors publish no email, or block automated visits.
         </p>
       </aside>
     </div>

@@ -26,6 +26,8 @@ export interface PermitPerson {
   name: string | null;
   phone: string | null;
   email: string | null;
+  /** The contractor's own website, when the scrape found it. */
+  website?: string | null;
   address: string | null;
   city: string | null;
   state: string | null;

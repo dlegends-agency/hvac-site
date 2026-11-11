@@ -115,13 +115,14 @@ export function phoneText(v) {
 }
 
 /** One person or company on a permit (a contractor or the applicant), with only the details that exist. */
-export function buildPerson({ role, company, name, phone, email, address, city, state, zip }) {
+export function buildPerson({ role, company, name, phone, email, website, address, city, state, zip }) {
   const person = {
     role: tidy(role) ?? "Contractor",
     company: tidy(company),
     name: tidy(name),
     phone: phoneText(phone),
     email: tidy(email)?.toLowerCase() ?? null,
+    website: tidy(website),
     address: tidy(address),
     city: tidy(city),
     state: tidy(state),

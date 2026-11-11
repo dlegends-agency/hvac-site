@@ -35,6 +35,23 @@ delete from public.public_permits where trade <> 'HVAC';
 alter table public.public_permits drop constraint if exists public_permits_hvac_only;
 alter table public.public_permits add constraint public_permits_hvac_only check (trade = 'HVAC');
 
+-- Contractor emails the scrape has already looked for (so a contractor is not looked up every day, including "none found").
+create table if not exists public.contractor_contacts (
+  key        text primary key,               -- "phone:5129943000" or "name:team services"
+  company    text,
+  phone      text,
+  email      text check (email is null or char_length(email) <= 200),
+  website    text,
+  source     text,                           -- directory, search, website or none
+  found      boolean not null default false,
+  checked_at timestamptz not null default now()
+);
+alter table public.contractor_contacts enable row level security;
+revoke all on public.contractor_contacts from anon, authenticated;
+grant select on public.contractor_contacts to authenticated;
+drop policy if exists "Admins read contractor contacts" on public.contractor_contacts;
+create policy "Admins read contractor contacts" on public.contractor_contacts for select to authenticated using (public.is_admin());
+
 alter table public.public_permits enable row level security;
 revoke all on public.public_permits from anon, authenticated;
 grant select on public.public_permits to authenticated;

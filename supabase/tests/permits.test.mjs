@@ -66,6 +66,11 @@ assert.equal((await q("select count(*)::int n from public.public_permits"))[0].n
 assert.equal((await as(admin, () => db.query("select * from public.public_permits"))).rows.length, 3, "an admin reads the permits");
 assert.equal((await as(other, () => db.query("select * from public.public_permits"))).rows.length, 0, "a signed-in person who is not an admin sees nothing");
 await assert.rejects(() => as(admin, () => db.query("insert into public.public_permits (source, source_id, city, summary) values ('x','1','x','x')")), /permission denied/, "even an admin cannot write from the browser");
+// remembered contractor emails: admin read only
+await q("insert into public.contractor_contacts (key, company, email, found) values ('phone:5129943000','Team Services','info@teamservicestx.com', true)");
+assert.equal((await as(admin, () => db.query("select * from public.contractor_contacts"))).rows.length, 1, "an admin reads the remembered emails");
+assert.equal((await as(other, () => db.query("select * from public.contractor_contacts"))).rows.length, 0, "nobody else does");
+await assert.rejects(() => as(admin, () => db.query("insert into public.contractor_contacts (key) values ('x')")), /permission denied/, "and nobody writes from the browser");
 await db.exec("set role anon");
 await assert.rejects(() => db.query("select * from public.public_permits"), /permission denied/, "the public has no access");
 await db.exec("reset role");

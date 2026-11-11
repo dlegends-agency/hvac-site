@@ -6,11 +6,13 @@
 //   node scripts/permits/index.mjs                                 save the HVAC permits of the last 30 days, up to 200 per city
 //   node scripts/permits/index.mjs --days 14 --per-city 100        a shorter window, fewer permits
 //   node scripts/permits/index.mjs --cities austin,dallas          only these cities
+//   node scripts/permits/index.mjs --email-limit 300               look up more contractor emails this run (default 150); --no-emails skips them
 //   node scripts/permits/index.mjs --dry-run --served "Houston"    cities you serve, for the ranking in a dry run
 // Saving needs SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY. The same permit is never saved twice, and anything that is not HVAC is removed.
 
 import { createClient } from "@supabase/supabase-js";
 import { SOURCES } from "./sources.mjs";
+import { digits10, enrichPermits, makeSearch, plainCompany } from "./contacts.mjs";
 
 const arg = (name) => {
   const i = process.argv.indexOf(`--${name}`);
@@ -19,6 +21,8 @@ const arg = (name) => {
 const dryRun = process.argv.includes("--dry-run");
 const limit = Math.max(1, Math.min(1000, Number(arg("per-city") ?? 200)));
 const days = Math.max(1, Math.min(365, Number(arg("days") ?? 30)));
+const emailLimit = Math.max(0, Math.min(2000, Number(arg("email-limit") ?? 150)));
+const skipEmails = process.argv.includes("--no-emails");
 const cities = (arg("cities") ?? Object.keys(SOURCES).join(",")).split(",").map((c) => c.trim().toLowerCase()).filter(Boolean);
 const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } = process.env;
 const sb = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } }) : null;
@@ -40,6 +44,33 @@ for (const key of cities) {
   }
 }
 
+/** Contractors already known to your directory or the discovery candidates (an email there needs no lookup), and the remembered answers. */
+const store = {
+  loadCache: async () => (sb ? ((await sb.from("contractor_contacts").select("*").limit(20000)).data ?? []) : []),
+  loadKnown: async () => {
+    const known = new Map();
+    if (!sb) return known;
+    const add = (name, phone, email, website) => {
+      if (!email && !website) return;
+      const value = { email: email || null, website: website || null };
+      if (digits10(phone)) known.set(`phone:${digits10(phone)}`, value);
+      if (plainCompany(name).length >= 4) known.set(`name:${plainCompany(name)}`, value);
+    };
+    for (const l of (await sb.from("listings").select("business_name,phone,email,website").limit(20000)).data ?? []) add(l.business_name, l.phone, l.email, l.website);
+    for (const c of (await sb.from("listing_candidates").select("name,phone,email,website").limit(20000)).data ?? []) add(c.name, c.phone, c.email, c.website);
+    return known;
+  },
+  saveCache: dryRun || !sb ? undefined : async (rows) => {
+    const { error } = await sb.from("contractor_contacts").upsert(rows, { onConflict: "key" });
+    if (error) console.error(`Could not remember the contractor emails: ${error.message}`);
+  },
+};
+if (!skipEmails && all.length && emailLimit > 0) {
+  const searchFn = makeSearch(process.env.TAVILY_API_KEY);
+  console.log(`\nLooking for contractor emails (${searchFn ? "web search on" : "no TAVILY_API_KEY, so directory and website guesses only"}).`);
+  await enrichPermits(all, { store, limit: emailLimit, searchFn, log: (m) => console.log(m) });
+}
+
 if (dryRun) {
   // Rank them the way Admin > Permits does.
   const { scorePermit, TIERS } = await import("../../src/lib/permit-score.ts");
@@ -53,7 +84,7 @@ if (dryRun) {
   for (const tier of ["hot", "warm", "cold"]) {
     const group = scored.filter((x) => x.s.tier === tier);
     console.log(`\n=== ${TIERS[tier].label.toUpperCase()} (${TIERS[tier].hint}): ${group.length} ===`);
-    for (const { p, s } of group.slice(0, 8)) console.log(`${String(s.score).padStart(3)} | ${p.city} | ${p.issued_on} | ${p.value_usd ?? "no value"} | ${p.property_class} | ${p.summary}\n      why: ${s.why}`);
+    for (const { p, s } of group.slice(0, 8)) console.log(`${String(s.score).padStart(3)} | ${p.city} | ${p.issued_on} | ${p.value_usd ?? "no value"} | ${p.property_class} | ${p.summary}\n      why: ${s.why}\n      contractor: ${p.people.map((x) => `${x.company ?? x.name}${x.phone ? ` ${x.phone}` : ""}${x.email ? ` <${x.email}>` : " (no email found)"}`).join(" / ") || "none listed"}`);
   }
   console.log(`\nDry run: ${all.length} permits, nothing saved.`);
   process.exit(process.exitCode ?? 0);
