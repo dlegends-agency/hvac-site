@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { CreditCard, ExternalLink, LayoutDashboard, Loader2, LogOut, MessageSquare, Settings, ThumbsUp, UserCog, Users } from "lucide-react";
+import { Briefcase, CreditCard, ExternalLink, LayoutDashboard, Loader2, LogOut, MessageSquare, Settings, ThumbsUp, UserCog, Users } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { useUnreadMessages } from "@/lib/use-unread-messages";
 import { getSupabaseBrowser, isSupabaseConfigured } from "@/lib/supabase";
@@ -11,6 +11,7 @@ import { ContractorContext, type ContractorState } from "./context";
 const links = [
   { href: "/contractor", label: "Dashboard", icon: LayoutDashboard },
   { href: "/contractor/leads", label: "Leads", icon: Users },
+  { href: "/contractor/opportunities", label: "Opportunities", icon: Briefcase },
   { href: "/contractor/messages", label: "Messages", icon: MessageSquare },
   { href: "/contractor/business", label: "My business", icon: UserCog },
   { href: "/contractor/recommendations", label: "Recommendations", icon: ThumbsUp },

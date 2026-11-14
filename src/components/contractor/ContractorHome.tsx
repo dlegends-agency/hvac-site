@@ -9,6 +9,7 @@ import { useLiveQuery, useNow } from "@/lib/admin-hooks";
 import { activePlan } from "@/lib/plans";
 import { getSupabaseBrowser } from "@/lib/supabase";
 import { ClaimListing } from "./ClaimListing";
+import { OpportunityNotice } from "./OpportunityNotice";
 import { useContractor } from "./context";
 import { ago, useMyLeads } from "./useMyLeads";
 
@@ -104,6 +105,7 @@ export default function ContractorHome() {
       )}
 
       <RecommendationNotice />
+      <OpportunityNotice />
 
       {waiting.length > 0 && (
         <Link to="/contractor/leads?status=new" className="mb-5 flex items-center gap-3 rounded-2xl border border-blue-300 bg-blue-50 p-4 transition-colors hover:bg-blue-100">
