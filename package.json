@@ -11,6 +11,8 @@
     "discover:test": "node scripts/discovery-agent/test.mjs",
     "permits": "node scripts/permits/index.mjs",
     "permits:test": "node --import ./scripts/ts-resolve.mjs scripts/permits/test.mjs",
+    "bids": "node scripts/bids/index.mjs",
+    "bids:test": "node --import ./scripts/ts-resolve.mjs scripts/bids/test.mjs",
     "test:stripe": "node scripts/test-stripe.mjs",
     "test:google": "node --import ./scripts/ts-resolve.mjs scripts/test-google.mjs",
     "test:notify": "node --import ./scripts/ts-resolve.mjs scripts/test-notify.mjs",

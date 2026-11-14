@@ -175,6 +175,17 @@ The confirmation and password-reset emails link back to the site through Supabas
 
 Each link works once. Some email programs open links automatically to check them, which uses the link up and gives `otp_expired`. If someone sees that, the sign-in page explains it and can send a new link; if they already opened the link once, their email is probably confirmed and they can just sign in. (Supabase > Authentication > Providers > Email also lets you change how long a link lasts.)
 
+### Lead sources: building permits and government bids
+
+Two separate lead sources, each in its own table, importer and admin page, and both shown to business users in the contractor dashboard under **Opportunities**:
+
+| Source | Table | Importer | Admin page | Runs |
+| --- | --- | --- | --- | --- |
+| HVAC building permits (Austin and Dallas open data) | `public_permits` | `scripts/permits` | Admin > Permits | every day 8:00 AM Philippine time |
+| Open federal HVAC bids in Texas (SAM.gov) | `gov_bids` | `scripts/bids` | Admin > Government bids | every day 8:30 AM Philippine time |
+
+Run `supabase/schema-permits.sql`, then `supabase/schema-bids.sql` (it also lets business owners read both tables). Each lead is scored Hot, Warm or Cold with the reasons. See `scripts/permits/README.md` and `scripts/bids/README.md`.
+
 ### Messages and the customer dashboard
 
 Run `supabase/schema-messages.sql` to switch on messages between customers and businesses.
