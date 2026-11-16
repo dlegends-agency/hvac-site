@@ -9,6 +9,7 @@ import { activePlan } from "@/lib/plans";
 import { countBy, dailyCounts, useCountUp, useLiveQuery, useNow } from "@/lib/admin-hooks";
 import { getSupabaseBrowser } from "@/lib/supabase";
 import { useAdminCounts } from "@/lib/use-admin-counts";
+import { useScheduleText } from "@/lib/use-schedule";
 import { LEAD_STATUSES, LISTING_STATUSES, type Lead, type Listing, type ListingBilling, type ListingPrivate, type ListingStatus, type PageView } from "@/lib/types";
 import { BarList, DailyChart, PageTitle, Panel, StatusBadge } from "./widgets";
 
@@ -83,6 +84,8 @@ export function OverviewDashboard() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const intervalMs = live ? REFRESH_MS : null;
   const attention = useAdminCounts(live ? REFRESH_MS : 3_600_000);
+  const permitsSchedule = useScheduleText("permits");
+  const bidsSchedule = useScheduleText("bids");
   const supabase = getSupabaseBrowser();
 
   const leadsQ = useLiveQuery<Lead[]>([], () => supabase.from("leads").select("*").order("created_at", { ascending: false }).limit(2000), { key: "leads", intervalMs });
@@ -251,15 +254,15 @@ export function OverviewDashboard() {
         <Panel title="Lead sources">
           <ul className="divide-y divide-slate-100">
             {[
-              { label: "Building permits", icon: HardHat, n: attention.permits, at: attention.permitsAt, to: "/admin/permits", when: "8:00 AM" },
-              { label: "Government bids", icon: Landmark, n: attention.bids, at: attention.bidsAt, to: "/admin/bids", when: "8:30 AM" },
+              { label: "Building permits", icon: HardHat, n: attention.permits, at: attention.permitsAt, to: "/admin/permits", when: permitsSchedule },
+              { label: "Government bids", icon: Landmark, n: attention.bids, at: attention.bidsAt, to: "/admin/bids", when: bidsSchedule },
             ].map((s) => (
               <li key={s.label}>
                 <Link to={s.to} className="flex items-center gap-3 py-3 hover:bg-slate-50">
                   <span className="grid size-9 shrink-0 place-items-center rounded-full bg-blue-50 text-primary"><s.icon className="size-4" aria-hidden /></span>
                   <span className="min-w-0 flex-1">
                     <span className="block text-sm font-semibold text-navy">{s.label}</span>
-                    <span className="block text-xs text-slate-500">{s.at ? `Last scrape ${timeAgo(now - new Date(s.at).getTime())}` : "Not scraped yet"} · daily {s.when} PH</span>
+                    <span className="block text-xs text-slate-500">{s.at ? `Last scrape ${timeAgo(now - new Date(s.at).getTime())}` : "Not scraped yet"} · {s.when}</span>
                   </span>
                   <span className="text-xl font-bold text-navy tabular-nums">{s.n.toLocaleString()}</span>
                 </Link>

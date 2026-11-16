@@ -1,12 +1,14 @@
 name: Bids import
 
-# Reads SAM.gov's public daily file of federal contract opportunities and keeps the open Texas HVAC notices in the gov_bids table.
-# Runs every day at 8:30 AM Philippine time (PHT is UTC+8, so 00:30 UTC), after the permits import. GitHub can start a scheduled run a
-# few minutes late. You can also run it by hand: Actions > Bids import > Run workflow. See scripts/bids/README.md.
+# Reads SAM.gov's public daily file of federal contract opportunities and keeps the open Texas HVAC notices that have a contact name,
+# phone and email in the gov_bids table.
+# WHEN it runs is set in Admin > Schedule (off, every few hours, every day or every week, in Philippine time). GitHub starts this check every
+# 30 minutes; the first step asks the saved schedule whether a scrape is due and the rest is skipped when it is not. You can also run it by
+# hand any time: Actions > Bids import > Run workflow (a manual run always scrapes). See scripts/schedule and scripts/bids/README.md.
 
 on:
   schedule:
-    - cron: "30 0 * * *" # 00:30 UTC = 8:30 AM Philippine time
+    - cron: "7,37 * * * *" # every 30 minutes; the saved schedule decides whether to scrape
   workflow_dispatch:
 
 permissions:
@@ -19,16 +21,32 @@ concurrency:
 jobs:
   import:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-      - run: npm ci --ignore-scripts
+      - name: Is a scrape due?
+        id: due
+        run: node scripts/schedule/due.mjs bids
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      - name: Install
+        if: steps.due.outputs.run == 'true'
+        run: npm ci --ignore-scripts
       - name: Import open Texas HVAC bids
+        id: import
+        if: steps.due.outputs.run == 'true'
         run: node scripts/bids/index.mjs
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      - name: Record the run
+        if: always() && steps.due.outputs.run == 'true'
+        run: node scripts/schedule/record.mjs bids "${{ steps.import.outcome }}" "${{ steps.due.outputs.started }}"
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}

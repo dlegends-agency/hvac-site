@@ -1,4 +1,6 @@
 import { useMemo } from "react";
+import { Link } from "react-router-dom";
+import { useScheduleText } from "@/lib/use-schedule";
 import { PermitBoard } from "@/components/opportunities/PermitBoard";
 import { useLiveQuery } from "@/lib/admin-hooks";
 import type { Coverage } from "@/lib/permit-score";
@@ -30,6 +32,7 @@ export function PermitsAdmin() {
 
   const complete = (p: PublicPermit) => (p.people ?? []).filter((x) => x.email && x.phone && (x.name || x.company));
   const withContact = permits.data.filter((p) => complete(p).length > 0).length;
+  const scheduleText = useScheduleText("permits");
   const latest = permits.data.reduce((m, p) => (p.imported_at > m ? p.imported_at : m), "");
   function exportContacts() {
     const rows: unknown[][] = [["Contractor", "Contact name", "Phone", "Email", "Website", "Role", "City", "Permit number", "Issued", "Project value", "Address"]];
@@ -46,7 +49,7 @@ export function PermitsAdmin() {
         { label: "Permits", value: permits.data.length.toLocaleString() },
         { label: "With name, phone and email", value: `${withContact.toLocaleString()}`, tone: withContact === permits.data.length ? "good" : "warn" },
         { label: "Last scrape", value: latest ? new Date(latest).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "Never" },
-        { label: "Next scrape", value: "Daily 8:00 AM PH" },
+        { label: "Schedule", value: <Link to="/admin/schedule" className="text-base hover:text-primary hover:underline">{scheduleText}</Link> },
       ]} />
       <PermitBoard
         permits={permits.data}

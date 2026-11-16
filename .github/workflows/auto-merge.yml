@@ -44,7 +44,7 @@ jobs:
       - name: Offline tests
         run: |
           set -e
-          for t in discover:test permits:test bids:test test:stripe test:google test:notify test:account test:unlock test:opportunity test:cards test:recommend test:submit; do
+          for t in discover:test schedule:test permits:test bids:test test:stripe test:google test:notify test:account test:unlock test:opportunity test:cards test:recommend test:submit; do
             echo "== npm run $t"
             npm run -s "$t"
           done
