@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { LeadHistory } from "./LeadHistory";
 import { Link, useSearchParams } from "react-router-dom";
-import { Clock, Loader2, Lock, Mail, MapPin, MessageSquare, Phone, Search, Users } from "lucide-react";
+import { Clock, Columns3, LayoutGrid, List, Loader2, Lock, Mail, MapPin, MessageSquare, Phone, Search, Users, X } from "lucide-react";
 import { PageTitle, Panel } from "@/components/admin/widgets";
 import { Button, buttonClass } from "@/components/ui/Button";
 import { inputClass } from "@/components/ui/Field";
@@ -119,7 +119,7 @@ function Details({ lead, onSaved }: { lead: ContractorLead; onSaved: (l: Contrac
 function LeadCard({ lead, price, onSaved }: { lead: ContractorLead; price: number; onSaved: (l: ContractorLead) => void }) {
   const urgent = lead.urgency === "Immediately";
   return (
-    <li className={`rounded-2xl border bg-white p-5 shadow-sm ${lead.contractor_status === "new" ? "border-blue-300 ring-1 ring-blue-100" : "border-slate-200"}`}>
+    <div>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-lg font-bold text-navy">{lead.first_name} {lead.last_name}</p>
@@ -145,7 +145,85 @@ function LeadCard({ lead, price, onSaved }: { lead: ContractorLead; price: numbe
         )}
       </div>
       <LeadHistory leadId={lead.id} />
+    </div>
+  );
+}
+
+type View = "cards" | "list" | "board";
+const VIEWS: { id: View; label: string; icon: typeof List }[] = [
+  { id: "cards", label: "Cards", icon: LayoutGrid },
+  { id: "list", label: "List", icon: List },
+  { id: "board", label: "Columns", icon: Columns3 },
+];
+type Sort = "newest" | "oldest" | "urgent";
+const PAGE = 60;
+const dot: Record<ContractorLeadStatus, string> = { new: "bg-blue-600", contacted: "bg-amber-500", won: "bg-green-600", lost: "bg-slate-400" };
+
+/** Urgent, locked or unlocked: the small tags shared by every view. */
+function Tags({ lead }: { lead: ContractorLead }) {
+  return (
+    <>
+      {lead.urgency === "Immediately" && <span className="rounded-full bg-emergency-soft px-2 py-0.5 text-xs font-semibold text-emergency">Needs help now</span>}
+      {lead.unlocked
+        ? <span className="rounded-full bg-green-50 px-2 py-0.5 text-xs font-semibold text-green-800">Unlocked</span>
+        : <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600"><Lock className="size-3" aria-hidden /> Locked</span>}
+    </>
+  );
+}
+
+/** A small card: enough to tell requests apart. Click it for everything. */
+function LeadTile({ lead, onOpen }: { lead: ContractorLead; onOpen: () => void }) {
+  return (
+    <button type="button" onClick={onOpen}
+      className={`block w-full rounded-xl border bg-white p-4 text-left shadow-sm transition hover:border-slate-300 hover:shadow focus-visible:outline-2 focus-visible:outline-primary ${lead.contractor_status === "new" ? "border-blue-300 ring-1 ring-blue-100" : "border-slate-200"}`}>
+      <span className="flex items-start justify-between gap-2">
+        <span className="min-w-0 font-bold text-navy">{lead.first_name} {lead.last_name}</span>
+        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700 capitalize"><span className={`size-2 rounded-full ${dot[lead.contractor_status]}`} aria-hidden />{lead.contractor_status}</span>
+      </span>
+      <span className="mt-1 line-clamp-2 block text-sm text-slate-700">{lead.issue}</span>
+      <span className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
+        <span className="inline-flex items-center gap-1"><Clock className="size-3.5" aria-hidden /> {ago(lead.assigned_at)}</span>
+        {lead.city && <span className="inline-flex items-center gap-1"><MapPin className="size-3.5" aria-hidden /> {lead.city}</span>}
+      </span>
+      <span className="mt-2 flex flex-wrap items-center gap-1.5"><Tags lead={lead} /></span>
+    </button>
+  );
+}
+
+/** One line per request, for working through a long list quickly. */
+function LeadRow({ lead, onOpen }: { lead: ContractorLead; onOpen: () => void }) {
+  return (
+    <li>
+      <button type="button" onClick={onOpen} className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-primary">
+        <span className={`size-2.5 shrink-0 rounded-full ${dot[lead.contractor_status]}`} aria-label={lead.contractor_status} />
+        <span className="w-40 shrink-0 truncate text-sm font-semibold text-navy">{lead.first_name} {lead.last_name}</span>
+        <span className="min-w-0 flex-1 truncate text-sm text-slate-600">{lead.issue}</span>
+        <span className="hidden w-32 shrink-0 truncate text-sm text-slate-500 md:block">{lead.city ?? ""}</span>
+        <span className="hidden w-24 shrink-0 text-xs text-slate-500 sm:block">{ago(lead.assigned_at)}</span>
+        <span className="hidden shrink-0 items-center gap-1.5 lg:flex"><Tags lead={lead} /></span>
+        <span className="shrink-0 lg:hidden">{lead.unlocked ? null : <Lock className="size-4 text-slate-400" aria-label="Locked" />}</span>
+      </button>
     </li>
+  );
+}
+
+/** The whole request in a panel that slides over the page. Escape or a click outside closes it. */
+function LeadPanel({ lead, price, onSaved, onClose }: { lead: ContractorLead; price: number; onSaved: (l: ContractorLead) => void; onClose: () => void }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/40" onClick={onClose}>
+      <aside role="dialog" aria-modal="true" aria-label="Customer request" onClick={(e) => e.stopPropagation()} className="h-full w-full max-w-2xl overflow-y-auto bg-white p-6 shadow-2xl">
+        <div className="mb-4 flex items-center justify-between">
+          <p className="text-xs font-bold tracking-wide text-slate-500 uppercase">Customer request</p>
+          <button type="button" onClick={onClose} aria-label="Close" className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100"><X className="size-5" aria-hidden /></button>
+        </div>
+        <LeadCard lead={lead} price={price} onSaved={onSaved} />
+      </aside>
+    </div>
   );
 }
 
@@ -154,6 +232,26 @@ export default function ContractorLeads() {
   const { leads, error, replace, reload } = useMyLeads(Boolean(listing));
   const [params, setParams] = useSearchParams();
   const [q, setQ] = useState("");
+  const [view, setViewState] = useState<View>(() => {
+    try {
+      const saved = localStorage.getItem("lead-view");
+      return saved === "list" || saved === "board" ? saved : "cards";
+    } catch {
+      return "cards";
+    }
+  });
+  const [sort, setSort] = useState<Sort>("newest");
+  const [visible, setVisible] = useState(PAGE);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const setView = (v: View) => {
+    setViewState(v);
+    setVisible(PAGE);
+    try {
+      localStorage.setItem("lead-view", v);
+    } catch {
+      /* the choice just is not remembered */
+    }
+  };
   const justPaid = params.get("unlocked") === "1";
   const [waiting, setWaiting] = useState(justPaid);
   const tabParam = params.get("status");
@@ -194,11 +292,17 @@ export default function ContractorLeads() {
   }, [leads]);
 
   const term = q.trim().toLowerCase();
-  const shown = (leads ?? []).filter(
-    (l) =>
-      (tab === "all" || (tab === "locked" ? !l.unlocked : l.contractor_status === tab)) &&
-      (!term || [l.first_name, l.last_name, l.issue, l.unlocked ? [l.phone, l.email, l.city].join(" ") : ""].join(" ").toLowerCase().includes(term)),
-  );
+  const shown = (leads ?? [])
+    .filter(
+      (l) =>
+        (tab === "all" || (tab === "locked" ? !l.unlocked : l.contractor_status === tab)) &&
+        (!term || [l.first_name, l.last_name, l.issue, l.city ?? "", l.unlocked ? [l.phone, l.email].join(" ") : ""].join(" ").toLowerCase().includes(term)),
+    )
+    .sort((a, b) =>
+      sort === "oldest" ? a.assigned_at.localeCompare(b.assigned_at)
+        : sort === "urgent" ? Number(b.urgency === "Immediately") - Number(a.urgency === "Immediately") || b.assigned_at.localeCompare(a.assigned_at)
+          : b.assigned_at.localeCompare(a.assigned_at));
+  const open = openId ? (leads ?? []).find((l) => l.id === openId) ?? null : null;
 
   const setTab = (t: Tab) => {
     const next = new URLSearchParams(params);
@@ -223,8 +327,7 @@ export default function ContractorLeads() {
     <>
       <PageTitle title="Customer requests" />
       <p className="mb-5 text-sm text-slate-700">
-        New requests from customers near you are sent to you automatically. You see the customer&apos;s name and the problem for free. Unlock a request for <strong>${price}</strong> to see how to
-        reach them{!paid && <>, or <Link to="/contractor/billing" className="font-semibold text-primary underline">go Featured</Link> and pay ${leadPrice.paid} instead</>}.
+        New requests from customers near you are sent to you automatically. You see everything except the customer&apos;s phone number, email and street address. Unlock a request for <strong>${price}</strong> to see them{!paid && <>, or <Link to="/contractor/billing" className="font-semibold text-primary underline">go Featured</Link> and pay ${leadPrice.paid} instead</>}.
       </p>
 
       {stillWaiting && (
@@ -254,7 +357,23 @@ export default function ContractorLeads() {
                 </button>
               ))}
             </div>
-            <div className="relative ml-auto w-full sm:w-64">
+            <div className="ml-auto flex flex-wrap items-center gap-2">
+              <label className="sr-only" htmlFor="lead-sort">Sort requests</label>
+              <select id="lead-sort" value={sort} onChange={(e) => setSort(e.target.value as Sort)} className={`${inputClass} !w-auto !py-2.5`}>
+                <option value="newest">Newest first</option>
+                <option value="oldest">Oldest first</option>
+                <option value="urgent">Needs help now first</option>
+              </select>
+              <div role="group" aria-label="Layout" className="inline-flex overflow-hidden rounded-lg border border-slate-300 bg-white">
+                {VIEWS.map(({ id, label, icon: Icon }) => (
+                  <button key={id} type="button" aria-pressed={view === id} onClick={() => setView(id)} title={label}
+                    className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-semibold ${view === id ? "bg-primary text-white" : "text-navy hover:bg-slate-50"}`}>
+                    <Icon className="size-4" aria-hidden /> <span className="hidden sm:inline">{label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="relative w-full sm:w-64">
               <Search className="pointer-events-none absolute top-3.5 left-3 size-4 text-slate-400" aria-hidden />
               <label htmlFor="lead-q" className="sr-only">Search requests</label>
               <input id="lead-q" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name or problem…" className={`${inputClass} !py-2.5 !pl-9`} />
@@ -269,10 +388,43 @@ export default function ContractorLeads() {
           ) : shown.length === 0 ? (
             <p className="mt-6 text-sm text-slate-600">No requests match your filters.</p>
           ) : (
-            <ul className="mt-5 space-y-4">
-              {shown.map((l) => <LeadCard key={l.id} lead={l} price={price} onSaved={replace} />)}
-            </ul>
+            <>
+              <p className="mt-4 text-xs text-slate-500">{shown.length} {shown.length === 1 ? "request" : "requests"}. Click one to see everything and update its status.</p>
+              {view === "cards" && (
+                <ul className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                  {shown.slice(0, visible).map((l) => <li key={l.id}><LeadTile lead={l} onOpen={() => setOpenId(l.id)} /></li>)}
+                </ul>
+              )}
+              {view === "list" && (
+                <ul className="mt-3 divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                  {shown.slice(0, visible).map((l) => <LeadRow key={l.id} lead={l} onOpen={() => setOpenId(l.id)} />)}
+                </ul>
+              )}
+              {view === "board" && (
+                <div className="mt-3 grid items-start gap-4 md:grid-cols-2 xl:grid-cols-4">
+                  {CONTRACTOR_LEAD_STATUSES.map((st) => {
+                    const col = shown.filter((l) => l.contractor_status === st);
+                    return (
+                      <section key={st} aria-label={st} className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
+                        <h2 className="mb-2 flex items-center gap-2 text-sm font-bold text-navy capitalize"><span className={`size-2.5 rounded-full ${dot[st]}`} aria-hidden />{st} <span className="font-semibold text-slate-500">({col.length})</span></h2>
+                        {col.length === 0 ? <p className="px-1 py-2 text-sm text-slate-500">None.</p> : (
+                          <ul className="grid max-h-[70vh] gap-2.5 overflow-y-auto pr-1">
+                            {col.slice(0, visible).map((l) => <li key={l.id}><LeadTile lead={l} onOpen={() => setOpenId(l.id)} /></li>)}
+                          </ul>
+                        )}
+                      </section>
+                    );
+                  })}
+                </div>
+              )}
+              {shown.length > visible && (
+                <div className="mt-4 text-center">
+                  <Button variant="secondary" onClick={() => setVisible((v) => v + PAGE)} className="!rounded-full text-sm">Show {Math.min(PAGE, shown.length - visible)} more</Button>
+                </div>
+              )}
+            </>
           )}
+          {open && <LeadPanel lead={open} price={price} onSaved={replace} onClose={() => setOpenId(null)} />}
         </>
       )}
 

@@ -1,0 +1,97 @@
+name: Check and publish
+
+# Every time code is pushed to any branch except main, this runs all the checks (types, lint, every offline test, the production build).
+# If they ALL pass, it opens a pull request into main (if there is not one already) and merges it, so Cloudflare Pages publishes the
+# website within a couple of minutes. If any check fails nothing is merged and GitHub emails you the failure.
+#
+# To push without publishing, put [skip merge] anywhere in the last commit message.
+# One-time setup: GitHub > repository Settings > Actions > General > Workflow permissions: choose "Read and write permissions" and tick
+# "Allow GitHub Actions to create and approve pull requests". If the repository has a branch rule on main that requires reviews, this
+# cannot merge (it will say so in the log).
+# This only publishes the WEBSITE. Database changes (the SQL files in /supabase) still have to be run by hand in the Supabase SQL Editor.
+
+on:
+  push:
+    branches-ignore:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: check-and-publish-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm i --no-save --ignore-scripts @electric-sql/pglite
+      - name: Types and lint
+        run: |
+          npx tsc --noEmit
+          npx eslint .
+      - name: Offline tests
+        run: |
+          set -e
+          for t in discover:test permits:test bids:test test:stripe test:google test:notify test:account test:unlock test:opportunity test:recommend test:submit; do
+            echo "== npm run $t"
+            npm run -s "$t"
+          done
+          for f in supabase/tests/*.test.mjs; do
+            echo "== node $f"
+            node "$f"
+          done
+      - name: Production build
+        run: npm run build
+
+      - name: Open the pull request and merge it
+        if: ${{ !contains(github.event.head_commit.message, '[skip merge]') }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          branch="$GITHUB_REF_NAME"
+          git fetch origin main
+          ahead=$(git rev-list --count origin/main..HEAD)
+          if [ "$ahead" = "0" ]; then
+            echo "Nothing new compared with main; nothing to publish."
+            exit 0
+          fi
+          number=$(gh pr list --head "$branch" --base main --state open --json number --jq '.[0].number')
+          if [ -z "$number" ]; then
+            title=$(git log -1 --format=%s)
+            git log origin/main..HEAD --format='- %s' | head -30 > /tmp/commits.txt
+            {
+              echo "Opened and merged automatically after every check passed (types, lint, all offline tests and the production build)."
+              echo
+              echo "## Changes"
+              cat /tmp/commits.txt
+              echo
+              echo "Database changes in /supabase are not applied automatically: run any new or changed SQL files in the Supabase SQL Editor."
+            } > /tmp/body.md
+            if ! gh pr create --base main --head "$branch" --title "$title" --body-file /tmp/body.md; then
+              # GitHub says Actions may not open pull requests (the repository setting is off). Publish without one: merge the branch into
+              # main directly (a merge commit, like a pull request would make). Turn the setting on to get a pull request each time.
+              echo "Could not open a pull request; merging into main directly."
+              git config user.name "github-actions[bot]"
+              git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+              git checkout -B main origin/main
+              git merge --no-ff "origin/$branch" -m "Merge branch '$branch' into main (automatic, all checks passed)"
+              git push origin main
+              echo "Merged into main. Cloudflare Pages will publish the website shortly."
+              exit 0
+            fi
+          fi
+          gh pr merge "$branch" --merge
+          echo "Merged. Cloudflare Pages will publish the website shortly."
