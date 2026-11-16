@@ -11,9 +11,11 @@ export type SendResult = { ok: true; message: string } | { ok: false; error: str
  * site (a customer, the contractor on a permit, the contracting officer on a bid). The button that opens it is the address itself.
  * `onSend` does the sending and says what happened; this component only collects the subject and message and shows the result.
  */
-export function EmailComposer({ address, to, fromName, defaultSubject, placeholder, note, onSend }: {
+export function EmailComposer({ address, label, to, fromName, defaultSubject, placeholder, note, onSend }: {
   /** The address shown on the button that opens the window. */
   address: string;
+  /** When given, the button that opens the window is a solid button with this text (for example "Send Project Email Proposal") instead of the address. */
+  label?: string;
   /** Who it is to, as shown in the To line, for example "Chelsea <chelsea@example.com>". */
   to: string;
   fromName: string;
@@ -53,13 +55,15 @@ export function EmailComposer({ address, to, fromName, defaultSubject, placehold
   }
 
   const row = "flex items-baseline gap-3 border-b border-slate-200 py-2 text-sm";
-  const label = "w-16 shrink-0 text-xs font-semibold text-slate-500 uppercase";
+  const fieldLabel = "w-16 shrink-0 text-xs font-semibold text-slate-500 uppercase";
 
   return (
     <>
       <button type="button" onClick={() => { setDone(null); setError(null); setOpen(true); }}
-        className="inline-flex max-w-full items-center gap-2 rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-navy shadow-sm hover:bg-slate-50">
-        <Mail className="size-4 shrink-0" aria-hidden /> <span className="min-w-0 break-all">{address}</span>
+        className={label
+          ? "inline-flex items-center gap-1.5 rounded-full border border-primary bg-white px-4 py-2 text-sm font-semibold text-primary hover:bg-blue-50"
+          : "inline-flex max-w-full items-center gap-2 rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-navy shadow-sm hover:bg-slate-50"}>
+        {label ? <><Send className="size-4 shrink-0" aria-hidden /> {label}</> : <><Mail className="size-4 shrink-0" aria-hidden /> <span className="min-w-0 break-all">{address}</span></>}
       </button>
       {open && (
         <div className="fixed inset-0 z-[60] grid place-items-center overflow-y-auto bg-slate-900/50 p-4" onClick={() => !busy && setOpen(false)}>
@@ -82,10 +86,10 @@ export function EmailComposer({ address, to, fromName, defaultSubject, placehold
               </div>
             ) : (
               <form onSubmit={send} className="px-5 pt-1 pb-5">
-                <div className={row}><span className={label}>To</span><span className="min-w-0 break-all text-slate-900">{to}</span></div>
-                <div className={row}><span className={label}>From</span><span className="min-w-0 text-slate-900">{fromName} via HVACHelp</span></div>
+                <div className={row}><span className={fieldLabel}>To</span><span className="min-w-0 break-all text-slate-900">{to}</span></div>
+                <div className={row}><span className={fieldLabel}>From</span><span className="min-w-0 text-slate-900">{fromName} via HVACHelp</span></div>
                 <div className={row}>
-                  <label htmlFor="email-subject" className={label}>Subject</label>
+                  <label htmlFor="email-subject" className={fieldLabel}>Subject</label>
                   <input id="email-subject" value={subject} onChange={(e) => setSubject(e.target.value)} maxLength={MAX_SUBJECT} required
                     className="min-w-0 flex-1 bg-transparent font-medium text-slate-900 outline-none placeholder:text-slate-400 focus-visible:text-primary" placeholder="What is this about?" />
                 </div>

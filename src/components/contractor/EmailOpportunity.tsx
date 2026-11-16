@@ -6,7 +6,7 @@ import { EmailComposer } from "./EmailComposer";
  * through the site. The browser only says which contact (its position on the lead): the server reads the address itself, and checks the
  * lead is unlocked, the daily limits and the opt-out list. Replies go straight to the business.
  */
-export function EmailOpportunity({ kind, itemId, index, email, recipient, businessName, defaultSubject }: {
+export function EmailOpportunity({ kind, itemId, index, email, recipient, businessName, defaultSubject, label, project }: {
   kind: "permit" | "bid";
   itemId: string;
   index: number;
@@ -15,14 +15,21 @@ export function EmailOpportunity({ kind, itemId, index, email, recipient, busine
   recipient: string;
   businessName: string;
   defaultSubject: string;
+  /** Show a solid button with this text instead of the address, for example "Send Project Email Proposal". */
+  label?: string;
+  /** The project the email is about (the bid title or the permit), used in the starting message. */
+  project?: string;
 }) {
   return (
     <EmailComposer
       address={email}
+      label={label}
       to={`${recipient} <${email}>`}
       fromName={businessName}
       defaultSubject={defaultSubject}
-      placeholder={`Hello ${recipient.split(" ")[0] || ""},\n\nI am writing from ${businessName}…\n\n${businessName}`}
+      placeholder={project
+        ? `Hello ${recipient.split(" ")[0] || ""},\n\nI am writing from ${businessName} about ${project}. We would like to submit our proposal…\n\n${businessName}`
+        : `Hello ${recipient.split(" ")[0] || ""},\n\nI am writing from ${businessName}…\n\n${businessName}`}
       note="Sent from HVACHelp. Replies come straight to your business email. Please only write about this job."
       onSend={async (subject, body) => {
         const res = await callApi<{ sent?: boolean }>("/api/opportunities/email", { kind, itemId, index, subject, body });

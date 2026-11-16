@@ -33,7 +33,7 @@ function Card({ row, onOpen }: { row: Row; onOpen: () => void }) {
   );
 }
 
-function Person({ person, directory, adminLinks, locked, mail }: { person: PermitPerson; directory: DirectoryBusiness | null; adminLinks: boolean; locked: boolean; mail?: (email: string) => ReactNode }) {
+function Person({ person, directory, adminLinks, locked }: { person: PermitPerson; directory: DirectoryBusiness | null; adminLinks: boolean; locked: boolean }) {
   const place = [person.city, person.state, person.zip].filter(Boolean).join(" ");
   // While locked nothing that could reveal the phone, email or website is shown, not even from the directory.
   const email = locked ? null : (person.email ?? directory?.email ?? null);
@@ -45,7 +45,7 @@ function Person({ person, directory, adminLinks, locked, mail }: { person: Permi
       {person.company && person.name && <p className="text-slate-700">{person.name}</p>}
       <dl className="mt-2 space-y-1 text-slate-700">
         <div className="flex items-start gap-2"><Phone className="mt-0.5 size-4 shrink-0 text-slate-400" aria-hidden /><dd>{locked ? <LockedTag /> : person.phone ? <a href={`tel:${person.phone.replace(/\D/g, "")}`} className="text-primary hover:underline">{person.phone}</a> : <span className="text-slate-400">No phone listed</span>}</dd></div>
-        <div className="flex items-start gap-2"><Mail className="mt-0.5 size-4 shrink-0 text-slate-400" aria-hidden /><dd>{locked ? <LockedTag /> : email ? ((person.email && mail?.(person.email)) || <a href={`mailto:${email}`} className="text-primary hover:underline">{email}</a>) : <span className="text-slate-400">No email found</span>}{!person.email && email && <span className="ml-1 text-xs text-slate-500">(from the directory)</span>}</dd></div>
+        <div className="flex items-start gap-2"><Mail className="mt-0.5 size-4 shrink-0 text-slate-400" aria-hidden /><dd>{locked ? <LockedTag /> : email ? <a href={`mailto:${email}`} className="text-primary hover:underline">{email}</a> : <span className="text-slate-400">No email found</span>}{!person.email && email && <span className="ml-1 text-xs text-slate-500">(from the directory)</span>}</dd></div>
         {site && <div className="flex items-start gap-2"><Globe className="mt-0.5 size-4 shrink-0 text-slate-400" aria-hidden /><dd className="min-w-0 break-all"><a href={site} target="_blank" rel="noreferrer" className="text-primary hover:underline">{site.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")}</a></dd></div>}
         <div className="flex items-start gap-2"><MapPin className="mt-0.5 size-4 shrink-0 text-slate-400" aria-hidden /><dd>{person.address || place ? <>{person.address}{person.address && place ? ", " : ""}{place}</> : <span className="text-slate-400">No address listed</span>}</dd></div>
       </dl>
@@ -61,9 +61,19 @@ function Person({ person, directory, adminLinks, locked, mail }: { person: Permi
 function Detail({ row, directory, adminLinks, unlock, compose, onClose }: { row: Row; directory: DirectoryBusiness[]; adminLinks: boolean; unlock?: UnlockInfo; compose?: ComposeInfo; onClose: () => void }) {
   const { p } = row;
   const locked = p.unlocked === false;
+  // The proposal goes to the first person on the permit that has an email (the server reads the address itself).
+  const proposalIndex = p.people.findIndex((x) => Boolean(x.email));
+  const proposalTo = p.unlocked === true && proposalIndex >= 0 ? p.people[proposalIndex] : null;
   return (
     <SidePanel label="Permit details" tier={row.tier} score={row.score} title={permitTitle(p)} subtitle={`${p.address ? `${p.address}, ` : ""}${p.city}${p.zip ? ` ${p.zip}` : ""}`} onClose={onClose}>
       <p className="mt-4 rounded-xl bg-slate-50 p-3 text-sm text-slate-800">{p.summary}</p>
+
+      {proposalTo && compose && (
+        <div className="mt-4 flex flex-wrap gap-2">
+          <EmailOpportunity kind="permit" itemId={p.id} index={proposalIndex} email={proposalTo.email as string} recipient={proposalTo.name ?? proposalTo.company ?? (proposalTo.email as string)} businessName={compose.businessName}
+            label="Send Project Email Proposal" project={`the HVAC permit ${p.source_id}${p.address ? ` at ${p.address}` : ""}`} defaultSubject={`Proposal: HVAC permit ${p.source_id}${p.address ? ` at ${p.address}` : ""}`.slice(0, 150)} />
+        </div>
+      )}
 
       <h3 className="mt-6 text-sm font-bold text-navy">Why this score</h3>
       <ScoreBars parts={row.parts} />
@@ -85,9 +95,7 @@ function Detail({ row, directory, adminLinks, unlock, compose, onClose }: { row:
         <p className="mt-1 text-sm text-slate-500">{p.contractor_name ? `Contractor: ${p.contractor_name}. ` : ""}No other details were published for this permit. They are scraped again each morning.</p>
       ) : (
         <ul className="mt-2 grid gap-3 sm:grid-cols-2">
-          {p.people.map((person, i) => <Person key={`${person.role}-${i}`} person={person} directory={matchDirectory(person, directory)} adminLinks={adminLinks} locked={locked}
-            mail={compose && p.unlocked === true ? (address) => <EmailOpportunity kind="permit" itemId={p.id} index={i} email={address} recipient={person.name ?? person.company ?? address} businessName={compose.businessName} defaultSubject={`HVAC permit ${p.source_id}${p.address ? ` at ${p.address}` : ""}`.slice(0, 150)} />
-              : undefined} />)}
+          {p.people.map((person, i) => <Person key={`${person.role}-${i}`} person={person} directory={matchDirectory(person, directory)} adminLinks={adminLinks} locked={locked} />)}
         </ul>
       )}
       <p className="mt-3 text-xs text-slate-500">

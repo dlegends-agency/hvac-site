@@ -41,6 +41,9 @@ function Card({ row, onOpen }: { row: Row; onOpen: () => void }) {
 function Detail({ row, unlock, compose, onClose }: { row: Row; unlock?: UnlockInfo; compose?: ComposeInfo; onClose: () => void }) {
   const { b } = row;
   const locked = b.unlocked === false;
+  // The proposal goes to the first contracting contact that has an email (the server reads the address itself).
+  const proposalIndex = b.contacts.findIndex((c) => Boolean(c.email));
+  const proposalTo = b.unlocked === true && proposalIndex >= 0 ? b.contacts[proposalIndex] : null;
   const place = [b.address, b.city, b.state, b.zip].filter(Boolean).join(", ");
   return (
     <SidePanel label="Bid details" tier={row.tier} score={row.score} title={bidTitle(b)} subtitle={[b.agency, b.city && `${b.city}, ${b.state}`].filter(Boolean).join(" · ")} onClose={onClose}>
@@ -48,6 +51,10 @@ function Detail({ row, unlock, compose, onClose }: { row: Row; unlock?: UnlockIn
 
       <div className="mt-4 flex flex-wrap gap-2">
         {b.sam_url && <a href={b.sam_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white hover:opacity-90">Open on SAM.gov <ExternalLink className="size-4" aria-hidden /></a>}
+        {proposalTo && compose && (
+          <EmailOpportunity kind="bid" itemId={b.id} index={proposalIndex} email={proposalTo.email as string} recipient={proposalTo.name ?? (proposalTo.email as string)} businessName={compose.businessName}
+            label="Send Project Email Proposal" project={bidTitle(b)} defaultSubject={`Proposal: ${bidTitle(b)}`.slice(0, 150)} />
+        )}
         {b.info_url && <a href={b.info_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-navy hover:bg-slate-50">More information <ExternalLink className="size-4" aria-hidden /></a>}
       </div>
 
@@ -79,7 +86,7 @@ function Detail({ row, unlock, compose, onClose }: { row: Row; unlock?: UnlockIn
               <p className="font-semibold text-navy">{c.name ?? "Contact"}</p>
               {c.title && <p className="text-xs text-slate-500">{c.title}</p>}
               <dl className="mt-2 space-y-1 text-slate-700">
-                <div className="flex items-start gap-2"><Mail className="mt-0.5 size-4 shrink-0 text-slate-400" aria-hidden /><dd>{locked ? <LockedTag /> : c.email ? (compose && b.unlocked === true ? <EmailOpportunity kind="bid" itemId={b.id} index={i} email={c.email} recipient={c.name ?? c.email} businessName={compose.businessName} defaultSubject={`Question about ${bidTitle(b)}`.slice(0, 150)} /> : <a href={`mailto:${c.email}`} className="break-all text-primary hover:underline">{c.email}</a>) : <span className="text-slate-400">No email</span>}</dd></div>
+                <div className="flex items-start gap-2"><Mail className="mt-0.5 size-4 shrink-0 text-slate-400" aria-hidden /><dd>{locked ? <LockedTag /> : c.email ? <a href={`mailto:${c.email}`} className="break-all text-primary hover:underline">{c.email}</a> : <span className="text-slate-400">No email</span>}</dd></div>
                 <div className="flex items-start gap-2"><Phone className="mt-0.5 size-4 shrink-0 text-slate-400" aria-hidden /><dd>{locked ? <LockedTag /> : c.phone ? <a href={`tel:${c.phone.replace(/\D/g, "")}`} className="text-primary hover:underline">{c.phone}</a> : <span className="text-slate-400">No phone</span>}</dd></div>
               </dl>
             </li>
