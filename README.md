@@ -184,7 +184,7 @@ Two separate lead sources, each in its own table, importer and admin page, and b
 | HVAC building permits (Austin and Dallas open data) | `public_permits` | `scripts/permits` | Admin > Permits | every day 8:00 AM Philippine time |
 | Open federal HVAC bids in Texas (SAM.gov) | `gov_bids` | `scripts/bids` | Admin > Government bids | every day 8:30 AM Philippine time |
 
-Run `supabase/schema-permits.sql`, then `supabase/schema-bids.sql` (it also lets business owners read both tables). Each lead is scored Hot, Warm or Cold with the reasons. See `scripts/permits/README.md` and `scripts/bids/README.md`.
+Run `supabase/schema-permits.sql`, `supabase/schema-bids.sql`, then `supabase/schema-opportunities.sql`. Contractors never read the two tables: the database sends each lead to every business within reach of its address (its city or listed cities, or within its travel radius of its business ZIP, the same rule as website requests). They see everything except the phone number and email (for a permit also the website and city record link; for a bid the SAM.gov links), which unlock for $5 (Featured) or $10 per lead through `/api/stripe/unlock-opportunity`. Website requests work the same way: everything but phone, email and street address is visible. Each lead is scored Hot, Warm or Cold with the reasons. See `scripts/permits/README.md` and `scripts/bids/README.md`.
 
 ### Messages and the customer dashboard
 

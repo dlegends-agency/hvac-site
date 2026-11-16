@@ -40,9 +40,17 @@ function Locked({ lead, price }: { lead: ContractorLead; price: number }) {
   }
 
   return (
+    <>
+    <dl className="mt-4 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
+      <div><dt className="font-semibold text-navy">Area</dt><dd className="text-slate-700">{[lead.city, lead.state, lead.postal_code].filter(Boolean).join(", ") || "Not given"}</dd></div>
+      <div><dt className="font-semibold text-navy">Property</dt><dd className="text-slate-700">{[lead.property_type, lead.property_status].filter(Boolean).join(" · ") || "Not given"}</dd></div>
+      <div><dt className="font-semibold text-navy">Prefers</dt><dd className="text-slate-700">{lead.contact_method}{lead.preferred_contact_time ? ` · ${lead.preferred_contact_time}` : ""}</dd></div>
+      <div><dt className="font-semibold text-navy">Phone, email and street address</dt><dd><span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600"><Lock className="size-3" aria-hidden /> Locked</span></dd></div>
+      {lead.description && <div className="sm:col-span-2"><dt className="font-semibold text-navy">What they said</dt><dd className="whitespace-pre-line text-slate-700">{lead.description}</dd></div>}
+    </dl>
     <div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4">
-      <p className="flex items-center gap-2 text-sm font-semibold text-navy"><Lock className="size-4 text-slate-500" aria-hidden /> The rest of this request is locked</p>
-      <p className="mt-1 text-sm text-slate-600">Unlock it to see the customer&apos;s phone number, email, address, when they need help and their full message.</p>
+      <p className="flex items-center gap-2 text-sm font-semibold text-navy"><Lock className="size-4 text-slate-500" aria-hidden /> Phone, email and street address are locked</p>
+      <p className="mt-1 text-sm text-slate-600">Unlock to call or email the customer and see their exact address.</p>
       <div className="mt-3 flex flex-wrap items-center gap-3">
         <Button onClick={unlock} disabled={busy} className="!rounded-full !px-5 !py-2 text-sm">
           {busy && <Loader2 className="size-4 animate-spin" aria-hidden />} Unlock for ${price}
@@ -51,6 +59,7 @@ function Locked({ lead, price }: { lead: ContractorLead; price: number }) {
       </div>
       <div role="alert">{error && <p className="mt-2 text-sm font-medium text-red-700">{error}</p>}</div>
     </div>
+    </>
   );
 }
 
@@ -117,13 +126,13 @@ function LeadCard({ lead, price, onSaved }: { lead: ContractorLead; price: numbe
           <p className="mt-0.5 text-sm text-slate-700">{lead.issue}</p>
           <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
             <span className="inline-flex items-center gap-1"><Clock className="size-3.5" aria-hidden /> Received {ago(lead.assigned_at)}</span>
-            {lead.unlocked && <span className="inline-flex items-center gap-1"><MapPin className="size-3.5" aria-hidden /> {lead.city}, {lead.state}</span>}
+            {lead.city && <span className="inline-flex items-center gap-1"><MapPin className="size-3.5" aria-hidden /> {lead.city}, {lead.state}</span>}
             {lead.recipient_count > 1 && <span className="inline-flex items-center gap-1"><Users className="size-3.5" aria-hidden /> Also sent to {lead.recipient_count - 1} other {lead.recipient_count === 2 ? "contractor" : "contractors"}</span>}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {urgent && <span className="rounded-full bg-emergency-soft px-2.5 py-0.5 text-xs font-semibold text-emergency">Needs help now</span>}
-          {lead.unlocked && lead.urgency && lead.urgency !== "Immediately" && <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">{lead.urgency}</span>}
+          {lead.urgency && lead.urgency !== "Immediately" && <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">{lead.urgency}</span>}
           {lead.unlocked ? <span className="rounded-full bg-green-50 px-2.5 py-0.5 text-xs font-semibold text-green-800">Unlocked</span> : <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600"><Lock className="size-3" aria-hidden /> Locked</span>}
         </div>
       </div>

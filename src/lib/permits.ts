@@ -18,6 +18,8 @@ export interface PublicPermit {
   /** Contractors and the applicant, with the details the city publishes. */
   people: PermitPerson[];
   source_url: string | null;
+  /** Set for a business owner: false while the phone, email and website are still hidden (pay to unlock). Admins see everything. */
+  unlocked?: boolean;
 }
 
 export interface PermitPerson {

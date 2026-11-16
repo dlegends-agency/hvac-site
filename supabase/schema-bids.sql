@@ -2,8 +2,7 @@
 -- Two separate lead sources, each in its own table:
 --   public_permits  building permits from city open-data portals (schema-permits.sql)
 --   gov_bids        open federal contract notices from SAM.gov for HVAC work in Texas (this file)
--- Admins read both. A signed-in business owner (a user who manages a listing) reads both too, so the opportunities show up in the
--- contractor dashboard. Only the importers (scripts/permits, scripts/bids, using the service role key) write to them.
+-- Admins read both. Business owners get their own area's leads through schema-opportunities.sql. Only the importers (scripts/permits, scripts/bids, using the service role key) write to them.
 
 create table if not exists public.gov_bids (
   id                  uuid primary key default gen_random_uuid(),
@@ -48,14 +47,13 @@ revoke all on public.gov_bids from anon, authenticated;
 grant select on public.gov_bids to authenticated;
 drop policy if exists "Admins read bids" on public.gov_bids;
 create policy "Admins read bids" on public.gov_bids for select to authenticated using (public.is_admin());
+-- Business owners do NOT read these tables directly (that would show phone numbers and emails for free). They read their own
+-- leads through my_bids() and my_permits() in schema-opportunities.sql, which only returns what is in their area and keeps the phone
+-- and email back until they pay. Older versions of this file allowed direct reads: remove that.
 drop policy if exists "Business owners read bids" on public.gov_bids;
-create policy "Business owners read bids" on public.gov_bids for select to authenticated using (public.is_business_owner());
-
--- Business owners also read the permits (public records), so both lead sources reach them.
 do $$
 begin
   if to_regclass('public.public_permits') is not null then
     drop policy if exists "Business owners read permits" on public.public_permits;
-    create policy "Business owners read permits" on public.public_permits for select to authenticated using (public.is_business_owner());
   end if;
 end $$;

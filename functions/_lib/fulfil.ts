@@ -57,10 +57,33 @@ export async function unlockLead(env: Env, session: CheckoutSession): Promise<vo
   if (!res.ok) throw new Error("Could not unlock the lead");
 }
 
+/** A paid-for building permit or government bid: unlock its phone and email for the business that paid. */
+export async function unlockOpportunity(env: Env, session: CheckoutSession): Promise<void> {
+  const kind = session.metadata?.kind === "permit_unlock" ? "permit" : session.metadata?.kind === "bid_unlock" ? "bid" : null;
+  const itemId = session.metadata?.item_id;
+  const listingId = session.metadata?.listing_id;
+  if (!kind || !itemId || !listingId || session.payment_status !== "paid") return;
+
+  if (session.customer) {
+    const keep = await db(env, "listing_billing?on_conflict=listing_id", {
+      method: "POST",
+      headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
+      body: JSON.stringify({ listing_id: listingId, stripe_customer_id: session.customer }),
+    });
+    if (!keep.ok) throw new Error("Could not save the customer");
+  }
+  const res = await db(env, "rpc/unlock_opportunity", {
+    method: "POST",
+    body: JSON.stringify({ p_kind: kind, p_item: itemId, p_listing: listingId, p_cents: session.amount_total ?? 0, p_ref: session.id }),
+  });
+  if (!res.ok) throw new Error("Could not unlock the lead");
+}
+
 /** Fulfils a completed Checkout session of either kind. */
 export async function fulfilSession(env: Env, session: CheckoutSession): Promise<void> {
   if (session.mode === "payment") {
-    await unlockLead(env, session);
+    if (session.metadata?.kind === "permit_unlock" || session.metadata?.kind === "bid_unlock") await unlockOpportunity(env, session);
+    else await unlockLead(env, session);
   } else if (session.subscription) {
     const sub = await stripe<StripeSubscription>(env, "GET", `/subscriptions/${session.subscription}`);
     await applySubscription(env, sub, session.client_reference_id);
