@@ -82,8 +82,8 @@ export function MessageCenter({ role, startLead, startListing, upgradeHref }: Pr
   const current = list.find((c) => key(c) === open) ?? null;
 
   return (
-    <div className="grid gap-4 md:grid-cols-[20rem_1fr]">
-      <section aria-label="Conversations" className={`${current ? "hidden md:block" : ""}`}>
+    <div className="grid gap-4 md:grid-cols-[20rem_minmax(0,1fr)]">
+      <section aria-label="Conversations" className={`min-w-0 ${current ? "hidden md:block" : ""}`}>
         {list.length === 0 ? (
           <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-700">
             <MessageSquare className="mb-2 size-6 text-slate-400" aria-hidden />
@@ -112,7 +112,7 @@ export function MessageCenter({ role, startLead, startListing, upgradeHref }: Pr
         )}
       </section>
 
-      <section aria-label="Conversation" className={`${current ? "" : "hidden md:block"}`}>
+      <section aria-label="Conversation" className={`min-w-0 ${current ? "" : "hidden md:block"}`}>
         {current ? (
           <Thread key={key(current)} role={role} conversation={current} upgradeHref={upgradeHref} onBack={() => setOpen(null)} onChanged={loadList} />
         ) : (
@@ -177,16 +177,16 @@ function Thread({ role, conversation: c, upgradeHref, onBack, onChanged }: { rol
   }
 
   return (
-    <div className="flex h-[32rem] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white">
+    <div className="flex h-[32rem] min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white">
       <header className="flex items-center gap-3 border-b border-slate-100 px-4 py-3">
         <button type="button" onClick={onBack} className="rounded-lg p-1 text-slate-600 hover:bg-slate-100 md:hidden" aria-label="Back to conversations"><ArrowLeft className="size-5" aria-hidden /></button>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <h2 className="truncate font-semibold text-navy">{c.title}</h2>
           <p className="truncate text-xs text-slate-500">About: {c.issue}{c.place ? ` · ${c.place}` : ""}</p>
         </div>
       </header>
 
-      <div className="flex-1 space-y-3 overflow-y-auto bg-slate-50 px-4 py-4" role="log" aria-label="Messages" aria-live="polite">
+      <div className="min-w-0 flex-1 space-y-3 overflow-x-hidden overflow-y-auto bg-slate-50 px-4 py-4" role="log" aria-label="Messages" aria-live="polite">
         {messages === null && !loadError && <p className="flex items-center gap-2 text-sm text-slate-600"><Loader2 className="size-4 animate-spin" aria-hidden /> Loading…</p>}
         {loadError && (
           <div role="alert" className="rounded-xl border border-orange-200 bg-orange-50 p-3 text-sm text-orange-900">
