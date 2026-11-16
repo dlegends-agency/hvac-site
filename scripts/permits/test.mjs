@@ -4,7 +4,7 @@ import { buildPermit, buildPerson, phoneText, classifyProperty, classifyTrade, c
 import { dallasDate, mapAustin, mapDallas } from "./sources.mjs";
 import { ageInDays, scorePermit } from "../../src/lib/permit-score.ts";
 import { matchDirectory, permitTitle } from "../../src/lib/permits.ts";
-import { contactKey, domainGuesses, enrichPermits, findContractorEmail, pageHasPhone, plainCompany } from "./contacts.mjs";
+import { contactKey, domainGuesses, enrichPermits, findContractorEmail, isCompletePerson, isEmail, keepComplete, pageHasPhone, plainCompany } from "./contacts.mjs";
 
 let passed = 0;
 const pending = [];
@@ -228,6 +228,20 @@ test("contractor email: the daily enrichment fills permits, remembers answers an
   // remembered "none found" answers are not looked up again within 30 days
   const again = await enrichPermits(permits, { store: { loadCache: async () => [{ key: "phone:5120000003", email: null, found: false, checked_at: new Date().toISOString() }, { key: "phone:5120000001", email: "info@alphaair.com", found: true, checked_at: new Date().toISOString() }, { key: "phone:5120000002", email: "hi@beta.com", found: true, checked_at: new Date().toISOString() }], loadKnown: async () => new Map() }, readSiteFn: async () => assert.fail("nothing to look up") });
   assert.equal(again.looked, 0);
+});
+
+test("only permits whose contractor has a name, phone and email are kept", () => {
+  const full = { company: "Alpha Air", name: "Pat", phone: "(512) 000-0001", email: "info@alphaair.com" };
+  assert.equal(isCompletePerson(full), true);
+  assert.equal(isCompletePerson({ ...full, email: null }), false, "no email");
+  assert.equal(isCompletePerson({ ...full, phone: null }), false, "no phone");
+  assert.equal(isCompletePerson({ ...full, phone: "555" }), false, "a short phone number");
+  assert.equal(isCompletePerson({ ...full, company: null, name: null }), false, "no name");
+  assert.equal(isCompletePerson({ ...full, email: "not an email" }), false);
+  assert.equal(isEmail("a@b.co"), true);
+  const kept = keepComplete([{ id: 1, people: [full, { ...full, email: null }] }, { id: 2, people: [{ ...full, email: null }] }, { id: 3 }]);
+  assert.deepEqual(kept.map((p) => p.id), [1]);
+  assert.deepEqual(kept[0].people, [full], "contractors without full details are dropped from a kept permit");
 });
 
 await Promise.all(pending);
