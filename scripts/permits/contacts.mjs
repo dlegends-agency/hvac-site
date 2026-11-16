@@ -31,6 +31,17 @@ export function contactKey(person) {
   return name.length >= 4 ? `name:${name}` : "";
 }
 
+/** A usable email address (one @, a dot in the domain, no spaces). */
+export const isEmail = (s) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(s ?? "").trim());
+
+/** A contractor we can actually contact: a name, a phone number and an email address. */
+export const isCompletePerson = (x) => Boolean(x && (x.name || x.company) && digits10(x.phone) && isEmail(x.email));
+
+/** Keeps only permits with at least one contractor that has a name, phone and email, and only those contractors on them. */
+export function keepComplete(permits) {
+  return permits.map((p) => ({ ...p, people: (p.people ?? []).filter(isCompletePerson) })).filter((p) => p.people.length > 0);
+}
+
 /** Likely website addresses for a company name, most likely first. Only .com, at most `max`. */
 export function domainGuesses(company, city = "", max = 6) {
   const words = plainCompany(company).split(" ").filter(Boolean);

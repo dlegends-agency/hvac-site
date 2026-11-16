@@ -6,13 +6,14 @@
 //   node scripts/permits/index.mjs                                 save the HVAC permits of the last 30 days, up to 200 per city
 //   node scripts/permits/index.mjs --days 14 --per-city 100        a shorter window, fewer permits
 //   node scripts/permits/index.mjs --cities austin,dallas          only these cities
-//   node scripts/permits/index.mjs --email-limit 300               look up more contractor emails this run (default 150); --no-emails skips them
+//   node scripts/permits/index.mjs --email-limit 900               look up more contractor emails this run (default 600)
+// Only permits whose contractor has a name, a phone number AND an email address are kept; the rest are dropped (and removed if saved earlier).
 //   node scripts/permits/index.mjs --dry-run --served "Houston"    cities you serve, for the ranking in a dry run
 // Saving needs SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY. The same permit is never saved twice, and anything that is not HVAC is removed.
 
 import { createClient } from "@supabase/supabase-js";
 import { SOURCES } from "./sources.mjs";
-import { digits10, enrichPermits, makeSearch, plainCompany } from "./contacts.mjs";
+import { digits10, enrichPermits, isCompletePerson, keepComplete, makeSearch, plainCompany } from "./contacts.mjs";
 
 const arg = (name) => {
   const i = process.argv.indexOf(`--${name}`);
@@ -21,7 +22,7 @@ const arg = (name) => {
 const dryRun = process.argv.includes("--dry-run");
 const limit = Math.max(1, Math.min(1000, Number(arg("per-city") ?? 200)));
 const days = Math.max(1, Math.min(365, Number(arg("days") ?? 30)));
-const emailLimit = Math.max(0, Math.min(2000, Number(arg("email-limit") ?? 150)));
+const emailLimit = Math.max(0, Math.min(2000, Number(arg("email-limit") ?? 600)));
 const skipEmails = process.argv.includes("--no-emails");
 const cities = (arg("cities") ?? Object.keys(SOURCES).join(",")).split(",").map((c) => c.trim().toLowerCase()).filter(Boolean);
 const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } = process.env;
@@ -71,6 +72,13 @@ if (!skipEmails && all.length && emailLimit > 0) {
   await enrichPermits(all, { store, limit: emailLimit, searchFn, log: (m) => console.log(m) });
 }
 
+const found = all.length;
+const complete = keepComplete(all);
+console.log(`
+Kept ${complete.length} of ${found} permits: only those whose contractor has a name, a phone number and an email address.`);
+all.length = 0;
+all.push(...complete);
+
 if (dryRun) {
   // Rank them the way Admin > Permits does.
   const { scorePermit, TIERS } = await import("../../src/lib/permit-score.ts");
@@ -104,5 +112,14 @@ for (let i = 0; i < all.length; i += 500) {
 // Only HVAC is kept: remove anything else that an earlier run saved.
 const removed = await sb.from("public_permits").delete({ count: "exact" }).neq("trade", "HVAC");
 if (removed.error) console.error(`Could not remove non-HVAC permits: ${removed.error.message}`);
-console.log(`\nSaved ${all.length} HVAC permits${removed.count ? `, removed ${removed.count} that were not HVAC` : ""}. See them in Admin > Permits.`);
+// Also remove anything saved earlier that has no contractor with a name, phone and email.
+const { data: saved, error: savedError } = await sb.from("public_permits").select("id,people").limit(50000);
+let incomplete = 0;
+if (savedError) console.error(`Could not check saved permits: ${savedError.message}`);
+else {
+  const ids = (saved ?? []).filter((r) => !(r.people ?? []).some(isCompletePerson)).map((r) => r.id);
+  incomplete = ids.length;
+  for (let i = 0; i < ids.length; i += 100) await sb.from("public_permits").delete().in("id", ids.slice(i, i + 100));
+}
+console.log(`\nSaved ${all.length} HVAC permits with a contractor name, phone and email${removed.count ? `, removed ${removed.count} that were not HVAC` : ""}${incomplete ? `, removed ${incomplete} without full contact details` : ""}. See them in Admin > Permits.`);
 process.exit(process.exitCode ?? 0);

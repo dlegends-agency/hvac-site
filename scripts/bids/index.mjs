@@ -11,7 +11,7 @@
 
 import { createReadStream } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
-import { columnIndex, mapBid } from "./classify.mjs";
+import { columnIndex, isCompleteContact, keepComplete, mapBid } from "./classify.mjs";
 import { csvRows } from "./csv.mjs";
 
 const FILE_URL = "https://s3.amazonaws.com/falextracts/Contract%20Opportunities/datagov/ContractOpportunitiesFullCSV.csv";
@@ -55,13 +55,13 @@ try {
 // The same notice is often posted several times (new ids for amendments and re-postings): keep the newest of each.
 const newestFirst = [...bids.values()].sort((a, b) => (b.posted_at ?? "").localeCompare(a.posted_at ?? ""));
 const seenKeys = new Set();
-const list = newestFirst.filter((b) => {
+const list = keepComplete(newestFirst).filter((b) => {
   const key = [(b.solicitation_number ?? b.title).toLowerCase(), (b.city ?? "").toLowerCase(), (b.agency ?? "").toLowerCase()].join("|");
   if (seenKeys.has(key)) return false;
   seenKeys.add(key);
   return true;
 });
-console.log(`Read ${scanned.toLocaleString("en-US")} notices in ${Math.round((Date.now() - started) / 1000)}s: ${list.length} open ${state} HVAC notices${newestFirst.length > list.length ? ` (${newestFirst.length - list.length} repeats of the same notice left out)` : ""}.`);
+console.log(`Read ${scanned.toLocaleString("en-US")} notices in ${Math.round((Date.now() - started) / 1000)}s: ${list.length} open ${state} HVAC notices${newestFirst.length > list.length ? ` (${newestFirst.length - list.length} left out: repeats, or no contact with a name, phone and email)` : ""}. Only notices with a contact name, phone and email are kept.`);
 
 if (dryRun) {
   for (const b of list.slice(0, 15)) console.log(`- ${b.posted_at?.slice(0, 10)} | due ${b.response_due?.slice(0, 10) ?? "none"} | ${b.notice_type} | NAICS ${b.naics ?? "-"} | ${b.relevance}\n    ${b.summary}\n    ${b.sam_url ?? ""}`);
@@ -91,5 +91,6 @@ const keep = new Set(list.map((b) => b.notice_id));
 const { data: existing, error: readError } = await sb.from("gov_bids").select("notice_id").eq("state", state).limit(20000);
 if (readError) console.error(`Could not check for closed notices: ${readError.message}`);
 const stale = (existing ?? []).map((r) => r.notice_id).filter((id) => !keep.has(id));
+// Anything saved earlier without a contact name, phone and email is in `stale`, because it is not in the kept set.
 for (let i = 0; i < stale.length; i += 100) await sb.from("gov_bids").delete().in("notice_id", stale.slice(i, i + 100));
 console.log(`Saved ${list.length} open ${state} HVAC notices${stale.length ? `, removed ${stale.length} that closed` : ""}. See them in Admin > Government bids.`);

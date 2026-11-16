@@ -28,7 +28,7 @@ concurrency:
 jobs:
   import:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -38,7 +38,7 @@ jobs:
       - run: npm ci --ignore-scripts
       - name: Import HVAC permits
         # Scheduled runs read the last 14 days (it overlaps the day before, and the same permit is never saved twice).
-        run: node scripts/permits/index.mjs --days ${{ github.event.inputs.days || '14' }} --per-city ${{ github.event.inputs.perCity || '500' }}
+        run: node scripts/permits/index.mjs --days ${{ github.event.inputs.days || '14' }} --per-city ${{ github.event.inputs.perCity || '500' }} --email-limit 800
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}

@@ -1,6 +1,6 @@
 // Offline tests for the SAM.gov bids importer. Run: npm run bids:test
 import assert from "node:assert/strict";
-import { columnIndex, hvacReason, isoOrNull, mapBid, summarizeBid } from "./classify.mjs";
+import { columnIndex, hvacReason, isCompleteContact, isoOrNull, keepComplete, mapBid, summarizeBid } from "./classify.mjs";
 import { csvRows } from "./csv.mjs";
 import { daysLeft, dueText, bidTitle } from "../../src/lib/bids.ts";
 import { scoreBid } from "../../src/lib/bid-score.ts";
@@ -112,6 +112,17 @@ test("scoring: a fresh small-business solicitation in a city we serve is hot; a 
   assert.equal(dueText(0), "due today");
   assert.equal(dueText(null), "no deadline listed");
   assert.equal(dueText(-1), "closed");
+});
+
+test("only notices with a contact that has a name, phone and email are kept", () => {
+  const full = { name: "Pat Lee", email: "pat@va.gov", phone: "713-555-0100" };
+  assert.equal(isCompleteContact(full), true);
+  assert.equal(isCompleteContact({ ...full, email: null }), false);
+  assert.equal(isCompleteContact({ ...full, phone: null }), false);
+  assert.equal(isCompleteContact({ ...full, name: null }), false);
+  const kept = keepComplete([{ id: 1, contacts: [full, { name: "No Email", phone: "713-555-0101", email: null }] }, { id: 2, contacts: [{ email: "x@y.gov" }] }, { id: 3 }]);
+  assert.deepEqual(kept.map((b) => b.id), [1]);
+  assert.deepEqual(kept[0].contacts, [full]);
 });
 
 await Promise.all(pending);

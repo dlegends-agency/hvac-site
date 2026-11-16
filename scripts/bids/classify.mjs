@@ -62,6 +62,17 @@ export function summarizeBid({ noticeType, setAsideCode, title, city, state, res
  * Reads one row of the daily file. Returns a bid, or null when it is not an open Texas HVAC notice.
  * `now` is the time to compare the deadline with; a notice whose deadline has passed is dropped.
  */
+/** A usable email address (one @, a dot in the domain, no spaces). */
+export const isEmail = (s) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(s ?? "").trim());
+
+/** A contracting officer we can contact: a name, a phone number and an email address. */
+export const isCompleteContact = (c) => Boolean(c && c.name && String(c.phone ?? "").replace(/\D/g, "").length >= 10 && isEmail(c.email));
+
+/** Keeps only notices with at least one contact that has a name, phone and email, and only those contacts on them. */
+export function keepComplete(bids) {
+  return bids.map((b) => ({ ...b, contacts: (b.contacts ?? []).filter(isCompleteContact) })).filter((b) => b.contacts.length > 0);
+}
+
 export function mapBid(row, c, { state = "TX", now = Date.now(), maxAgeDays = 365 } = {}) {
   if (row[c.Active] !== "Yes") return null;
   const placeState = row[c.PopState] || row[c.State];
