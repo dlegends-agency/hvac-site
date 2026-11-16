@@ -121,3 +121,47 @@ ${list}<p style="margin:0 0 20px;font-size:15px;line-height:1.5">Open your dashb
 
   return { subject, html, text };
 }
+
+export interface MessageEmail {
+  business_name: string;
+  customer_name: string;
+  issue: string;
+  body: string;
+}
+
+/**
+ * The email a customer gets when a business sends them a message through the site. It carries the message itself and a link to read and
+ * reply in their HVACHelp dashboard. It never contains the business's phone number or email address: replies stay on the site.
+ */
+export function renderMessageEmail(a: MessageEmail, link: string): { subject: string; html: string; text: string } {
+  const business = oneLine(a.business_name, 120);
+  const name = oneLine(a.customer_name, 60) || "there";
+  const issue = oneLine(a.issue, 160);
+  const subject = `New message from ${business} about your HVAC request`;
+  const body = a.body.trim().slice(0, 2000);
+
+  const text = [
+    `Hi ${name},`,
+    "",
+    `${business} sent you a message about your request (${issue}):`,
+    "",
+    body,
+    "",
+    `Read and reply in your HVACHelp dashboard: ${link}`,
+    "Sign in with this email address, or create a free account with it, to reply. Replies are sent through the site, not by email.",
+  ].join("\n");
+
+  const html = `<!doctype html><html><body style="margin:0;background:#f4f7fb;font-family:Arial,Helvetica,sans-serif;color:#14213d">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:24px 12px">
+<table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:16px;padding:28px">
+<tr><td>
+<p style="margin:0 0 4px;font-size:13px;color:#2563eb;font-weight:bold">NEW MESSAGE</p>
+<h1 style="margin:0 0 16px;font-size:22px">${escapeHtml(business)} sent you a message</h1>
+<p style="margin:0 0 6px;font-size:14px;color:#64748b">About your request: ${escapeHtml(issue)}</p>
+<div style="margin:0 0 20px;padding:14px 16px;background:#f1f5f9;border-radius:12px;font-size:15px;line-height:1.55;white-space:pre-line">${escapeHtml(body)}</div>
+<a href="${escapeHtml(link)}" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;font-weight:bold;padding:12px 22px;border-radius:999px">Read and reply</a>
+<p style="margin:24px 0 0;font-size:12px;line-height:1.5;color:#64748b">Sign in with this email address, or create a free account with it, to reply. Replies are sent through the site, not by email, so your contact details stay private.</p>
+</td></tr></table></td></tr></table></body></html>`;
+
+  return { subject, html, text };
+}

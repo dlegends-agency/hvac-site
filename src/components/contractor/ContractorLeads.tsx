@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { LeadHistory } from "./LeadHistory";
 import { Link, useSearchParams } from "react-router-dom";
-import { Clock, Columns3, LayoutGrid, List, Loader2, Lock, Mail, MapPin, MessageSquare, Phone, Search, Users, X } from "lucide-react";
+import { Clock, Columns3, LayoutGrid, List, Loader2, Lock, MapPin, MessageSquare, Phone, Search, Users, X } from "lucide-react";
 import { PageTitle, Panel } from "@/components/admin/widgets";
 import { Button, buttonClass } from "@/components/ui/Button";
 import { inputClass } from "@/components/ui/Field";
@@ -10,6 +10,7 @@ import { activePlan } from "@/lib/plans";
 import { getSupabaseBrowser } from "@/lib/supabase";
 import { CONTRACTOR_LEAD_STATUSES, type ContractorLead, type ContractorLeadStatus } from "@/lib/types";
 import { callApi } from "./api";
+import { EmailCustomer } from "./EmailCustomer";
 import { UnlockButtons } from "./UnlockButtons";
 import { useContractor } from "./context";
 import { ago, useMyLeads } from "./useMyLeads";
@@ -49,6 +50,7 @@ function Details({ lead, onSaved }: { lead: ContractorLead; onSaved: (l: Contrac
   const [notes, setNotes] = useState(lead.contractor_notes ?? "");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const { listing } = useContractor();
   const tel = `tel:${(lead.phone ?? "").replace(/[^\d+]/g, "")}`;
 
   async function save(status: ContractorLeadStatus, noteText: string) {
@@ -72,7 +74,7 @@ function Details({ lead, onSaved }: { lead: ContractorLead; onSaved: (l: Contrac
 
       <div className="mt-4 flex flex-wrap gap-2">
         <a href={tel} className={buttonClass("primary", "!rounded-full !px-4 !py-2 text-sm")}><Phone className="size-4" aria-hidden /> Call {lead.phone}</a>
-        <a href={`mailto:${lead.email}`} className={buttonClass("secondary", "!rounded-full !px-4 !py-2 text-sm")}><Mail className="size-4" aria-hidden /> {lead.email}</a>
+        {lead.email && listing && <EmailCustomer leadId={lead.id} listingId={listing.id} customerName={lead.first_name} email={lead.email} />}
       </div>
 
       <div className="mt-5 border-t border-slate-100 pt-4">

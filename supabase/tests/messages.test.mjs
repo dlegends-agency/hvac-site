@@ -152,6 +152,20 @@ await q("update public.lead_assignments set unlocked_at = now() where lead_id=$1
 await send(C.user, L, C.id, "Hello from a free plan that unlocked the request");
 await send(customer, L, C.id, "Thanks, replying");
 
+// the server's email helpers: what it needs to email the customer, recorded once, never readable by users
+const mid = Number((await send(A.user, L, A.id, "Email me back please")).rows[0].id);
+const svcQ = async (sql, p) => { await db.exec("set role service_role"); try { return (await db.query(sql, p)).rows; } finally { await db.exec("reset role"); } };
+const info = (await svcQ("select * from public.message_email_info($1)", [mid]))[0];
+assert.deepEqual([info.sender, info.customer_email, info.customer_name, info.business_name, info.issue, info.emailed_at], ["business", "jane@x.com", "Jane", "Acme HVAC", "AC Not Cooling", null]);
+await svcQ("select public.mark_message_emailed($1, 'Resend 403')", [mid]);
+assert.deepEqual((await q("select emailed_at, email_error from public.lead_messages where id=$1", [mid]))[0], { emailed_at: null, email_error: "Resend 403" }, "a failure keeps its reason and can be retried");
+await svcQ("select public.mark_message_emailed($1)", [mid]);
+assert.equal((await q("select emailed_at is not null as e, email_error from public.lead_messages where id=$1", [mid]))[0].e, true, "recorded as emailed");
+await svcQ("select public.mark_message_emailed($1, 'late failure')", [mid]);
+assert.equal((await q("select emailed_at is not null as e from public.lead_messages where id=$1", [mid]))[0].e, true, "an emailed message stays emailed");
+await assert.rejects(() => as(A.user, () => db.query("select * from public.message_email_info($1)", [mid])), /permission denied/, "a business cannot read the customer's address through it");
+await assert.rejects(() => as(customer, () => db.query("select public.mark_message_emailed($1)", [mid])), /permission denied/);
+
 // deleting a request deletes its messages
 await q("delete from public.leads where id=$1", [L]);
 assert.equal((await q("select count(*)::int n from public.lead_messages where lead_id=$1", [L]))[0].n, 0);
