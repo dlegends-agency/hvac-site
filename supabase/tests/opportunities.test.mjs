@@ -144,4 +144,30 @@ assert.deepEqual((await q("select count(*) filter (where sent_at is not null)::i
 const switched = await q("select count(*)::int n from public.opportunity_digests d join public.listing_owners o using (listing_id) where not o.notify_email");
 assert.equal(switched[0].n, 0, "an opted-out business is never queued");
 
+// ---- emailing the contact on an unlocked permit or bid, through the site
+const target = async (kind, item, listingId, index = 0) => (await svc("select * from public.opportunity_email_target($1,$2,$3,$4)", [kind, item, listingId, index]))[0];
+await assert.rejects(() => as(Austin.user, () => db.query("select * from public.opportunity_email_target('permit',$1,$2,0)", [permit, Austin.id])), /permission denied/, "a business cannot read the address through it");
+await assert.rejects(() => as(Austin.user, () => db.query("select public.log_opportunity_email($1,'permit',$2,'a@b.com','s','b')", [Austin.id, permit])), /permission denied/);
+let t = await target("permit", permit, Austin.id);
+assert.deepEqual([t.unlocked, t.to_email, t.to_name, t.optout, t.sent_to_today, t.sent_total_today], [true, "dan@d3.com", "Dan", false, 0, 0], "an unlocked permit: the address comes from the permit, with its name");
+assert.equal((await target("permit", permit, RoundRock.id)).unlocked, false, "a business that has not paid cannot email the contact");
+assert.equal((await target("permit", permit, Austin.id, 5)).to_email, null, "a contact that is not on the permit has no address");
+t = await target("bid", bid, Houston.id);
+assert.deepEqual([t.unlocked, t.to_email, t.to_name], [true, "pat@va.gov", "Pat Lee"], "an unlocked bid: the contracting officer");
+assert.equal((await target("bid", bid, Austin.id)).unlocked, false);
+await svc("select public.log_opportunity_email($1,'permit',$2,'Dan@D3.com','Hello','Body text')", [Austin.id, permit]);
+await svc("select public.log_opportunity_email($1,'permit',$2,'dan@d3.com','Hello again','Body text')", [Austin.id, permit]);
+await svc("select public.log_opportunity_email($1,'permit',$2,'dan@d3.com','Failed one','Body text','Resend 403')", [Austin.id, permit]);
+t = await target("permit", permit, Austin.id);
+assert.deepEqual([t.sent_to_today, t.sent_total_today], [2, 2], "emails to the contact and in total are counted (any capitals), failed ones are not");
+assert.equal((await target("permit", permit, RoundRock.id)).sent_to_today, 0, "another business starts at zero");
+await q("insert into public.email_optouts (email) values ('dan@d3.com')");
+assert.equal((await target("permit", permit, Austin.id)).optout, true, "an address on the opt-out list is flagged");
+await assert.rejects(() => q("insert into public.email_optouts (email) values ('NOPE@X.COM')"), /check/, "opt-outs are stored in lower case");
+assert.equal((await q("select count(*)::int n from public.opportunity_emails"))[0].n, 3);
+for (const table of ["opportunity_emails", "email_optouts"]) {
+  assert.equal((await as(Austin.user, () => db.query(`select * from public.${table}`))).rows.length, 0, `a business cannot read ${table}`);
+  assert.ok((await as(admin, () => db.query(`select * from public.${table}`))).rows.length > 0, `an admin reads ${table}`);
+}
+
 console.log("opportunities SQL: all checks passed");

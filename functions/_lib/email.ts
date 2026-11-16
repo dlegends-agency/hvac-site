@@ -63,14 +63,14 @@ export function renderLeadEmail(a: LeadAlert, siteUrl: string): { subject: strin
 }
 
 /** Sends one email through Resend (https://resend.com). Throws with a short reason when it fails. */
-export async function sendEmail(env: Env, msg: { to: string; subject: string; html: string; text: string; fromName?: string }): Promise<void> {
+export async function sendEmail(env: Env, msg: { to: string; subject: string; html: string; text: string; fromName?: string; replyTo?: string }): Promise<void> {
   // The site's own address always sends; fromName only changes the display name (for example "Cool Air Houston via HVACHelp").
   const address = /<([^>]+)>/.exec(env.NOTIFY_FROM_EMAIL ?? "")?.[1] ?? env.NOTIFY_FROM_EMAIL;
   const from = msg.fromName ? `${msg.fromName.replace(/["<>,;\r\n]/g, " ").replace(/\s+/g, " ").trim().slice(0, 80)} <${address}>` : env.NOTIFY_FROM_EMAIL;
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from, to: [msg.to], subject: msg.subject, html: msg.html, text: msg.text }),
+    body: JSON.stringify({ from, to: [msg.to], subject: msg.subject, html: msg.html, text: msg.text, ...(msg.replyTo ? { reply_to: [msg.replyTo] } : {}) }),
   });
   if (!res.ok) {
     const detail = ((await res.json().catch(() => ({}))) as { message?: string }).message ?? "";
@@ -168,5 +168,33 @@ export function renderMessageEmail(a: MessageEmail, link: string): { subject: st
 <p style="margin:24px 0 0;font-size:12px;line-height:1.5;color:#64748b">Sign in with this email address, or create a free account with it, to reply. Replies are sent through the site, not by email, so your contact details stay private.</p>
 </td></tr></table></td></tr></table></body></html>`;
 
+  return { subject, html, text };
+}
+
+export interface OutreachEmail {
+  business_name: string;
+  recipient_name: string;
+  subject: string;
+  body: string;
+  /** Where a person who does not want emails like this can say so. */
+  contactUrl: string;
+}
+
+/**
+ * An email a business sends, through the site, to the contact on a building permit or a government bid. It is a plain business email: the
+ * subject and message the business wrote, then a short line saying who sent it, that replying answers the business directly, and how to ask
+ * not to be emailed again.
+ */
+export function renderOutreachEmail(a: OutreachEmail): { subject: string; html: string; text: string } {
+  const business = oneLine(a.business_name, 120);
+  const subject = oneLine(a.subject, 150) || `A message from ${business}`;
+  const body = a.body.trim().slice(0, 2000);
+  const footer = `Sent by ${business} through HVACHelp, a directory of HVAC contractors. Reply to this email to answer ${business} directly. If you do not want emails like this, let us know at ${a.contactUrl} and we will stop them.`;
+
+  const text = [body, "", "--", footer].join("\n");
+  const html = `<!doctype html><html><body style="margin:0;background:#ffffff;font-family:Arial,Helvetica,sans-serif;color:#14213d">
+<div style="max-width:600px;padding:20px 16px;font-size:15px;line-height:1.55;white-space:pre-line">${escapeHtml(body)}</div>
+<div style="max-width:600px;padding:0 16px 24px;font-size:12px;line-height:1.5;color:#64748b"><hr style="border:none;border-top:1px solid #e2e8f0;margin:0 0 12px">${escapeHtml(footer.replace(a.contactUrl, ""))}<a href="${escapeHtml(a.contactUrl)}" style="color:#2563eb">${escapeHtml(a.contactUrl)}</a></div>
+</body></html>`;
   return { subject, html, text };
 }

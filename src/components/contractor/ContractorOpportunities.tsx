@@ -57,6 +57,7 @@ export default function ContractorOpportunities() {
   const lockedCount = opps.bids.filter((b) => b.unlocked === false).length + opps.permits.filter((p) => p.unlocked === false).length;
   const unlockedCount = opps.bids.length + opps.permits.length - lockedCount;
   const unlock = { price };
+  const compose = { businessName: listing.business_name };
 
   return (
     <>
@@ -91,6 +92,7 @@ export default function ContractorOpportunities() {
           error={opps.error && opps.bids.length === 0}
           cover={cover}
           unlock={unlock}
+          compose={compose}
           initialOpenId={openId}
           intro={<>Open federal contracts for HVAC work within reach of your business. Many are reserved for small businesses. The score favours new notices, enough time to prepare an offer, small-business set-asides and work in your area.</>}
           emptyText="No open federal HVAC bids within reach of your business right now. New ones are added every morning."
@@ -102,6 +104,7 @@ export default function ContractorOpportunities() {
           error={opps.error && opps.permits.length === 0}
           cover={cover}
           unlock={unlock}
+          compose={compose}
           initialOpenId={openId}
           intro={<>New HVAC building permits within reach of your business (Austin and Dallas so far). The score favours new permits, bigger jobs and work in your area.</>}
           emptyText="No building permits within reach of your business yet. New ones are added every morning. Check that your ZIP code and travel distance are set under My business."

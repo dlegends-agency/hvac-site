@@ -3,7 +3,8 @@ import { ExternalLink, Mail, Phone } from "lucide-react";
 import { scoreBid, type ScoredBid } from "@/lib/bid-score";
 import { bidTitle, dueText, type GovBid } from "@/lib/bids";
 import type { Coverage } from "@/lib/permit-score";
-import { Fact, LockedTag, ScoreBars, SidePanel, TIER_STYLE, TierColumns, UnlockBox, dayText, searchClass, selectClass, type UnlockInfo } from "./shared";
+import { EmailOpportunity } from "@/components/contractor/EmailOpportunity";
+import { Fact, LockedTag, ScoreBars, SidePanel, TIER_STYLE, TierColumns, UnlockBox, dayText, searchClass, selectClass, type ComposeInfo, type UnlockInfo } from "./shared";
 
 interface Row extends ScoredBid {
   b: GovBid;
@@ -37,7 +38,7 @@ function Card({ row, onOpen }: { row: Row; onOpen: () => void }) {
   );
 }
 
-function Detail({ row, unlock, onClose }: { row: Row; unlock?: UnlockInfo; onClose: () => void }) {
+function Detail({ row, unlock, compose, onClose }: { row: Row; unlock?: UnlockInfo; compose?: ComposeInfo; onClose: () => void }) {
   const { b } = row;
   const locked = b.unlocked === false;
   const place = [b.address, b.city, b.state, b.zip].filter(Boolean).join(", ");
@@ -78,7 +79,7 @@ function Detail({ row, unlock, onClose }: { row: Row; unlock?: UnlockInfo; onClo
               <p className="font-semibold text-navy">{c.name ?? "Contact"}</p>
               {c.title && <p className="text-xs text-slate-500">{c.title}</p>}
               <dl className="mt-2 space-y-1 text-slate-700">
-                <div className="flex items-start gap-2"><Mail className="mt-0.5 size-4 shrink-0 text-slate-400" aria-hidden /><dd>{locked ? <LockedTag /> : c.email ? <a href={`mailto:${c.email}`} className="break-all text-primary hover:underline">{c.email}</a> : <span className="text-slate-400">No email</span>}</dd></div>
+                <div className="flex items-start gap-2"><Mail className="mt-0.5 size-4 shrink-0 text-slate-400" aria-hidden /><dd>{locked ? <LockedTag /> : c.email ? (compose && b.unlocked === true ? <EmailOpportunity kind="bid" itemId={b.id} index={i} email={c.email} recipient={c.name ?? c.email} businessName={compose.businessName} defaultSubject={`Question about ${bidTitle(b)}`.slice(0, 150)} /> : <a href={`mailto:${c.email}`} className="break-all text-primary hover:underline">{c.email}</a>) : <span className="text-slate-400">No email</span>}</dd></div>
                 <div className="flex items-start gap-2"><Phone className="mt-0.5 size-4 shrink-0 text-slate-400" aria-hidden /><dd>{locked ? <LockedTag /> : c.phone ? <a href={`tel:${c.phone.replace(/\D/g, "")}`} className="text-primary hover:underline">{c.phone}</a> : <span className="text-slate-400">No phone</span>}</dd></div>
               </dl>
             </li>
@@ -99,6 +100,8 @@ interface Props {
   startCity?: string;
   /** Business owners: what it costs to unlock the contracting officer phone and email on a bid. Leave out for admins. */
   unlock?: UnlockInfo;
+  /** Business owners: lets an unlocked contact's email open the email window. */
+  compose?: ComposeInfo;
   /** Open this bid at once (after coming back from paying). */
   initialOpenId?: string | null;
   intro: ReactNode;
@@ -106,7 +109,7 @@ interface Props {
 }
 
 /** Open federal HVAC notices ranked Hot, Warm and Cold, with filters and a detail panel. Used by the admin and by business owners. */
-export function BidBoard({ bids, error, cover, startCity = "all", unlock, initialOpenId = null, intro, emptyText }: Props) {
+export function BidBoard({ bids, error, cover, startCity = "all", unlock, compose, initialOpenId = null, intro, emptyText }: Props) {
   const [city, setCity] = useState(startCity);
   const [setAside, setSetAside] = useState("all");
   const [q, setQ] = useState("");
@@ -155,7 +158,7 @@ export function BidBoard({ bids, error, cover, startCity = "all", unlock, initia
         <TierColumns rows={rows} itemKey={(r) => r.b.id} card={(r) => <Card row={r} onOpen={() => setOpenId(r.b.id)} />} />
       )}
 
-      {open && <Detail row={open} unlock={unlock} onClose={() => setOpenId(null)} />}
+      {open && <Detail row={open} unlock={unlock} compose={compose} onClose={() => setOpenId(null)} />}
     </div>
   );
 }
