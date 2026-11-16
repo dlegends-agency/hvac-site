@@ -1,3 +1,4 @@
+import { emailFailureHint } from "@/lib/email-hints";
 import { sendError } from "@/lib/messages";
 import { getSupabaseBrowser } from "@/lib/supabase";
 import { callApi } from "./api";
@@ -28,12 +29,14 @@ export function EmailCustomer({ leadId, listingId, businessName, customerName, i
         const { data, error } = await getSupabaseBrowser().rpc("send_message", { p_lead: leadId, p_listing: listingId, p_body: body, p_subject: subject });
         if (error) return { ok: false, error: sendError(error.message) };
         // The message is now in the customer's dashboard. Ask the site to email it too.
-        const res = await callApi<{ emailed?: boolean }>("/api/messages/email", { messageId: Number(data) });
+        const res = await callApi<{ emailed?: boolean; detail?: string }>("/api/messages/email", { messageId: Number(data) });
+        const emailed = res.status === 200 && res.data.emailed === true;
+        const hint = emailed ? "" : res.status === 501 ? "Site owner: email is not switched on yet (RESEND_API_KEY, NOTIFY_FROM_EMAIL)." : emailFailureHint(res.data.detail);
         return {
           ok: true,
-          message: res.status === 200 && res.data.emailed === true
+          message: emailed
             ? "Sent. We emailed your message to the customer and saved it in their dashboard, where they can reply."
-            : "Saved in the customer's dashboard, where they can read and reply. The email itself could not be sent right now, so they will see it next time they sign in.",
+            : `Saved in the customer's dashboard, where they can read and reply. The email itself could not be sent right now, so they will see it next time they sign in.${hint ? ` ${hint}` : ""}`,
         };
       }}
     />

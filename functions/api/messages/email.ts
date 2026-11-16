@@ -52,7 +52,8 @@ export const onRequestPost = async ({ env, request }: { env: Env; request: Reque
   } catch (e) {
     const reason = e instanceof Error ? e.message : "send failed";
     await db(env, "rpc/mark_message_emailed", { method: "POST", body: JSON.stringify({ p_message: messageId, p_error: reason }) });
-    return json({ emailed: false, reason: "The email could not be sent" });
+    // The reason from the email service is shown to the business so the site owner can fix the setup (for example a domain that is not verified yet).
+    return json({ emailed: false, reason: "The email could not be sent", detail: reason.slice(0, 300) });
   }
   await db(env, "rpc/mark_message_emailed", { method: "POST", body: JSON.stringify({ p_message: messageId }) });
   return json({ emailed: true });

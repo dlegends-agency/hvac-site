@@ -97,7 +97,7 @@ reset(); state.info[0].customer_email = null;
 assert.deepEqual((await call({ messageId: 7 })).data, { emailed: false, reason: "The customer has no email address on file" });
 reset(); state.resendOk = false;
 r = await call({ messageId: 7 });
-assert.deepEqual(r.data, { emailed: false, reason: "The email could not be sent" }, "the contractor is told the email failed");
+assert.deepEqual(r.data, { emailed: false, reason: "The email could not be sent", detail: "Resend 403: Domain not verified" }, "the contractor is told the email failed, with the reason for the site owner");
 assert.deepEqual(marks(), [{ p_message: 7, p_error: "Resend 403: Domain not verified" }], "the reason is kept for later");
 
 console.log("message email: all checks passed");

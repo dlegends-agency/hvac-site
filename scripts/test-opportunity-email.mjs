@@ -100,6 +100,7 @@ assert.deepEqual(resend[0].reply_to, ["owner@login.com"], "with no public email 
 reset(); state.resendOk = false;
 r = await call(ok);
 assert.equal(r.status, 502);
+assert.equal(r.data.detail, "Resend 403: Domain not verified", "the reason is passed on for the site owner");
 assert.equal(logged()[0].p_error, "Resend 403: Domain not verified", "a failed send is logged with the reason (and does not count toward the limits)");
 
 console.log("opportunity email: all checks passed");
