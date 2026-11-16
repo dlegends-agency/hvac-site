@@ -3,6 +3,8 @@
 // returns { url }. The lead must be in the contractor's area (the same rule that decides what they see). The price is decided here,
 // never by the browser: $5 for a contractor on the paid plan, $10 otherwise (the same as a customer request).
 // It is unlocked by the Stripe webhook, or by /api/stripe/confirm when the contractor comes back, after the payment succeeds.
+import { defaultCardId, payWithSavedCard } from "../../_lib/cards";
+import { unlockOpportunity } from "../../_lib/fulfil";
 import { isPaidNow } from "../../_lib/google";
 import { notConfigured, LEAD_PRICE_CENTS, billingFor, db, getUser, json, ownedListingId, siteOrigin, stripe, type Env } from "../../_lib/stripe";
 
@@ -14,7 +16,7 @@ export const onRequestPost = async ({ env, request }: { env: Env; request: Reque
 
   const user = await getUser(env, request);
   if (!user) return json({ error: "Sign in required" }, 401);
-  const body = (await request.json().catch(() => ({}))) as { kind?: unknown; itemId?: unknown };
+  const body = (await request.json().catch(() => ({}))) as { kind?: unknown; itemId?: unknown; useSavedCard?: unknown };
   if (body.kind !== "permit" && body.kind !== "bid") return json({ error: "Unknown lead type" }, 400);
   if (typeof body.itemId !== "string" || !UUID.test(body.itemId)) return json({ error: "Unknown lead" }, 400);
 
@@ -43,8 +45,21 @@ export const onRequestPost = async ({ env, request }: { env: Env; request: Reque
   const meta = { kind: `${kind}_unlock`, item_id: body.itemId, listing_id: listingId };
   const tab = kind === "permit" ? "&tab=permits" : "";
 
+  // One click with the default saved card. If it is declined or needs confirming, the browser falls back to the Stripe Checkout page.
+  const billing = await billingFor(env, listingId);
+  if (body.useSavedCard === true && billing?.stripe_customer_id) {
+    const pm = await defaultCardId(env, billing.stripe_customer_id).catch(() => null);
+    if (pm) {
+      const paid = await payWithSavedCard(env, { customer: billing.stripe_customer_id, paymentMethod: pm, cents, description: `${kind === "permit" ? "Building permit" : "Government bid"}: ${label}`, metadata: meta });
+      if (!paid.ok) return json({ error: "card_declined", detail: paid.reason }, 402);
+      await unlockOpportunity(env, { id: paid.ref, mode: "payment", payment_status: "paid", amount_total: cents, metadata: meta });
+      return json({ unlocked: true, cents });
+    }
+  }
+
   const params: Record<string, string> = {
     mode: "payment",
+    "payment_intent_data[setup_future_usage]": "off_session", // keeps the card on file for next time (shown under Account settings)
     "line_items[0][quantity]": "1",
     "line_items[0][price_data][currency]": "usd",
     "line_items[0][price_data][unit_amount]": String(cents),
@@ -56,7 +71,6 @@ export const onRequestPost = async ({ env, request }: { env: Env; request: Reque
     "invoice_creation[invoice_data][description]": `Unlock the contact details on a ${kind === "permit" ? "building permit" : "government bid"}`,
     ...Object.fromEntries(Object.entries(meta).flatMap(([k, v]) => [[`metadata[${k}]`, v], [`payment_intent_data[metadata][${k}]`, v]])),
   };
-  const billing = await billingFor(env, listingId);
   if (billing?.stripe_customer_id) params.customer = billing.stripe_customer_id;
   else {
     params.customer_creation = "always";

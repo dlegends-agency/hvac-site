@@ -2,6 +2,8 @@
 // Starts a one-time Stripe Checkout payment to see one customer's full details, and returns { url }.
 // The price is decided here, never by the browser: $5 for a contractor on the paid plan, $10 otherwise.
 // The lead is unlocked by the Stripe webhook after the payment succeeds.
+import { defaultCardId, payWithSavedCard } from "../../_lib/cards";
+import { unlockLead } from "../../_lib/fulfil";
 import { isPaidNow } from "../../_lib/google";
 import { notConfigured, LEAD_PRICE_CENTS, billingFor, db, getUser, json, ownedListingId, siteOrigin, stripe, type Env } from "../../_lib/stripe";
 
@@ -13,7 +15,7 @@ export const onRequestPost = async ({ env, request }: { env: Env; request: Reque
 
   const user = await getUser(env, request);
   if (!user) return json({ error: "Sign in required" }, 401);
-  const body = (await request.json().catch(() => ({}))) as { leadId?: unknown };
+  const body = (await request.json().catch(() => ({}))) as { leadId?: unknown; useSavedCard?: unknown };
   if (typeof body.leadId !== "string" || !UUID.test(body.leadId)) return json({ error: "Unknown request" }, 400);
 
   const listingId = await ownedListingId(env, user.id);
@@ -36,8 +38,21 @@ export const onRequestPost = async ({ env, request }: { env: Env; request: Reque
   const name = `Customer request: ${lead.issue.replace(/\s+/g, " ").slice(0, 120)}`;
   const meta = { kind: "lead_unlock", lead_id: body.leadId, listing_id: listingId };
 
+  // One click with the default saved card. If it is declined or needs confirming, the browser falls back to the Stripe Checkout page.
+  const billing = await billingFor(env, listingId);
+  if (body.useSavedCard === true && billing?.stripe_customer_id) {
+    const pm = await defaultCardId(env, billing.stripe_customer_id).catch(() => null);
+    if (pm) {
+      const paid = await payWithSavedCard(env, { customer: billing.stripe_customer_id, paymentMethod: pm, cents, description: name, metadata: meta });
+      if (!paid.ok) return json({ error: "card_declined", detail: paid.reason }, 402);
+      await unlockLead(env, { id: paid.ref, mode: "payment", payment_status: "paid", amount_total: cents, metadata: meta });
+      return json({ unlocked: true, cents });
+    }
+  }
+
   const params: Record<string, string> = {
     mode: "payment",
+    "payment_intent_data[setup_future_usage]": "off_session", // keeps the card on file for next time (shown under Account settings)
     "line_items[0][quantity]": "1",
     "line_items[0][price_data][currency]": "usd",
     "line_items[0][price_data][unit_amount]": String(cents),
@@ -49,7 +64,6 @@ export const onRequestPost = async ({ env, request }: { env: Env; request: Reque
     "invoice_creation[invoice_data][description]": "Unlock a customer request's full details",
     ...Object.fromEntries(Object.entries(meta).flatMap(([k, v]) => [[`metadata[${k}]`, v], [`payment_intent_data[metadata][${k}]`, v]])),
   };
-  const billing = await billingFor(env, listingId);
   if (billing?.stripe_customer_id) params.customer = billing.stripe_customer_id;
   else {
     params.customer_creation = "always"; // so the payment appears in their history and the card can be reused

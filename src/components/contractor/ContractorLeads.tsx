@@ -9,7 +9,8 @@ import { leadPrice } from "@/config/pricing";
 import { activePlan } from "@/lib/plans";
 import { getSupabaseBrowser } from "@/lib/supabase";
 import { CONTRACTOR_LEAD_STATUSES, type ContractorLead, type ContractorLeadStatus } from "@/lib/types";
-import { callApi, paymentsNotReady } from "./api";
+import { callApi } from "./api";
+import { UnlockButtons } from "./UnlockButtons";
 import { useContractor } from "./context";
 import { ago, useMyLeads } from "./useMyLeads";
 
@@ -23,22 +24,6 @@ const statusStyle: Record<ContractorLeadStatus, string> = {
 };
 
 function Locked({ lead, price }: { lead: ContractorLead; price: number }) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function unlock() {
-    setBusy(true);
-    setError(null);
-    const res = await callApi<{ url?: string; missing?: string[]; detail?: string }>("/api/stripe/unlock", { leadId: lead.id });
-    if (res.data.url) return void window.location.assign(res.data.url);
-    setBusy(false);
-    setError(
-      res.status === 501 ? paymentsNotReady(res, "Online payments aren't switched on yet. Please contact us.")
-        : res.status === 409 ? "This request is already unlocked. Refresh the page."
-          : `We couldn't start the payment. Please try again.${res.data.detail ? ` (${res.data.detail})` : ""}`,
-    );
-  }
-
   return (
     <>
     <dl className="mt-4 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
@@ -51,13 +36,10 @@ function Locked({ lead, price }: { lead: ContractorLead; price: number }) {
     <div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4">
       <p className="flex items-center gap-2 text-sm font-semibold text-navy"><Lock className="size-4 text-slate-500" aria-hidden /> Phone, email and street address are locked</p>
       <p className="mt-1 text-sm text-slate-600">Unlock to call or email the customer and see their exact address.</p>
-      <div className="mt-3 flex flex-wrap items-center gap-3">
-        <Button onClick={unlock} disabled={busy} className="!rounded-full !px-5 !py-2 text-sm">
-          {busy && <Loader2 className="size-4 animate-spin" aria-hidden />} Unlock for ${price}
-        </Button>
-        <span className="text-xs text-slate-500">One payment for this request. Not refundable.</span>
+      <div className="mt-3">
+        <UnlockButtons endpoint="/api/stripe/unlock" body={{ leadId: lead.id }} price={price} returnTo={`/contractor/leads?unlocked=1&lead=${lead.id}`} />
+        <p className="mt-2 text-xs text-slate-500">One payment for this request. Not refundable.</p>
       </div>
-      <div role="alert">{error && <p className="mt-2 text-sm font-medium text-red-700">{error}</p>}</div>
     </div>
     </>
   );

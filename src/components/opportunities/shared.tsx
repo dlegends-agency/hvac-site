@@ -1,6 +1,6 @@
-import { useEffect, useState, type ReactNode } from "react";
-import { Loader2, Lock, X } from "lucide-react";
-import { callApi, paymentsNotReady } from "@/components/contractor/api";
+import { useEffect, type ReactNode } from "react";
+import { Lock, X } from "lucide-react";
+import { UnlockButtons } from "@/components/contractor/UnlockButtons";
 import { TIERS, type Tier } from "@/lib/permit-score";
 
 export const TIER_STYLE: Record<Tier, { bar: string; score: string; head: string }> = {
@@ -94,31 +94,14 @@ export interface UnlockInfo {
 
 /** The "pay to unlock" box. Phone numbers and emails stay hidden (they are not even sent to the browser) until the payment is done. */
 export function UnlockBox({ kind, itemId, price, what }: { kind: "permit" | "bid"; itemId: string; price: number; what: string }) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  async function pay() {
-    setBusy(true);
-    setError(null);
-    const res = await callApi<{ url?: string; missing?: string[]; detail?: string }>("/api/stripe/unlock-opportunity", { kind, itemId });
-    if (res.data.url) return void window.location.assign(res.data.url);
-    setBusy(false);
-    setError(
-      res.status === 501 ? paymentsNotReady(res, "Online payments aren't switched on yet. Please contact us.")
-        : res.status === 409 ? "Already unlocked. Refresh the page."
-          : `We couldn't start the payment. Please try again.${res.data.detail ? ` (${res.data.detail})` : ""}`,
-    );
-  }
   return (
     <div className="mt-3 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4">
       <p className="flex items-center gap-2 text-sm font-semibold text-navy"><Lock className="size-4 text-slate-500" aria-hidden /> Phone and email are locked</p>
       <p className="mt-1 text-sm text-slate-600">You can see everything else about this {what}. Unlock it to see {kind === "permit" ? "the contractor's phone number, email and website, and the city record" : "the contracting officer's phone number and email, and the SAM.gov links"}.</p>
-      <div className="mt-3 flex flex-wrap items-center gap-3">
-        <button type="button" onClick={pay} disabled={busy} className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2 text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-60">
-          {busy && <Loader2 className="size-4 animate-spin" aria-hidden />} Unlock for ${price}
-        </button>
-        <span className="text-xs text-slate-500">One payment for this {what}. Not refundable.</span>
+      <div className="mt-3">
+        <UnlockButtons endpoint="/api/stripe/unlock-opportunity" body={{ kind, itemId }} price={price} returnTo={`/contractor/opportunities?unlocked=1&open=${itemId}${kind === "permit" ? "&tab=permits" : ""}`} />
+        <p className="mt-2 text-xs text-slate-500">One payment for this {what}. Not refundable.</p>
       </div>
-      <div role="alert">{error && <p className="mt-2 text-sm font-medium text-red-700">{error}</p>}</div>
     </div>
   );
 }

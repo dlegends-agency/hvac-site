@@ -145,6 +145,8 @@ Importing a candidate creates a **pending** listing that you review and publish 
 4. In Stripe > Settings > Billing > Customer portal enable cancelling, switching plan (monthly and yearly) and updating the payment method.
 5. Test with card `4242 4242 4242 4242`: subscribe, then unlock a request, then switch Stripe to live mode and replace the keys and price IDs.
 
+**Saved cards.** Contractors manage their cards under Account settings > Payment methods (`functions/api/stripe/cards.ts`, helpers in `functions/_lib/cards.ts`): add a card (typed in on Stripe's own page in setup mode, so the number never touches this site), choose the default card (used for plan renewals and one-click unlocking) and remove a card. Unlocking a request, permit or bid offers "Pay $5 with Visa •••• 4242" when a default card exists; it creates a one-off Stripe invoice (so it appears in payment history with a receipt) and pays it with that card, and falls back to the normal Checkout page if the card is declined. Cards paid with at Checkout are kept on file for next time. `npm run test:cards` checks it offline.
+
 Until these are set the Billing page says payments are not switched on yet, and you can still give a listing a plan by hand in **Admin > Directory > (a listing) > Plan** or unlock a request for free in **Admin > Leads**. `npm run test:stripe`, `test:unlock` and `test:account` check the payment code offline.
 
 ### Turning on Google star ratings (optional)
