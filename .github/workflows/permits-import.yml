@@ -1,12 +1,14 @@
 name: Permits import
 
 # Pulls new HVAC permits (heating, cooling and ventilation only) from the Austin and Dallas open-data portals into the public_permits
-# table, every day at 8:00 AM Philippine time (PHT is UTC+8, so 00:00 UTC). GitHub can start a scheduled run a few minutes late.
-# You can also run it by hand: Actions > Permits import > Run workflow. See scripts/permits/README.md.
+# table, keeping only permits whose contractor has a name, phone and email.
+# WHEN it runs is set in Admin > Schedule (off, every few hours, every day or every week, in Philippine time). GitHub starts this check every
+# 30 minutes; the first step asks the saved schedule whether a scrape is due and the rest is skipped when it is not. You can also run it by
+# hand any time: Actions > Permits import > Run workflow (a manual run always scrapes). See scripts/schedule and scripts/permits/README.md.
 
 on:
   schedule:
-    - cron: "0 0 * * *" # 00:00 UTC = 8:00 AM Philippine time
+    - cron: "2,32 * * * *" # every 30 minutes; the saved schedule decides whether to scrape
   workflow_dispatch:
     inputs:
       days:
@@ -34,13 +36,29 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-      - run: npm ci --ignore-scripts
+      - name: Is a scrape due?
+        id: due
+        run: node scripts/schedule/due.mjs permits
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      - name: Install
+        if: steps.due.outputs.run == 'true'
+        run: npm ci --ignore-scripts
       - name: Import HVAC permits
-        # Scheduled runs read the last 14 days (it overlaps the day before, and the same permit is never saved twice).
+        id: import
+        if: steps.due.outputs.run == 'true'
+        # Scheduled runs read the last 14 days (it overlaps the earlier runs, and the same permit is never saved twice).
         run: node scripts/permits/index.mjs --days ${{ github.event.inputs.days || '14' }} --per-city ${{ github.event.inputs.perCity || '500' }} --email-limit 800
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SOCRATA_APP_TOKEN: ${{ secrets.SOCRATA_APP_TOKEN }}
           TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+      - name: Record the run
+        if: always() && steps.due.outputs.run == 'true'
+        run: node scripts/schedule/record.mjs permits "${{ steps.import.outcome }}" "${{ steps.due.outputs.started }}"
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}

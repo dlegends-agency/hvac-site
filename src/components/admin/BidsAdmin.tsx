@@ -1,4 +1,6 @@
 import { useMemo } from "react";
+import { Link } from "react-router-dom";
+import { useScheduleText } from "@/lib/use-schedule";
 import { BidBoard } from "@/components/opportunities/BidBoard";
 import { useLiveQuery } from "@/lib/admin-hooks";
 import type { GovBid } from "@/lib/bids";
@@ -24,6 +26,7 @@ export function BidsAdmin() {
   }, [listings.data]);
 
   const withContact = bids.data.filter((b) => (b.contacts ?? []).some((c) => c.email && c.phone && c.name)).length;
+  const scheduleText = useScheduleText("bids");
   const latest = bids.data.reduce((m, b) => (b.imported_at > m ? b.imported_at : m), "");
   function exportContacts() {
     const rows: unknown[][] = [["Contact name", "Title", "Phone", "Email", "Agency", "Notice", "Solicitation number", "City", "Response due", "Set-aside", "SAM.gov link"]];
@@ -40,7 +43,7 @@ export function BidsAdmin() {
         { label: "Open bids", value: bids.data.length.toLocaleString() },
         { label: "With name, phone and email", value: withContact.toLocaleString(), tone: withContact === bids.data.length ? "good" : "warn" },
         { label: "Last scrape", value: latest ? new Date(latest).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "Never" },
-        { label: "Next scrape", value: "Daily 8:30 AM PH" },
+        { label: "Schedule", value: <Link to="/admin/schedule" className="text-base hover:text-primary hover:underline">{scheduleText}</Link> },
       ]} />
       <BidBoard
         bids={bids.data}

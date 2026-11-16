@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Activity, BarChart3, Settings, Building2, ClipboardCheck, ExternalLink, FileText, Landmark, HardHat, MessageSquare, LayoutDashboard, Loader2, LogOut, Users } from "lucide-react";
+import { Activity, BarChart3, CalendarClock, Settings, Building2, ClipboardCheck, ExternalLink, FileText, Landmark, HardHat, MessageSquare, LayoutDashboard, Loader2, LogOut, Users } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Logo } from "@/components/Logo";
 import { getSupabaseBrowser, isSupabaseConfigured } from "@/lib/supabase";
@@ -31,6 +31,7 @@ const groups: { title: string; items: NavItem[] }[] = [
     items: [
       { href: "/admin/permits", label: "Permits", icon: HardHat },
       { href: "/admin/bids", label: "Government bids", icon: Landmark },
+      { href: "/admin/schedule", label: "Schedule", icon: CalendarClock },
     ],
   },
   {
