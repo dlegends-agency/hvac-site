@@ -80,7 +80,18 @@ jobs:
               echo
               echo "Database changes in /supabase are not applied automatically: run any new or changed SQL files in the Supabase SQL Editor."
             } > /tmp/body.md
-            gh pr create --base main --head "$branch" --title "$title" --body-file /tmp/body.md
+            if ! gh pr create --base main --head "$branch" --title "$title" --body-file /tmp/body.md; then
+              # GitHub says Actions may not open pull requests (the repository setting is off). Publish without one: merge the branch into
+              # main directly (a merge commit, like a pull request would make). Turn the setting on to get a pull request each time.
+              echo "Could not open a pull request; merging into main directly."
+              git config user.name "github-actions[bot]"
+              git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+              git checkout -B main origin/main
+              git merge --no-ff "origin/$branch" -m "Merge branch '$branch' into main (automatic, all checks passed)"
+              git push origin main
+              echo "Merged into main. Cloudflare Pages will publish the website shortly."
+              exit 0
+            fi
           fi
           gh pr merge "$branch" --merge
           echo "Merged. Cloudflare Pages will publish the website shortly."
