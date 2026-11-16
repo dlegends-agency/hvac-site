@@ -30,6 +30,7 @@ export function ListingsAdmin() {
   const [city, setCity] = useState("");
   const [source, setSource] = useState("");
   const [emergency, setEmergency] = useState(false);
+  const [noEmail, setNoEmail] = useState(false);
   const [sort, setSort] = useState<Sort>("newest");
   const [visible, setVisible] = useState(PAGE);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -46,6 +47,7 @@ export function ListingsAdmin() {
     for (const l of rows) c[l.status]++;
     return c;
   }, [rows]);
+  const missingEmail = useMemo(() => rows.filter((l) => !l.email).length, [rows]);
   const cities = useMemo(() => [...new Set(rows.map((l) => l.city))].sort(), [rows]);
 
   const filtered = useMemo(() => {
@@ -56,12 +58,13 @@ export function ListingsAdmin() {
         (!city || l.city === city) &&
         (!source || (l.source ?? "submitted") === source) &&
         (!emergency || l.emergency_service) &&
+        (!noEmail || !l.email) &&
         (!term || [l.business_name, l.city, l.phone, l.website, l.address].join(" ").toLowerCase().includes(term)),
     );
     if (sort === "name") list.sort((a, b) => a.business_name.localeCompare(b.business_name));
     if (sort === "city") list.sort((a, b) => a.city.localeCompare(b.city) || a.business_name.localeCompare(b.business_name));
     return list;
-  }, [rows, status, city, source, emergency, search, sort]);
+  }, [rows, status, city, source, emergency, noEmail, search, sort]);
   const shown = filtered.slice(0, visible);
   const allShownSelected = shown.length > 0 && shown.every((l) => selected.has(l.id));
 
@@ -102,9 +105,9 @@ export function ListingsAdmin() {
   }
 
   function exportCsv() {
-    const head = ["name", "status", "source", "city", "state", "phone", "website", "address", "emergency", "services"];
+    const head = ["name", "status", "source", "city", "state", "phone", "email", "website", "address", "emergency", "services"];
     const lines = [head.join(",")].concat(
-      filtered.map((l) => [l.business_name, l.status, l.source ?? "submitted", l.city, l.state, l.phone, l.website, l.address, l.emergency_service ? "yes" : "no", l.services.join("; ")].map(csvCell).join(",")),
+      filtered.map((l) => [l.business_name, l.status, l.source ?? "submitted", l.city, l.state, l.phone, l.email, l.website, l.address, l.emergency_service ? "yes" : "no", l.services.join("; ")].map(csvCell).join(",")),
     );
     const url = URL.createObjectURL(new Blob([lines.join("\n")], { type: "text/csv" }));
     const a = Object.assign(document.createElement("a"), { href: url, download: `listings-${new Date().toISOString().slice(0, 10)}.csv` });
@@ -122,12 +125,13 @@ export function ListingsAdmin() {
       </PageTitle>
       <DirectoryTabs />
 
-      <div className="grid gap-3 sm:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-5">
         {[
           { label: "Total", value: counts.all },
           { label: "Pending review", value: counts.pending, hot: counts.pending > 0 },
           { label: "Published", value: counts.published },
           { label: "Hidden", value: counts.hidden },
+          { label: "No email on file", value: missingEmail, hot: missingEmail > 0 },
         ].map((k) => (
           <div key={k.label} className={`rounded-2xl border bg-white p-4 shadow-sm ${k.hot ? "border-orange-300" : "border-slate-200"}`}>
             <p className="text-sm text-slate-600">{k.label}</p>
@@ -169,6 +173,9 @@ export function ListingsAdmin() {
         <label className="flex items-center gap-2 text-sm text-slate-700">
           <input type="checkbox" checked={emergency} onChange={(e) => { setEmergency(e.target.checked); setVisible(PAGE); }} className="size-4 accent-primary" /> Emergency service only
         </label>
+        <label className="flex items-center gap-2 text-sm text-slate-700">
+          <input type="checkbox" checked={noEmail} onChange={(e) => { setNoEmail(e.target.checked); setVisible(PAGE); }} className="size-4 accent-primary" /> No email on file
+        </label>
       </div>
 
       {selected.size > 0 && (
@@ -203,7 +210,7 @@ export function ListingsAdmin() {
                       <span className="truncate font-semibold text-navy">{l.business_name}</span>
                       {l.emergency_service && <Siren className="size-4 text-emergency" aria-label="Offers emergency service" />}
                     </span>
-                    <span className="block truncate text-sm text-slate-500">{l.city}, {l.state} · {l.phone ?? "no phone"} · {l.services.length} {l.services.length === 1 ? "service" : "services"}</span>
+                    <span className="block truncate text-sm text-slate-500">{l.city}, {l.state} · {l.phone ?? "no phone"} · {l.email ?? <span className="font-medium text-emergency">no email</span>} · {l.services.length} {l.services.length === 1 ? "service" : "services"}</span>
                   </Link>
                   <span className="hidden rounded-full bg-slate-100 px-2.5 py-0.5 text-xs text-slate-600 md:inline">{sourceLabel[l.source ?? "submitted"]}</span>
                   {activePlan(l) !== "free" && <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold capitalize text-amber-900">{activePlan(l)}</span>}

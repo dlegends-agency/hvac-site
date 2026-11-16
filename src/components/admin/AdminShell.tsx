@@ -7,7 +7,7 @@ import { Logo } from "@/components/Logo";
 import { getSupabaseBrowser, isSupabaseConfigured } from "@/lib/supabase";
 import { useAdminCounts } from "@/lib/use-admin-counts";
 
-type BadgeKey = "newLeads" | "directory";
+type BadgeKey = "newLeads" | "newMessages" | "directory";
 interface NavItem {
   href: string;
   label: string;
@@ -22,7 +22,7 @@ const groups: { title: string; items: NavItem[] }[] = [
     items: [
       { href: "/admin", label: "Overview", icon: LayoutDashboard },
       { href: "/admin/leads", label: "Leads", icon: Users, badge: "newLeads" },
-      { href: "/admin/messages", label: "Messages", icon: MessageSquare },
+      { href: "/admin/messages", label: "Messages", icon: MessageSquare, badge: "newMessages" },
       { href: "/admin/listings", label: "Directory", icon: Building2, badge: "directory" },
     ],
   },
@@ -53,7 +53,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<State>("loading");
   const [email, setEmail] = useState("");
   const counts = useAdminCounts();
-  const badges: Record<BadgeKey, number> = { newLeads: counts.newLeads, directory: counts.pendingListings + counts.pendingClaims };
+  const badges: Record<BadgeKey, number> = { newLeads: counts.newLeads, newMessages: counts.newMessages, directory: counts.pendingListings + counts.pendingClaims };
 
   useEffect(() => {
     if (!isSupabaseConfigured) {

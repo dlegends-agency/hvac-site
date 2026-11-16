@@ -4,6 +4,8 @@ import { getSupabaseBrowser, isSupabaseConfigured } from "@/lib/supabase";
 export interface AdminCounts {
   /** Customer requests nobody has looked at yet. */
   newLeads: number;
+  /** Contact-form messages nobody has read yet. */
+  newMessages: number;
   /** Business registrations waiting for review. */
   pendingListings: number;
   /** Ownership claims waiting for review. */
@@ -15,7 +17,7 @@ export interface AdminCounts {
   bidsAt: string | null;
 }
 
-const EMPTY: AdminCounts = { newLeads: 0, pendingListings: 0, pendingClaims: 0, permits: 0, bids: 0, permitsAt: null, bidsAt: null };
+const EMPTY: AdminCounts = { newLeads: 0, newMessages: 0, pendingListings: 0, pendingClaims: 0, permits: 0, bids: 0, permitsAt: null, bidsAt: null };
 
 /** Small numbers the admin menu and overview show: what needs attention and how the lead sources are doing. A table that is not set up yet counts as 0. */
 export function useAdminCounts(intervalMs = 60_000): AdminCounts {
@@ -35,8 +37,9 @@ export function useAdminCounts(intervalMs = 60_000): AdminCounts {
       return error || !data?.length ? null : (data[0] as { imported_at: string }).imported_at;
     };
     const load = async () => {
-      const [newLeads, pendingListings, pendingClaims, permits, bids, permitsAt, bidsAt] = await Promise.all([
+      const [newLeads, newMessages, pendingListings, pendingClaims, permits, bids, permitsAt, bidsAt] = await Promise.all([
         count("leads", "status", "new"),
+        count("contact_messages", "status", "new"),
         count("listings", "status", "pending"),
         count("listing_claims", "status", "pending"),
         count("public_permits", "trade", "HVAC"),
@@ -44,7 +47,7 @@ export function useAdminCounts(intervalMs = 60_000): AdminCounts {
         latest("public_permits"),
         latest("gov_bids"),
       ]);
-      if (live) setCounts({ newLeads, pendingListings, pendingClaims, permits, bids, permitsAt, bidsAt });
+      if (live) setCounts({ newLeads, newMessages, pendingListings, pendingClaims, permits, bids, permitsAt, bidsAt });
     };
     void load();
     const id = setInterval(() => {
