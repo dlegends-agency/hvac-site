@@ -19,6 +19,7 @@ interface Assignment {
   unlock_cents: number | null;
   listings: { business_name: string; city: string; plan: PlanId; plan_until: string | null } | null;
 }
+import { RouteReport } from "./RouteReport";
 import { Panel, QueryState, StatusBadge } from "./widgets";
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
@@ -236,6 +237,7 @@ export function LeadDetail() {
                   </select>
                   {owned.length === 0 && <p className="mt-2 text-xs text-slate-500">No contractor accounts yet. Approve a claim in Directory &gt; Claims first.</p>}
                   <Button variant="secondary" onClick={routeNow} disabled={saving} className="mt-3 w-full !py-2 text-sm">Send to matching contractors</Button>
+                  <RouteReport leadId={lead.id} />
                   <p className="mt-2 text-xs text-slate-500">Contractors see only the customer&apos;s name and the problem until they pay to unlock the lead ($10 on Free, $5 on Featured). Each keeps their own status and notes.</p>
                 </Panel>
                 <LeadTimeline leadId={lead.id} />

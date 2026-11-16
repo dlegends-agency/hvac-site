@@ -6,6 +6,7 @@ import { Button, buttonClass } from "@/components/ui/Button";
 import { Field, inputClass } from "@/components/ui/Field";
 import { services } from "@/config/services";
 import { ListingCard } from "@/components/directory/ListingCard";
+import { addressProblems } from "@/lib/address-check";
 import { cleanHours } from "@/lib/hours";
 import { isFeatured, publicView } from "@/lib/plans";
 import { getSupabaseBrowser } from "@/lib/supabase";
@@ -126,6 +127,12 @@ function BusinessForm({ listing, reload }: { listing: Listing; reload: () => Pro
             {input("city", "City", listing.city)}
             {input("state", "State", listing.state)}
           </div>
+          {addressProblems(listing).length > 0 && (
+            <ul role="alert" className="space-y-1 rounded-xl border border-orange-200 bg-orange-50 p-3 text-sm text-orange-900">
+              {addressProblems(listing).map((p) => <li key={p}>{p}</li>)}
+              <li className="text-xs text-orange-800">Requests, permits and bids are sent to the businesses near them, so a wrong address means you miss them.</li>
+            </ul>
+          )}
           {hasProfileColumns && input("license_number", "License number", listing.license_number, {
             optional: true,
             hint: listing.license_verified_at

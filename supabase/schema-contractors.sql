@@ -373,6 +373,66 @@ begin
 end;
 $$;
 
+-- Admin: why did (or did not) each business match this lead? The same rules as route_lead, with a plain-words reason for every business, so a
+-- mistyped city, a missing ZIP code, an unapproved listing or a different state can be found at a glance. Admins only.
+create or replace function public.admin_route_report(p_lead uuid)
+returns table (
+  listing_id uuid, business_name text, city text, state text, postal_code text, listing_status text,
+  has_login boolean, miles int, radius int, matched boolean, reason text
+)
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  l public.leads;
+  v_lat double precision;
+  v_lng double precision;
+begin
+  if not public.is_admin() then
+    raise exception 'Admins only';
+  end if;
+  select * into l from public.leads where id = p_lead;
+  if not found then
+    return;
+  end if;
+  select z.lat, z.lng into v_lat, v_lng from public.zip_centroids z where z.zip = public.zip5(l.postal_code);
+
+  return query
+  with r as (
+    select li.id, li.business_name as name, li.city as city, li.state as state, li.postal_code as zip, li.status as status,
+           li.service_radius_miles as radius,
+           exists (select 1 from public.listing_owners o where o.listing_id = li.id) as has_login,
+           case when v_lat is not null and z.lat is not null then public.miles_between(v_lat, v_lng, z.lat, z.lng) end as miles,
+           (public.norm_state(li.state) = public.norm_state(l.state) and (
+              lower(btrim(li.city)) = lower(btrim(l.city))
+              or (li.service_areas is not null
+                  and li.service_areas ~* ('\m' || regexp_replace(btrim(l.city), '([^a-zA-Z0-9 ])', '\\\1', 'g') || '\M'))
+            )) as is_local
+    from public.listings li
+    left join public.zip_centroids z on z.zip = public.zip5(li.postal_code)
+  ), m as (
+    select r.*, (r.status = 'published' and r.has_login and (r.is_local or (r.miles is not null and r.miles <= r.radius))) as ok from r
+  )
+  select m.id, m.name, m.city, m.state, m.zip, m.status, m.has_login, round(m.miles)::int, m.radius, m.ok,
+         case
+           when m.status <> 'published' then format('Not published yet (status: %s), so it gets no requests.', m.status)
+           when not m.has_login then 'No contractor login is connected to this listing (no approved claim), so requests cannot be sent to it.'
+           when m.is_local then format('Matches: same city as the customer (%s) or lists it as a service area.', l.city)
+           when m.miles is not null and m.miles <= m.radius then format('Matches: %s miles from the customer, within its %s-mile travel distance.', round(m.miles), m.radius)
+           when m.miles is not null then format('Too far: %s miles from the customer, but it travels only %s miles.', round(m.miles), m.radius)
+           when public.norm_state(m.state) is distinct from public.norm_state(l.state) then
+             format('Different state (the business is listed in %s, the customer is in %s) and no ZIP distance to compare. Check the business address: is the city or state typed correctly?', coalesce(nullif(btrim(m.state), ''), 'no state'), coalesce(nullif(btrim(l.state), ''), 'no state'))
+           when public.zip5(m.zip) is null then 'Different city, and the business has no ZIP code, so distance cannot be checked. Add its ZIP code.'
+           else 'Different city, and a ZIP code is not in the distance table, so distance cannot be checked.'
+         end
+  from m
+  order by m.ok desc, m.miles asc nulls last, m.name
+  limit 25;
+end;
+$$;
+
 -- What a contractor sees: only leads sent to their own listing. Until the contractor pays to unlock a lead they see everything
 -- about the request EXCEPT how to reach the customer: phone number, email address and street address come back empty.
 drop function if exists public.my_leads();
@@ -461,6 +521,8 @@ revoke all on function public.admin_route_lead(uuid) from public, anon;
 revoke all on function public.my_leads() from public, anon;
 revoke all on function public.update_my_lead(uuid, text, text) from public, anon;
 grant execute on function public.admin_route_lead(uuid) to authenticated;
+revoke all on function public.admin_route_report(uuid) from public, anon;
+grant execute on function public.admin_route_report(uuid) to authenticated;
 grant execute on function public.my_leads() to authenticated;
 grant execute on function public.update_my_lead(uuid, text, text) to authenticated;
 
