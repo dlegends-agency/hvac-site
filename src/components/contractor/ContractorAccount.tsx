@@ -1,15 +1,15 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Bell, BellOff, CreditCard, ExternalLink, Loader2 } from "lucide-react";
+import { Bell, BellOff, ExternalLink, Loader2 } from "lucide-react";
 import { PageTitle, Panel } from "@/components/admin/widgets";
 import { Button } from "@/components/ui/Button";
 import { Field, inputClass } from "@/components/ui/Field";
 import { useCaptcha } from "@/components/ui/Turnstile";
 import { planName } from "@/config/pricing";
-import { useNow } from "@/lib/admin-hooks";
 import { getSupabaseBrowser } from "@/lib/supabase";
 import type { PlanId } from "@/lib/types";
 import { callApi } from "./api";
+import { SavedCards } from "./SavedCards";
 import { useContractor } from "./context";
 
 interface Invoice {
@@ -35,7 +35,6 @@ type Note = { ok: boolean; text: string } | null;
 
 const money = (cents: number, currency: string) => new Intl.NumberFormat(undefined, { style: "currency", currency: currency.toUpperCase() }).format(cents / 100);
 const day = (iso: string) => new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
-const brandName = (b: string) => (b === "amex" ? "American Express" : b.charAt(0).toUpperCase() + b.slice(1));
 
 const statusStyle: Record<string, string> = {
   paid: "bg-green-100 text-green-800",
@@ -164,10 +163,7 @@ function Alerts() {
 
 function Payments() {
   const { listing } = useContractor();
-  const now = useNow(60_000);
   const [state, setState] = useState<{ loading: boolean; unavailable: boolean; failed: boolean; data: PaymentInfo | null }>({ loading: true, unavailable: false, failed: false, data: null });
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!listing) return;
@@ -181,53 +177,16 @@ function Payments() {
     };
   }, [listing]);
 
-  async function updateCard() {
-    setBusy(true);
-    setError(null);
-    const res = await callApi<{ url?: string }>("/api/stripe/portal", { flow: "card" });
-    if (res.data.url) return void window.location.assign(res.data.url);
-    setBusy(false);
-    setError(res.status === 404 ? "There is no subscription to attach a card to yet. Choose a plan first." : "We couldn't open that. Please try again.");
-  }
-
   if (!listing) return <Panel title="Payment method and history"><p className="text-sm text-slate-700">Connect your business on the <Link to="/contractor" className="font-semibold text-primary underline">dashboard</Link> first.</p></Panel>;
   if (state.loading) return <Panel title="Payment method and history"><p className="text-sm text-slate-600">Loading…</p></Panel>;
   if (state.unavailable) return <Panel title="Payment method and history"><p className="text-sm text-slate-700">Online payments aren&apos;t switched on yet, so there is nothing to show here.</p></Panel>;
   if (state.failed || !state.data) return <Panel title="Payment method and history"><p className="rounded-xl border border-orange-200 bg-orange-50 p-3 text-sm text-orange-900">Your payment details couldn&apos;t be loaded right now. Please try again later.</p></Panel>;
 
-  const { card, subscription, invoices } = state.data;
-  const expired = card ? new Date(card.exp_year, card.exp_month, 1).getTime() < now : false;
+  const { invoices } = state.data;
 
   return (
     <>
-      <Panel title="Payment method">
-        {subscription && (
-          <p className="mb-4 text-sm text-slate-700">
-            Plan: <strong>{planName(subscription.plan ?? undefined)}</strong> · <span className="capitalize">{subscription.status.replace("_", " ")}</span>
-            {subscription.current_period_end && <> · {subscription.cancel_at_period_end ? "ends" : "renews"} {day(subscription.current_period_end)}</>}
-          </p>
-        )}
-        {card ? (
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 p-4">
-            <p className="flex items-center gap-3 text-sm text-slate-800">
-              <CreditCard className="size-6 text-slate-500" aria-hidden />
-              <span>
-                <strong>{brandName(card.brand)}</strong> ending in <strong>{card.last4}</strong>
-                <span className={`block text-xs ${expired ? "font-semibold text-red-700" : "text-slate-500"}`}>{expired ? "Expired " : "Expires "}{String(card.exp_month).padStart(2, "0")}/{card.exp_year}</span>
-              </span>
-            </p>
-            <Button variant="secondary" onClick={updateCard} disabled={busy} className="!rounded-full !px-4 !py-2 text-sm">
-              {busy && <Loader2 className="size-4 animate-spin" aria-hidden />} Update card
-            </Button>
-          </div>
-        ) : (
-          <p className="text-sm text-slate-700">
-            No card on file yet. You enter your card securely with Stripe when you <Link to="/contractor/billing" className="font-semibold text-primary underline">choose a plan</Link>.
-          </p>
-        )}
-        <div role="alert">{error && <p className="mt-3 text-sm font-medium text-red-700">{error}</p>}</div>
-        <p className="mt-4 text-xs text-slate-500">Cards are handled by Stripe. We never see or store your full card number.</p>
-      </Panel>
+      <SavedCards />
 
       <Panel title="Payment history" className="xl:col-span-2">
         {invoices.length === 0 ? (

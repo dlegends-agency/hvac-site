@@ -18,6 +18,7 @@
     "test:notify": "node --import ./scripts/ts-resolve.mjs scripts/test-notify.mjs",
     "test:account": "node --import ./scripts/ts-resolve.mjs scripts/test-account.mjs",
     "test:unlock": "node --import ./scripts/ts-resolve.mjs scripts/test-unlock.mjs",
+    "test:cards": "node --import ./scripts/ts-resolve.mjs scripts/test-cards.mjs",
     "test:opportunity": "node --import ./scripts/ts-resolve.mjs scripts/test-unlock-opportunity.mjs",
     "test:recommend": "node --import ./scripts/ts-resolve.mjs scripts/test-recommend.mjs",
     "test:submit": "node --import ./scripts/ts-resolve.mjs scripts/test-submit.mjs"
