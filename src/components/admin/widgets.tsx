@@ -1,12 +1,29 @@
 import type { ReactNode } from "react";
 import type { LeadStatus } from "@/lib/types";
 
-export function PageTitle({ title, children }: { title: string; children?: ReactNode }) {
+export function PageTitle({ title, description, children }: { title: string; description?: ReactNode; children?: ReactNode }) {
   return (
-    <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-      <h1 className="text-2xl font-bold text-navy">{title}</h1>
-      <div className="flex gap-2">{children}</div>
+    <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+      <div className="min-w-0">
+        <h1 className="text-2xl font-bold text-navy">{title}</h1>
+        {description && <p className="mt-1 max-w-3xl text-sm text-slate-600">{description}</p>}
+      </div>
+      <div className="flex flex-wrap gap-2">{children}</div>
     </div>
+  );
+}
+
+/** A row of small facts about a page (counts, last update). */
+export function StatStrip({ items }: { items: { label: string; value: ReactNode; tone?: "good" | "warn" }[] }) {
+  return (
+    <dl className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      {items.map((i) => (
+        <div key={i.label} className={`rounded-xl border bg-white px-4 py-3 shadow-sm ${i.tone === "warn" ? "border-orange-300" : "border-slate-200"}`}>
+          <dt className="text-xs font-medium text-slate-500">{i.label}</dt>
+          <dd className={`text-xl font-bold tabular-nums ${i.tone === "warn" ? "text-emergency" : i.tone === "good" ? "text-green-700" : "text-navy"}`}>{i.value}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }
 

@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { Archive, Check, Mail } from "lucide-react";
+import { Archive, Check, CheckCheck, Mail, Search } from "lucide-react";
+import { inputClass } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 import { useLiveQuery } from "@/lib/admin-hooks";
 import { getSupabaseBrowser } from "@/lib/supabase";
@@ -31,6 +32,7 @@ export function MessagesAdmin() {
     { key: "messages", intervalMs: 30_000 },
   );
   const [tab, setTab] = useState<MessageStatus | "all">("new");
+  const [search, setSearch] = useState("");
   const [overrides, setOverrides] = useState<Record<string, MessageStatus>>({});
   const rows = useMemo(() => q.data.map((m) => ({ ...m, status: overrides[m.id] ?? m.status })), [q.data, overrides]);
   const counts = useMemo(() => {
@@ -38,7 +40,22 @@ export function MessagesAdmin() {
     for (const m of rows) c[m.status]++;
     return c;
   }, [rows]);
-  const shown = rows.filter((m) => tab === "all" || m.status === tab);
+  const term = search.trim().toLowerCase();
+  const shown = rows.filter((m) => (tab === "all" || m.status === tab) && (!term || [m.name, m.email, m.topic, m.message].join(" ").toLowerCase().includes(term)));
+
+  async function markAllRead() {
+    const ids = rows.filter((m) => m.status === "new").map((m) => m.id);
+    if (ids.length === 0) return;
+    setOverrides((o) => ({ ...o, ...Object.fromEntries(ids.map((id) => [id, "read" as const])) }));
+    const { error } = await supabase.from("contact_messages").update({ status: "read" }).in("id", ids);
+    if (error) {
+      setOverrides((o) => {
+        const next = { ...o };
+        for (const id of ids) delete next[id];
+        return next;
+      });
+    }
+  }
 
   async function setStatus(id: string, status: MessageStatus) {
     setOverrides((o) => ({ ...o, [id]: status }));
@@ -54,7 +71,14 @@ export function MessagesAdmin() {
 
   return (
     <>
-      <PageTitle title="Messages" />
+      <PageTitle title="Messages" description="Messages sent from the Contact page. Reply by email from here.">
+        <Button variant="secondary" onClick={markAllRead} disabled={counts.new === 0} className="!py-2 text-sm"><CheckCheck className="size-4" aria-hidden /> Mark all read</Button>
+      </PageTitle>
+      <div className="relative mb-4 w-full sm:w-80">
+        <Search className="pointer-events-none absolute top-3.5 left-3 size-4 text-slate-400" aria-hidden />
+        <label htmlFor="msg-search" className="sr-only">Search messages</label>
+        <input id="msg-search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name, email, topic, text…" className={`${inputClass} !pl-9`} />
+      </div>
       <div className="mb-5 flex flex-wrap gap-2" role="group" aria-label="Filter messages">
         {TABS.map((t) => (
           <button key={t} type="button" aria-pressed={tab === t} onClick={() => setTab(t)}

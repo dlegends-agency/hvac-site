@@ -4,7 +4,10 @@ import { useLiveQuery } from "@/lib/admin-hooks";
 import type { Coverage } from "@/lib/permit-score";
 import type { DirectoryBusiness, PublicPermit } from "@/lib/permits";
 import { getSupabaseBrowser } from "@/lib/supabase";
-import { PageTitle } from "./widgets";
+import { Download } from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { downloadCsv } from "@/lib/csv-export";
+import { PageTitle, StatStrip } from "./widgets";
 
 /** Lead source 1: HVAC building permits from city open-data portals, ranked Hot, Warm and Cold. Kept apart from the directory and customer requests. */
 export function PermitsAdmin() {
@@ -25,9 +28,26 @@ export function PermitsAdmin() {
     return { cities: new Set(published.map((l) => (l.city ?? "").trim().toLowerCase()).filter(Boolean)), stateCovered: published.length > 0 };
   }, [directory.data]);
 
+  const complete = (p: PublicPermit) => (p.people ?? []).filter((x) => x.email && x.phone && (x.name || x.company));
+  const withContact = permits.data.filter((p) => complete(p).length > 0).length;
+  const latest = permits.data.reduce((m, p) => (p.imported_at > m ? p.imported_at : m), "");
+  function exportContacts() {
+    const rows: unknown[][] = [["Contractor", "Contact name", "Phone", "Email", "Website", "Role", "City", "Permit number", "Issued", "Project value", "Address"]];
+    for (const p of permits.data) for (const x of complete(p)) rows.push([x.company ?? x.name, x.company ? x.name : "", x.phone, x.email, x.website, x.role, p.city, p.source_id, p.issued_on, p.value_usd, p.address]);
+    downloadCsv("permit-contractors", rows);
+  }
+
   return (
     <div className="w-full">
-      <PageTitle title="Permits" />
+      <PageTitle title="Permits" description="Lead source 1 of 2: HVAC building permits from city open data. Only permits with a contractor name, phone and email are kept.">
+        <Button variant="secondary" onClick={exportContacts} disabled={withContact === 0} className="!py-2 text-sm"><Download className="size-4" aria-hidden /> Export contractors (CSV)</Button>
+      </PageTitle>
+      <StatStrip items={[
+        { label: "Permits", value: permits.data.length.toLocaleString() },
+        { label: "With name, phone and email", value: `${withContact.toLocaleString()}`, tone: withContact === permits.data.length ? "good" : "warn" },
+        { label: "Last scrape", value: latest ? new Date(latest).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "Never" },
+        { label: "Next scrape", value: "Daily 8:00 AM PH" },
+      ]} />
       <PermitBoard
         permits={permits.data}
         error={permits.error}
@@ -35,9 +55,7 @@ export function PermitsAdmin() {
         directory={directory.data}
         adminLinks
         intro={<>
-          Lead source 1 of 2. New <strong>HVAC</strong> permits from city open-data portals, scraped every day at 8:00 AM Philippine time. Each one is scored from 0 to 100: how fresh it is (35), its project value (25),
-          the kind and size of the job (20) and whether we have contractors in that city (20). <strong>Hot</strong> is 65 or more, <strong>Warm</strong> is 35 to 64, <strong>Cold</strong> is under 35.
-          Click a permit to see everything about it. The same permits show up for your business users in their dashboard under Opportunities. This is public record data. Nothing is sent to anyone from here.
+          Each permit is scored from 0 to 100: how fresh it is (35), its project value (25), the kind and size of the job (20) and whether we have contractors in that city (20). <strong>Hot</strong> is 65 or more, <strong>Warm</strong> is 35 to 64, <strong>Cold</strong> is under 35. Click a permit to see everything about it. Your business users see the same permits under Opportunities. This is public record data, and nothing is sent to anyone from here.
         </>}
         emptyText={<>No permits yet. Run the permits import (GitHub Actions &gt; Permits import &gt; Run workflow). After that it runs by itself every day.</>}
       />
