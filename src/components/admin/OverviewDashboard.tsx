@@ -1,13 +1,14 @@
 import { useMemo, useState } from "react";
 import { FlowHealth } from "./FlowHealth";
 import { Link } from "react-router-dom";
-import { ArrowDownRight, ArrowUpRight, Building2, Check, ExternalLink, EyeOff, MapPin, Minus, RefreshCw, Users } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Building2, Check, ExternalLink, EyeOff, HardHat, Inbox, Landmark, MapPin, Minus, RefreshCw, Users } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { locations } from "@/config/locations";
 import { plans } from "@/config/pricing";
 import { activePlan } from "@/lib/plans";
 import { countBy, dailyCounts, useCountUp, useLiveQuery, useNow } from "@/lib/admin-hooks";
 import { getSupabaseBrowser } from "@/lib/supabase";
+import { useAdminCounts } from "@/lib/use-admin-counts";
 import { LEAD_STATUSES, LISTING_STATUSES, type Lead, type Listing, type ListingBilling, type ListingPrivate, type ListingStatus, type PageView } from "@/lib/types";
 import { BarList, DailyChart, PageTitle, Panel, StatusBadge } from "./widgets";
 
@@ -81,6 +82,7 @@ export function OverviewDashboard() {
   const [listingTab, setListingTab] = useState<ListingStatus | "all">("all");
   const [busyId, setBusyId] = useState<string | null>(null);
   const intervalMs = live ? REFRESH_MS : null;
+  const attention = useAdminCounts(live ? REFRESH_MS : 3_600_000);
   const supabase = getSupabaseBrowser();
 
   const leadsQ = useLiveQuery<Lead[]>([], () => supabase.from("leads").select("*").order("created_at", { ascending: false }).limit(2000), { key: "leads", intervalMs });
@@ -223,6 +225,50 @@ export function OverviewDashboard() {
       </PageTitle>
 
       <FlowHealth />
+
+      <div className="mb-6 grid gap-6 lg:grid-cols-2">
+        <Panel title="Needs your attention">
+          {attention.newLeads + attention.pendingListings + attention.pendingClaims === 0 ? (
+            <p className="flex items-center gap-2 rounded-xl bg-green-50 p-4 text-sm font-medium text-green-800"><Check className="size-4" aria-hidden /> All caught up. Nothing is waiting for you.</p>
+          ) : (
+            <ul className="space-y-2">
+              {[
+                { n: attention.newLeads, text: "new customer requests", to: "/admin/leads", icon: Inbox },
+                { n: attention.pendingListings, text: "business registrations to review", to: "/admin/listings", icon: Building2 },
+                { n: attention.pendingClaims, text: "ownership claims to review", to: "/admin/listings/claims", icon: Users },
+              ].filter((r) => r.n > 0).map((r) => (
+                <li key={r.text}>
+                  <Link to={r.to} className="flex items-center gap-3 rounded-xl border border-orange-200 bg-emergency-soft px-4 py-3 hover:bg-orange-100">
+                    <r.icon className="size-5 text-emergency" aria-hidden />
+                    <span className="flex-1 text-sm text-navy"><strong className="tabular-nums">{r.n}</strong> {r.text}</span>
+                    <span className="text-sm font-semibold text-primary">Open →</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
+        <Panel title="Lead sources">
+          <ul className="divide-y divide-slate-100">
+            {[
+              { label: "Building permits", icon: HardHat, n: attention.permits, at: attention.permitsAt, to: "/admin/permits", when: "8:00 AM" },
+              { label: "Government bids", icon: Landmark, n: attention.bids, at: attention.bidsAt, to: "/admin/bids", when: "8:30 AM" },
+            ].map((s) => (
+              <li key={s.label}>
+                <Link to={s.to} className="flex items-center gap-3 py-3 hover:bg-slate-50">
+                  <span className="grid size-9 shrink-0 place-items-center rounded-full bg-blue-50 text-primary"><s.icon className="size-4" aria-hidden /></span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-semibold text-navy">{s.label}</span>
+                    <span className="block text-xs text-slate-500">{s.at ? `Last scrape ${timeAgo(now - new Date(s.at).getTime())}` : "Not scraped yet"} · daily {s.when} PH</span>
+                  </span>
+                  <span className="text-xl font-bold text-navy tabular-nums">{s.n.toLocaleString()}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-3 text-xs text-slate-500">Only leads with a contact name, phone and email are kept. Your business users see both under Opportunities.</p>
+        </Panel>
+      </div>
 
       {failed && (
         <p className="mb-5 rounded-2xl border border-orange-200 bg-orange-50 p-4 text-sm text-orange-900">

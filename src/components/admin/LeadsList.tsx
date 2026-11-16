@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ChevronRight, RefreshCw, Search } from "lucide-react";
+import { ChevronRight, Download, RefreshCw, Search } from "lucide-react";
+import { downloadCsv } from "@/lib/csv-export";
 import { Button } from "@/components/ui/Button";
 import { useLeads } from "@/lib/admin-hooks";
 import { LEAD_STATUSES, type LeadStatus } from "@/lib/types";
@@ -22,6 +23,9 @@ export function LeadsList() {
   return (
     <>
       <PageTitle title="Leads">
+        <Button variant="secondary" onClick={() => downloadCsv("leads", [["Name", "Email", "Phone", "City", "State", "Issue", "Urgency", "Status", "Received"], ...shown.map((l) => [`${l.first_name} ${l.last_name}`, l.email, l.phone, l.city, l.state, l.issue, l.urgency, l.status, l.created_at])])} disabled={shown.length === 0}>
+          <Download className="size-4" aria-hidden /> Export CSV
+        </Button>
         <Button variant="secondary" onClick={reload} disabled={loading} aria-label="Refresh leads">
           <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} aria-hidden /> Refresh
         </Button>
@@ -54,7 +58,7 @@ export function LeadsList() {
                 <li key={l.id}>
                   <Link to={`/admin/leads/${l.id}`} className="flex items-center gap-4 px-5 py-4 hover:bg-slate-50">
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate font-semibold text-navy">{l.first_name} {l.last_name}</span>
+                      <span className="flex items-center gap-2 truncate font-semibold text-navy">{l.status === "new" && <span className="size-2 shrink-0 rounded-full bg-primary" aria-label="New" />}{l.first_name} {l.last_name}</span>
                       <span className="block truncate text-sm text-slate-600">{l.issue} · {l.urgency}</span>
                       <span className="block truncate text-sm text-slate-500">{l.city}, {l.state} · {l.phone}</span>
                     </span>
