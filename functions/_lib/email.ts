@@ -63,11 +63,14 @@ export function renderLeadEmail(a: LeadAlert, siteUrl: string): { subject: strin
 }
 
 /** Sends one email through Resend (https://resend.com). Throws with a short reason when it fails. */
-export async function sendEmail(env: Env, msg: { to: string; subject: string; html: string; text: string }): Promise<void> {
+export async function sendEmail(env: Env, msg: { to: string; subject: string; html: string; text: string; fromName?: string }): Promise<void> {
+  // The site's own address always sends; fromName only changes the display name (for example "Cool Air Houston via HVACHelp").
+  const address = /<([^>]+)>/.exec(env.NOTIFY_FROM_EMAIL ?? "")?.[1] ?? env.NOTIFY_FROM_EMAIL;
+  const from = msg.fromName ? `${msg.fromName.replace(/["<>,;\r\n]/g, " ").replace(/\s+/g, " ").trim().slice(0, 80)} <${address}>` : env.NOTIFY_FROM_EMAIL;
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: env.NOTIFY_FROM_EMAIL, to: [msg.to], subject: msg.subject, html: msg.html, text: msg.text }),
+    body: JSON.stringify({ from, to: [msg.to], subject: msg.subject, html: msg.html, text: msg.text }),
   });
   if (!res.ok) {
     const detail = ((await res.json().catch(() => ({}))) as { message?: string }).message ?? "";
@@ -127,6 +130,8 @@ export interface MessageEmail {
   customer_name: string;
   issue: string;
   body: string;
+  /** What the business wrote on the subject line. A default is used when it is empty. */
+  subject?: string | null;
 }
 
 /**
@@ -137,13 +142,13 @@ export function renderMessageEmail(a: MessageEmail, link: string): { subject: st
   const business = oneLine(a.business_name, 120);
   const name = oneLine(a.customer_name, 60) || "there";
   const issue = oneLine(a.issue, 160);
-  const subject = `New message from ${business} about your HVAC request`;
+  const subject = oneLine(a.subject ?? "", 150) || `New message from ${business} about your HVAC request`;
   const body = a.body.trim().slice(0, 2000);
 
   const text = [
     `Hi ${name},`,
     "",
-    `${business} sent you a message about your request (${issue}):`,
+    `From ${business}, about your request (${issue}):`,
     "",
     body,
     "",
@@ -156,8 +161,8 @@ export function renderMessageEmail(a: MessageEmail, link: string): { subject: st
 <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:16px;padding:28px">
 <tr><td>
 <p style="margin:0 0 4px;font-size:13px;color:#2563eb;font-weight:bold">NEW MESSAGE</p>
-<h1 style="margin:0 0 16px;font-size:22px">${escapeHtml(business)} sent you a message</h1>
-<p style="margin:0 0 6px;font-size:14px;color:#64748b">About your request: ${escapeHtml(issue)}</p>
+<h1 style="margin:0 0 6px;font-size:22px">${escapeHtml(subject)}</h1>
+<p style="margin:0 0 16px;font-size:14px;color:#64748b">From <strong>${escapeHtml(business)}</strong>, about your request: ${escapeHtml(issue)}</p>
 <div style="margin:0 0 20px;padding:14px 16px;background:#f1f5f9;border-radius:12px;font-size:15px;line-height:1.55;white-space:pre-line">${escapeHtml(body)}</div>
 <a href="${escapeHtml(link)}" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;font-weight:bold;padding:12px 22px;border-radius:999px">Read and reply</a>
 <p style="margin:24px 0 0;font-size:12px;line-height:1.5;color:#64748b">Sign in with this email address, or create a free account with it, to reply. Replies are sent through the site, not by email, so your contact details stay private.</p>

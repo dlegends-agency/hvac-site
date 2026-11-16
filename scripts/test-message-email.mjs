@@ -17,6 +17,12 @@ assert.ok(mail.text.includes("Hi Chelsea,") && mail.text.includes("I can come <s
 assert.ok(mail.html.includes("Replies are sent through the site"), "replies stay on the site");
 assert.ok(!/@|\d{3}[-) ]\d{3}-\d{4}/.test(mail.text.replace(/https?:\/\/\S+/g, "")), "no email address or phone number from the business");
 assert.ok(!renderMessageEmail({ business_name: "A", customer_name: "", issue: "x", body: "y" }, "https://s").text.includes("undefined"));
+// the subject the business wrote is the email's subject and its heading
+const withSubject = renderMessageEmail({ business_name: "Cool Air Houston", customer_name: "Chelsea", issue: "AC Not Cooling", body: "See you at 9.", subject: "Your <AC> request: tomorrow 9am" }, "https://site.test/x");
+assert.equal(withSubject.subject, "Your <AC> request: tomorrow 9am");
+assert.ok(withSubject.html.includes("<h1 style=\"margin:0 0 6px;font-size:22px\">Your &lt;AC&gt; request: tomorrow 9am</h1>"), "the subject is the heading, escaped");
+assert.ok(withSubject.html.includes("From <strong>Cool Air Houston</strong>"));
+assert.equal(renderMessageEmail({ business_name: "A", customer_name: "B", issue: "i", body: "b", subject: "   " }, "https://s").subject, "New message from A about your HVAC request", "a blank subject falls back to the default");
 const injected = renderMessageEmail({ business_name: "X\r\nBcc: evil@x.com", customer_name: "A", issue: "i", body: "b" }, "https://s");
 assert.ok(!/[\r\n]/.test(injected.subject), "no header injection through the subject");
 
@@ -25,7 +31,7 @@ let state, log, resend;
 const reset = () => {
   state = {
     owner: [{ listing_id: LISTING }],
-    info: [{ id: 7, lead_id: LEAD, listing_id: LISTING, sender: "business", body: "Hi, I can come tomorrow.", created_at: new Date().toISOString(), emailed_at: null, customer_email: "chelsea@yopmail.com", customer_name: "Chelsea", issue: "AC Not Cooling", business_name: "Cool Air Houston" }],
+    info: [{ id: 7, lead_id: LEAD, listing_id: LISTING, sender: "business", body: "Hi, I can come tomorrow.", created_at: new Date().toISOString(), emailed_at: null, customer_email: "chelsea@yopmail.com", customer_name: "Chelsea", issue: "AC Not Cooling", business_name: "Cool Air Houston", subject: "Re: your AC request" }],
     resendOk: true,
   };
   log = [];
@@ -64,11 +70,16 @@ let r = await call({ messageId: 7 });
 assert.deepEqual(r.data, { emailed: true });
 assert.equal(resend.length, 1);
 assert.deepEqual(resend[0].to, ["chelsea@yopmail.com"], "the customer's address is read on the server, never from the browser");
-assert.equal(resend[0].from, "HVACHelp <onboarding@resend.dev>");
+assert.equal(resend[0].from, "Cool Air Houston via HVACHelp <onboarding@resend.dev>", "it shows the business name, sent from the site's own address");
+assert.equal(resend[0].subject, "Re: your AC request", "the subject the contractor wrote");
 assert.ok(resend[0].html.includes("Hi, I can come tomorrow."));
 assert.ok(resend[0].html.includes("https://site.test/account/messages?lead=" + LEAD + "&amp;listing=" + LISTING));
 assert.deepEqual(marks(), [{ p_message: 7 }], "recorded as emailed");
 
+reset(); state.info[0].business_name = 'Bad "Name" <x@evil.com>, Inc'; state.info[0].subject = null;
+await call({ messageId: 7 });
+assert.equal(resend[0].from, "Bad Name x@evil.com Inc via HVACHelp <onboarding@resend.dev>", "a business name cannot inject another address into the From line");
+assert.equal(resend[0].subject, 'New message from Bad "Name" <x@evil.com>, Inc about your HVAC request', "with no subject the default is used");
 reset(); state.info[0].listing_id = "99999999-9999-4999-8999-999999999999";
 assert.equal((await call({ messageId: 7 })).status, 404, "another business's message cannot be emailed from this account");
 reset(); state.info[0].sender = "customer";

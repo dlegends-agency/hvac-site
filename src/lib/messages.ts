@@ -21,6 +21,8 @@ export interface ChatMessage {
   /** The business name, or the customer's email address. */
   sender_name: string;
   body: string;
+  /** The subject line, when the sender wrote one (a business emailing the customer from the site). */
+  subject?: string | null;
   mine: boolean;
   read_at: string | null;
 }
@@ -28,6 +30,7 @@ export interface ChatMessage {
 export type Role = "customer" | "business";
 
 export const MAX_MESSAGE = 2000;
+export const MAX_SUBJECT = 150;
 
 /** The words for a customer's request log. */
 export function requestLogLabel(kind: string, business: string | null): string {

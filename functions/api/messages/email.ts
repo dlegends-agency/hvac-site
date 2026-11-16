@@ -21,6 +21,7 @@ interface Info {
   customer_name: string | null;
   issue: string;
   business_name: string;
+  subject: string | null;
 }
 
 const FRESH_MS = 15 * 60_000;
@@ -47,7 +48,7 @@ export const onRequestPost = async ({ env, request }: { env: Env; request: Reque
 
   const link = `${siteOrigin(env, request)}/account/messages?lead=${encodeURIComponent(info.lead_id)}&listing=${encodeURIComponent(info.listing_id)}`;
   try {
-    await sendEmail(env, { to: info.customer_email, ...renderMessageEmail({ business_name: info.business_name, customer_name: info.customer_name ?? "", issue: info.issue, body: info.body }, link) });
+    await sendEmail(env, { to: info.customer_email, fromName: `${info.business_name} via HVACHelp`, ...renderMessageEmail({ business_name: info.business_name, customer_name: info.customer_name ?? "", issue: info.issue, body: info.body, subject: info.subject }, link) });
   } catch (e) {
     const reason = e instanceof Error ? e.message : "send failed";
     await db(env, "rpc/mark_message_emailed", { method: "POST", body: JSON.stringify({ p_message: messageId, p_error: reason }) });

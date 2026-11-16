@@ -74,7 +74,7 @@ function Details({ lead, onSaved }: { lead: ContractorLead; onSaved: (l: Contrac
 
       <div className="mt-4 flex flex-wrap gap-2">
         <a href={tel} className={buttonClass("primary", "!rounded-full !px-4 !py-2 text-sm")}><Phone className="size-4" aria-hidden /> Call {lead.phone}</a>
-        {lead.email && listing && <EmailCustomer leadId={lead.id} listingId={listing.id} customerName={lead.first_name} email={lead.email} />}
+        {lead.email && listing && <EmailCustomer leadId={lead.id} listingId={listing.id} businessName={listing.business_name} customerName={lead.first_name} issue={lead.issue} email={lead.email} />}
       </div>
 
       <div className="mt-5 border-t border-slate-100 pt-4">

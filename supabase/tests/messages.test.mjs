@@ -153,10 +153,17 @@ await send(C.user, L, C.id, "Hello from a free plan that unlocked the request");
 await send(customer, L, C.id, "Thanks, replying");
 
 // the server's email helpers: what it needs to email the customer, recorded once, never readable by users
-const mid = Number((await send(A.user, L, A.id, "Email me back please")).rows[0].id);
+const mid = Number((await as(A.user, () => db.query("select public.send_message($1,$2,$3,$4) as id", [L, A.id, "Email me back please", "  Re: your AC request  "]))).rows[0].id);
+assert.equal((await q("select subject from public.lead_messages where id=$1", [mid]))[0].subject, "Re: your AC request", "the subject is trimmed and kept");
+assert.equal((await q("select subject from public.lead_messages order by id limit 1"))[0].subject, null, "a message without a subject has none");
+const withSubject = await rows(customer, "select * from public.conversation_messages($1,$2)", [L, A.id]);
+assert.equal(withSubject.find((m) => Number(m.id) === mid).subject, "Re: your AC request", "the customer sees the subject in their dashboard");
+assert.equal((await as(A.user, () => db.query("select public.send_message($1,$2,$3,$4) as id", [L, A.id, "x", "   "]))).rows.length, 1, "a blank subject is just no subject");
+assert.equal((await q("select subject from public.lead_messages order by id desc limit 1"))[0].subject, null);
+await assert.rejects(() => q("insert into public.lead_messages (lead_id, listing_id, sender, body, subject) values ($1,$2,'business','b',$3)", [L, A.id, "x".repeat(151)]), /check/, "a subject is at most 150 characters");
 const svcQ = async (sql, p) => { await db.exec("set role service_role"); try { return (await db.query(sql, p)).rows; } finally { await db.exec("reset role"); } };
 const info = (await svcQ("select * from public.message_email_info($1)", [mid]))[0];
-assert.deepEqual([info.sender, info.customer_email, info.customer_name, info.business_name, info.issue, info.emailed_at], ["business", "jane@x.com", "Jane", "Acme HVAC", "AC Not Cooling", null]);
+assert.deepEqual([info.sender, info.customer_email, info.customer_name, info.business_name, info.issue, info.emailed_at, info.subject], ["business", "jane@x.com", "Jane", "Acme HVAC", "AC Not Cooling", null, "Re: your AC request"]);
 await svcQ("select public.mark_message_emailed($1, 'Resend 403')", [mid]);
 assert.deepEqual((await q("select emailed_at, email_error from public.lead_messages where id=$1", [mid]))[0], { emailed_at: null, email_error: "Resend 403" }, "a failure keeps its reason and can be retried");
 await svcQ("select public.mark_message_emailed($1)", [mid]);
