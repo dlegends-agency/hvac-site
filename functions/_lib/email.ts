@@ -74,3 +74,50 @@ export async function sendEmail(env: Env, msg: { to: string; subject: string; ht
     throw new Error(`Resend ${res.status}${detail ? `: ${detail}` : ""}`);
   }
 }
+
+export interface DigestAlert {
+  business_name: string;
+  permits: number;
+  bids: number;
+  /** Up to three of the newest: a short title and the city. Public notice text only, never a phone number or an email address. */
+  highlights: { kind: "permit" | "bid"; title: string; city: string | null }[];
+}
+
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
+/** The daily summary of new building permits and government bids that reached a business. A heads-up with a link; contacts stay locked. */
+export function renderDigestEmail(a: DigestAlert, siteUrl: string): { subject: string; html: string; text: string } {
+  const parts = [a.bids > 0 ? plural(a.bids, "government bid", "government bids") : "", a.permits > 0 ? plural(a.permits, "building permit", "building permits") : ""].filter(Boolean);
+  const what = parts.join(" and ");
+  const link = `${siteUrl}/contractor/opportunities${a.bids === 0 && a.permits > 0 ? "?tab=permits" : ""}`;
+  const settings = `${siteUrl}/contractor`;
+  const subject = `New near you: ${what}`;
+  const items = (a.highlights ?? []).slice(0, 3).map((h) => ({ kind: h.kind === "bid" ? "Government bid" : "Building permit", title: oneLine(h.title, 140), city: h.city ? oneLine(h.city, 60) : "" }));
+
+  const text = [
+    `Hi ${oneLine(a.business_name, 120)},`,
+    "",
+    `New work reached your business since your last summary: ${what}.`,
+    ...(items.length ? ["", ...items.map((i) => `- ${i.kind}: ${i.title}${i.city ? ` (${i.city})` : ""}`)] : []),
+    "",
+    `You can see everything about each one in your dashboard. The phone number and email unlock for a one-time payment per lead: ${link}`,
+    "",
+    `You get this email because your business is listed in our directory. You can turn these emails off in your dashboard: ${settings}`,
+  ].join("\n");
+
+  const list = items.length
+    ? `<ul style="margin:0 0 20px;padding-left:18px;font-size:14px;line-height:1.6">${items.map((i) => `<li><strong>${escapeHtml(i.kind)}:</strong> ${escapeHtml(i.title)}${i.city ? ` <span style="color:#64748b">(${escapeHtml(i.city)})</span>` : ""}</li>`).join("")}</ul>`
+    : "";
+  const html = `<!doctype html><html><body style="margin:0;background:#f4f7fb;font-family:Arial,Helvetica,sans-serif;color:#14213d">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:24px 12px">
+<table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:16px;padding:28px">
+<tr><td>
+<p style="margin:0 0 4px;font-size:13px;color:#059669;font-weight:bold">NEW OPPORTUNITIES NEAR YOU</p>
+<h1 style="margin:0 0 16px;font-size:22px">${escapeHtml(what)} reached your business</h1>
+${list}<p style="margin:0 0 20px;font-size:15px;line-height:1.5">Open your dashboard to see everything about each one. The phone number and email unlock for a one-time payment per lead.</p>
+<a href="${escapeHtml(link)}" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;font-weight:bold;padding:12px 22px;border-radius:999px">See the opportunities</a>
+<p style="margin:24px 0 0;font-size:12px;line-height:1.5;color:#64748b">You get this email because ${escapeHtml(oneLine(a.business_name, 120))} is listed in our directory. You can <a href="${escapeHtml(settings)}" style="color:#2563eb">turn these emails off in your dashboard</a>.</p>
+</td></tr></table></td></tr></table></body></html>`;
+
+  return { subject, html, text };
+}

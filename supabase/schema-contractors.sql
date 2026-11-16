@@ -373,8 +373,8 @@ begin
 end;
 $$;
 
--- What a contractor sees: only leads sent to their own listing. Until the contractor pays to unlock a lead they get the
--- customer's name and the problem only; every other field comes back empty.
+-- What a contractor sees: only leads sent to their own listing. Until the contractor pays to unlock a lead they see everything
+-- about the request EXCEPT how to reach the customer: phone number, email address and street address come back empty.
 drop function if exists public.my_leads();
 create or replace function public.my_leads()
 returns table (
@@ -394,13 +394,13 @@ as $$
          (select count(*)::int from public.lead_assignments x where x.lead_id = l.id),
          (a.unlocked_at is not null),
          l.issue, l.first_name, l.last_name,
-         case when a.unlocked_at is not null then l.urgency end, case when a.unlocked_at is not null then l.city end,
-         case when a.unlocked_at is not null then l.state end, case when a.unlocked_at is not null then l.postal_code end,
+         l.urgency, l.city,
+         l.state, l.postal_code,
          case when a.unlocked_at is not null then l.street end, case when a.unlocked_at is not null then l.unit end,
          case when a.unlocked_at is not null then l.phone end, case when a.unlocked_at is not null then l.email end,
-         case when a.unlocked_at is not null then l.contact_method end, case when a.unlocked_at is not null then l.description end,
-         case when a.unlocked_at is not null then l.property_type end, case when a.unlocked_at is not null then l.property_status end,
-         case when a.unlocked_at is not null then l.preferred_contact_time end,
+         l.contact_method, l.description,
+         l.property_type, l.property_status,
+         l.preferred_contact_time,
          a.contractor_status, a.contractor_notes, a.contacted_at
   from public.lead_assignments a
   join public.leads l on l.id = a.lead_id

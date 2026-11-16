@@ -1,6 +1,7 @@
 // Offline tests for the email alert code. Run: npm run test:notify
 import assert from "node:assert/strict";
-import { escapeHtml, renderLeadEmail, secretsMatch } from "../functions/_lib/email.ts";
+import { escapeHtml, renderDigestEmail, renderLeadEmail, secretsMatch } from "../functions/_lib/email.ts";
+import { onRequestPost as digestPost } from "../functions/api/notify/digest.ts";
 import { onRequestPost } from "../functions/api/notify/send.ts";
 
 // --- rendering
@@ -65,5 +66,40 @@ assert.equal(finishArgs, null, "nothing to record");
 
 reset(rows(25));
 assert.equal((await (await call(env, "s3cret")).json()).more, true, "tells the caller there may be more");
+
+// --- the daily summary of new permits and bids
+const digest = { business_name: "Acme <b>Air</b>", permits: 2, bids: 1, highlights: [{ kind: "bid", title: "Replace chiller <script>x</script>", city: "Austin" }, { kind: "permit", title: "Residential HVAC: replace furnace", city: null }] };
+const dm = renderDigestEmail(digest, "https://site.test");
+assert.equal(dm.subject, "New near you: 1 government bid and 2 building permits");
+assert.ok(dm.html.includes("https://site.test/contractor/opportunities") && dm.text.includes("https://site.test/contractor/opportunities"));
+assert.ok(!dm.html.includes("<script>") && dm.html.includes("&lt;script&gt;") && !dm.html.includes("<b>Air</b>"), "text from notices and business names is escaped");
+assert.ok(dm.text.includes("- Government bid: Replace chiller <script>x</script> (Austin)") && dm.text.includes("- Building permit: Residential HVAC: replace furnace"));
+assert.ok(dm.html.includes("turn these emails off") && dm.text.includes("turn these emails off"));
+assert.ok(!/@|\d{3}[-) ]\d{3}-\d{4}/.test(dm.text.replace(/https?:\/\/\S+/g, "")), "no email address or phone number in a summary");
+assert.equal(renderDigestEmail({ ...digest, bids: 0 }, "https://site.test").text.includes("/contractor/opportunities?tab=permits"), true, "permit-only summaries open the permits tab");
+assert.equal(renderDigestEmail({ ...digest, bids: 0, permits: 1, highlights: [] }, "https://site.test").subject, "New near you: 1 building permit");
+const callDigest = (e, secret) => digestPost({ env: e, request: new Request("https://site.test/api/notify/digest", { method: "POST", headers: secret ? { "X-Notify-Secret": secret } : {} }) });
+const withDigest = globalThis.fetch;
+globalThis.fetch = async (url, init) => {
+  url = String(url);
+  if (url.endsWith("/rpc/claim_opportunity_digests")) return new Response(JSON.stringify(pending), { status: 200 });
+  if (url.endsWith("/rpc/finish_opportunity_digests")) { finishArgs = JSON.parse(init.body); return new Response("null", { status: 200 }); }
+  return withDigest(url, init);
+};
+const drows = (n) => Array.from({ length: n }, (_, i) => ({ id: `d${i}`, email: `c${i}@x.com`, ...digest }));
+reset(drows(2));
+assert.equal((await callDigest(env, null)).status, 403, "no secret");
+assert.equal((await callDigest({ ...env, RESEND_API_KEY: undefined }, "s3cret")).status, 501, "not configured");
+assert.equal(resendCalls.length, 0);
+res = await callDigest(env, "s3cret");
+assert.deepEqual(await res.json(), { sent: 2, failed: 0, more: false });
+assert.deepEqual(resendCalls.map((c) => c.body.to[0]), ["c0@x.com", "c1@x.com"]);
+assert.deepEqual(finishArgs.p_sent, ["d0", "d1"]);
+reset(drows(2)); failTo = "c0@x.com";
+res = await callDigest(env, "s3cret");
+assert.deepEqual(await res.json(), { sent: 1, failed: 1, more: false });
+assert.deepEqual(finishArgs.p_failed, { d0: "Resend 403: Domain not verified" });
+reset(drows(25));
+assert.equal((await (await callDigest(env, "s3cret")).json()).more, true, "tells the caller there may be more");
 
 console.log("notify: all checks passed");

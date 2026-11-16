@@ -122,9 +122,10 @@ await db.query("insert into public.lead_assignments (lead_id, listing_id, source
 const locked = (await myLeads(A.user)).find((r) => r.id === l1);
 assert.equal(locked.unlocked, false);
 assert.deepEqual([locked.first_name, locked.last_name, locked.issue], ["Jane", "Doe", "AC Not Cooling"], "name and problem are visible");
-for (const f of ["phone", "email", "street", "unit", "city", "state", "postal_code", "urgency", "description", "contact_method", "property_type", "property_status", "preferred_contact_time"]) {
+for (const f of ["phone", "email", "street", "unit"]) {
   assert.equal(locked[f], null, `${f} is hidden until the lead is unlocked`);
 }
+assert.deepEqual([locked.city, locked.state, locked.postal_code, locked.urgency, locked.description, locked.contact_method], ["Austin", "Texas", "78701", "Immediately", "Unit is blowing warm air", "Phone"], "everything except how to reach the customer is visible");
 assert.equal(locked.recipient_count, 3, "knows the request was shared with 3 contractors");
 assert.ok(!("notes" in locked) && !("status" in locked), "admin-only lead columns are never exposed");
 assert.equal((await myLeads(B.user)).some((r) => r.id === l2), false, "leads sent to others are invisible");

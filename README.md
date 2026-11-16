@@ -184,7 +184,7 @@ Two separate lead sources, each in its own table, importer and admin page, and b
 | HVAC building permits (Austin and Dallas open data) | `public_permits` | `scripts/permits` | Admin > Permits | every day 8:00 AM Philippine time |
 | Open federal HVAC bids in Texas (SAM.gov) | `gov_bids` | `scripts/bids` | Admin > Government bids | every day 8:30 AM Philippine time |
 
-Run `supabase/schema-permits.sql`, then `supabase/schema-bids.sql` (it also lets business owners read both tables). Each lead is scored Hot, Warm or Cold with the reasons. See `scripts/permits/README.md` and `scripts/bids/README.md`.
+Run `supabase/schema-permits.sql`, `supabase/schema-bids.sql`, then `supabase/schema-opportunities.sql`. Contractors never read the two tables: the database sends each lead to every business within reach of its address (its city or listed cities, or within its travel radius of its business ZIP, the same rule as website requests). They see everything except the phone number and email (for a permit also the website and city record link; for a bid the SAM.gov links), which unlock for $5 (Featured) or $10 per lead through `/api/stripe/unlock-opportunity`. Website requests work the same way: everything but phone, email and street address is visible. Each lead is scored Hot, Warm or Cold with the reasons. See `scripts/permits/README.md` and `scripts/bids/README.md`.
 
 ### Messages and the customer dashboard
 
@@ -239,6 +239,8 @@ on conflict (id) do update set endpoint = excluded.endpoint, secret = excluded.s
 
 5. GitHub > Settings > Secrets and variables > Actions: add `NOTIFY_SECRET` (the same secret) and make sure `SITE_URL` is your site address. The workflow `.github/workflows/notify-flush.yml` then re-checks every 10 minutes, so no alert is lost if the instant ping fails.
 6. Test it: `curl -s -X POST -H "X-Notify-Secret: THE-SAME-SECRET" https://YOUR-SITE/api/notify/send` should answer `{"sent":0,"failed":0,"more":false}`. Then submit a test request for a city that has a contractor with an approved account and check their inbox.
+
+**Daily summary of new permits and government bids.** The workflow `.github/workflows/opportunity-alerts.yml` runs every day at 10:00 AM Philippine time (after the scrapes). It asks the database who has new permits or bids within reach of their business address (`queue_opportunity_digests()` in `supabase/schema-opportunities.sql`) and then calls `/api/notify/digest`, which emails each of them a short summary (counts and up to three titles, never a phone number or email) with a link to the Opportunities page. A contractor with nothing new, or with alerts switched off, gets nothing. It uses the same Resend settings and the same `NOTIFY_SECRET`, `SITE_URL`, `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` secrets as above; run it by hand from Actions > Opportunity alerts > Run workflow to test.
 
 Failed sends are retried up to 5 times and the reason is stored in `lead_notifications.last_error`. `npm run test:notify` checks the email code offline, and the SQL checks in `supabase/tests/routing.test.mjs` cover queueing and retries.
 

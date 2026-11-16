@@ -3,7 +3,7 @@ import { ExternalLink, Globe, Mail, MapPin, Phone } from "lucide-react";
 import { Link } from "react-router-dom";
 import { ageText, scorePermit, type Coverage, type Scored } from "@/lib/permit-score";
 import { PERMIT_CLASS_STYLE, matchDirectory, permitTitle, permitValue, type DirectoryBusiness, type PermitPerson, type PublicPermit } from "@/lib/permits";
-import { Fact, ScoreBars, SidePanel, TIER_STYLE, TierColumns, dayText, searchClass, selectClass } from "./shared";
+import { Fact, LockedTag, ScoreBars, SidePanel, TIER_STYLE, TierColumns, UnlockBox, dayText, searchClass, selectClass, type UnlockInfo } from "./shared";
 
 interface Row extends Scored {
   p: PublicPermit;
@@ -25,24 +25,26 @@ function Card({ row, onOpen }: { row: Row; onOpen: () => void }) {
       <span className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
         <span className={`rounded-full px-2 py-0.5 font-semibold capitalize ${PERMIT_CLASS_STYLE[p.property_class]}`}>{p.property_class}</span>
         <span className="rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-600">{p.city}</span>
+        {p.unlocked === false ? <LockedTag text="Contact locked" /> : p.unlocked === true && <span className="rounded-full bg-green-50 px-2 py-0.5 font-semibold text-green-800">Unlocked</span>}
         {p.contractor_name && <span className="truncate text-slate-500">{p.contractor_name}</span>}
       </span>
     </button>
   );
 }
 
-function Person({ person, directory, adminLinks }: { person: PermitPerson; directory: DirectoryBusiness | null; adminLinks: boolean }) {
+function Person({ person, directory, adminLinks, locked }: { person: PermitPerson; directory: DirectoryBusiness | null; adminLinks: boolean; locked: boolean }) {
   const place = [person.city, person.state, person.zip].filter(Boolean).join(" ");
-  const email = person.email ?? directory?.email ?? null;
-  const site = person.website ?? directory?.website ?? null;
+  // While locked nothing that could reveal the phone, email or website is shown, not even from the directory.
+  const email = locked ? null : (person.email ?? directory?.email ?? null);
+  const site = locked ? null : (person.website ?? directory?.website ?? null);
   return (
     <li className="rounded-xl border border-slate-200 p-3 text-sm">
       <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">{person.role}</p>
       <p className="font-semibold text-navy">{person.company ?? person.name}</p>
       {person.company && person.name && <p className="text-slate-700">{person.name}</p>}
       <dl className="mt-2 space-y-1 text-slate-700">
-        <div className="flex items-start gap-2"><Phone className="mt-0.5 size-4 shrink-0 text-slate-400" aria-hidden /><dd>{person.phone ? <a href={`tel:${person.phone.replace(/\D/g, "")}`} className="text-primary hover:underline">{person.phone}</a> : <span className="text-slate-400">No phone listed</span>}</dd></div>
-        <div className="flex items-start gap-2"><Mail className="mt-0.5 size-4 shrink-0 text-slate-400" aria-hidden /><dd>{email ? <a href={`mailto:${email}`} className="text-primary hover:underline">{email}</a> : <span className="text-slate-400">No email found</span>}{!person.email && email && <span className="ml-1 text-xs text-slate-500">(from the directory)</span>}</dd></div>
+        <div className="flex items-start gap-2"><Phone className="mt-0.5 size-4 shrink-0 text-slate-400" aria-hidden /><dd>{locked ? <LockedTag /> : person.phone ? <a href={`tel:${person.phone.replace(/\D/g, "")}`} className="text-primary hover:underline">{person.phone}</a> : <span className="text-slate-400">No phone listed</span>}</dd></div>
+        <div className="flex items-start gap-2"><Mail className="mt-0.5 size-4 shrink-0 text-slate-400" aria-hidden /><dd>{locked ? <LockedTag /> : email ? <a href={`mailto:${email}`} className="text-primary hover:underline">{email}</a> : <span className="text-slate-400">No email found</span>}{!person.email && email && <span className="ml-1 text-xs text-slate-500">(from the directory)</span>}</dd></div>
         {site && <div className="flex items-start gap-2"><Globe className="mt-0.5 size-4 shrink-0 text-slate-400" aria-hidden /><dd className="min-w-0 break-all"><a href={site} target="_blank" rel="noreferrer" className="text-primary hover:underline">{site.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")}</a></dd></div>}
         <div className="flex items-start gap-2"><MapPin className="mt-0.5 size-4 shrink-0 text-slate-400" aria-hidden /><dd>{person.address || place ? <>{person.address}{person.address && place ? ", " : ""}{place}</> : <span className="text-slate-400">No address listed</span>}</dd></div>
       </dl>
@@ -55,8 +57,9 @@ function Person({ person, directory, adminLinks }: { person: PermitPerson; direc
   );
 }
 
-function Detail({ row, directory, adminLinks, onClose }: { row: Row; directory: DirectoryBusiness[]; adminLinks: boolean; onClose: () => void }) {
+function Detail({ row, directory, adminLinks, unlock, onClose }: { row: Row; directory: DirectoryBusiness[]; adminLinks: boolean; unlock?: UnlockInfo; onClose: () => void }) {
   const { p } = row;
+  const locked = p.unlocked === false;
   return (
     <SidePanel label="Permit details" tier={row.tier} score={row.score} title={permitTitle(p)} subtitle={`${p.address ? `${p.address}, ` : ""}${p.city}${p.zip ? ` ${p.zip}` : ""}`} onClose={onClose}>
       <p className="mt-4 rounded-xl bg-slate-50 p-3 text-sm text-slate-800">{p.summary}</p>
@@ -76,16 +79,17 @@ function Detail({ row, directory, adminLinks, onClose }: { row: Row; directory: 
       {p.description && <><h3 className="mt-6 text-sm font-bold text-navy">Work described</h3><p className="mt-1 text-sm whitespace-pre-line text-slate-700">{p.description}</p></>}
 
       <h3 className="mt-6 text-sm font-bold text-navy">People details</h3>
+      {locked && unlock && <UnlockBox kind="permit" itemId={p.id} price={unlock.price} what="permit" />}
       {p.people.length === 0 ? (
         <p className="mt-1 text-sm text-slate-500">{p.contractor_name ? `Contractor: ${p.contractor_name}. ` : ""}No other details were published for this permit. They are scraped again each morning.</p>
       ) : (
         <ul className="mt-2 grid gap-3 sm:grid-cols-2">
-          {p.people.map((person, i) => <Person key={`${person.role}-${i}`} person={person} directory={matchDirectory(person, directory)} adminLinks={adminLinks} />)}
+          {p.people.map((person, i) => <Person key={`${person.role}-${i}`} person={person} directory={matchDirectory(person, directory)} adminLinks={adminLinks} locked={locked} />)}
         </ul>
       )}
       <p className="mt-3 text-xs text-slate-500">
         The city&apos;s open data lists the contractor&apos;s company, contact, phone and a shortened address. The email comes from the contractor&apos;s own website (found by the daily scrape). The general contractor is only on the city&apos;s own People Details page
-        {p.source_url ? <>, open it with <a href={p.source_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-medium text-primary hover:underline">City record <ExternalLink className="size-3" aria-hidden /></a>.</> : "."}
+        {p.source_url && !locked ? <>, open it with <a href={p.source_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-medium text-primary hover:underline">City record <ExternalLink className="size-3" aria-hidden /></a>.</> : "."}
         {" "}A website only counts when it shows the contractor&apos;s phone number. Some contractors publish no email, or block automated visits.
       </p>
     </SidePanel>
@@ -102,16 +106,20 @@ interface Props {
   adminLinks?: boolean;
   /** Start with this city selected (a business owner starts with their own city). */
   startCity?: string;
+  /** Business owners: what it costs to unlock the contractor phone and email on a permit. Leave out for admins. */
+  unlock?: UnlockInfo;
+  /** Open this permit at once (after coming back from paying). */
+  initialOpenId?: string | null;
   intro: ReactNode;
   emptyText: ReactNode;
 }
 
 /** HVAC permits ranked Hot, Warm and Cold, with filters and a detail panel. Used by the admin and by business owners. */
-export function PermitBoard({ permits, error, cover, directory = [], adminLinks = false, startCity = "all", intro, emptyText }: Props) {
+export function PermitBoard({ permits, error, cover, directory = [], adminLinks = false, startCity = "all", unlock, initialOpenId = null, intro, emptyText }: Props) {
   const [city, setCity] = useState(startCity);
   const [kind, setKind] = useState("all");
   const [q, setQ] = useState("");
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(initialOpenId);
 
   const rows = useMemo<Row[]>(() => {
     const term = q.trim().toLowerCase();
@@ -156,7 +164,7 @@ export function PermitBoard({ permits, error, cover, directory = [], adminLinks 
         <TierColumns rows={rows} itemKey={(r) => r.p.id} card={(r) => <Card row={r} onOpen={() => setOpenId(r.p.id)} />} />
       )}
 
-      {open && <Detail row={open} directory={directory} adminLinks={adminLinks} onClose={() => setOpenId(null)} />}
+      {open && <Detail row={open} directory={directory} adminLinks={adminLinks} unlock={unlock} onClose={() => setOpenId(null)} />}
     </div>
   );
 }

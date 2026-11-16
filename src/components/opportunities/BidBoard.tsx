@@ -3,7 +3,7 @@ import { ExternalLink, Mail, Phone } from "lucide-react";
 import { scoreBid, type ScoredBid } from "@/lib/bid-score";
 import { bidTitle, dueText, type GovBid } from "@/lib/bids";
 import type { Coverage } from "@/lib/permit-score";
-import { Fact, ScoreBars, SidePanel, TIER_STYLE, TierColumns, dayText, searchClass, selectClass } from "./shared";
+import { Fact, LockedTag, ScoreBars, SidePanel, TIER_STYLE, TierColumns, UnlockBox, dayText, searchClass, selectClass, type UnlockInfo } from "./shared";
 
 interface Row extends ScoredBid {
   b: GovBid;
@@ -28,6 +28,7 @@ function Card({ row, onOpen }: { row: Row; onOpen: () => void }) {
       </span>
       <span className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
         <span className="rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-600">{shortType(b.notice_type)}</span>
+        {b.unlocked === false ? <LockedTag text="Contact locked" /> : b.unlocked === true && <span className="rounded-full bg-green-50 px-2 py-0.5 font-semibold text-green-800">Unlocked</span>}
         {b.set_aside_code && <span className="rounded-full bg-green-100 px-2 py-0.5 font-semibold text-green-800">Set-aside</span>}
         {b.city && <span className="rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-600">{b.city}</span>}
         {b.agency && <span className="truncate text-slate-500">{b.agency}</span>}
@@ -36,8 +37,9 @@ function Card({ row, onOpen }: { row: Row; onOpen: () => void }) {
   );
 }
 
-function Detail({ row, onClose }: { row: Row; onClose: () => void }) {
+function Detail({ row, unlock, onClose }: { row: Row; unlock?: UnlockInfo; onClose: () => void }) {
   const { b } = row;
+  const locked = b.unlocked === false;
   const place = [b.address, b.city, b.state, b.zip].filter(Boolean).join(", ");
   return (
     <SidePanel label="Bid details" tier={row.tier} score={row.score} title={bidTitle(b)} subtitle={[b.agency, b.city && `${b.city}, ${b.state}`].filter(Boolean).join(" · ")} onClose={onClose}>
@@ -66,6 +68,7 @@ function Detail({ row, onClose }: { row: Row; onClose: () => void }) {
       </dl>
 
       <h3 className="mt-6 text-sm font-bold text-navy">Contracting contacts</h3>
+      {locked && unlock && <UnlockBox kind="bid" itemId={b.id} price={unlock.price} what="bid" />}
       {b.contacts.length === 0 ? (
         <p className="mt-1 text-sm text-slate-500">No contact is listed. Use the SAM.gov notice.</p>
       ) : (
@@ -75,8 +78,8 @@ function Detail({ row, onClose }: { row: Row; onClose: () => void }) {
               <p className="font-semibold text-navy">{c.name ?? "Contact"}</p>
               {c.title && <p className="text-xs text-slate-500">{c.title}</p>}
               <dl className="mt-2 space-y-1 text-slate-700">
-                <div className="flex items-start gap-2"><Mail className="mt-0.5 size-4 shrink-0 text-slate-400" aria-hidden /><dd>{c.email ? <a href={`mailto:${c.email}`} className="break-all text-primary hover:underline">{c.email}</a> : <span className="text-slate-400">No email</span>}</dd></div>
-                <div className="flex items-start gap-2"><Phone className="mt-0.5 size-4 shrink-0 text-slate-400" aria-hidden /><dd>{c.phone ? <a href={`tel:${c.phone.replace(/\D/g, "")}`} className="text-primary hover:underline">{c.phone}</a> : <span className="text-slate-400">No phone</span>}</dd></div>
+                <div className="flex items-start gap-2"><Mail className="mt-0.5 size-4 shrink-0 text-slate-400" aria-hidden /><dd>{locked ? <LockedTag /> : c.email ? <a href={`mailto:${c.email}`} className="break-all text-primary hover:underline">{c.email}</a> : <span className="text-slate-400">No email</span>}</dd></div>
+                <div className="flex items-start gap-2"><Phone className="mt-0.5 size-4 shrink-0 text-slate-400" aria-hidden /><dd>{locked ? <LockedTag /> : c.phone ? <a href={`tel:${c.phone.replace(/\D/g, "")}`} className="text-primary hover:underline">{c.phone}</a> : <span className="text-slate-400">No phone</span>}</dd></div>
               </dl>
             </li>
           ))}
@@ -94,16 +97,20 @@ interface Props {
   error: boolean;
   cover: Coverage;
   startCity?: string;
+  /** Business owners: what it costs to unlock the contracting officer phone and email on a bid. Leave out for admins. */
+  unlock?: UnlockInfo;
+  /** Open this bid at once (after coming back from paying). */
+  initialOpenId?: string | null;
   intro: ReactNode;
   emptyText: ReactNode;
 }
 
 /** Open federal HVAC notices ranked Hot, Warm and Cold, with filters and a detail panel. Used by the admin and by business owners. */
-export function BidBoard({ bids, error, cover, startCity = "all", intro, emptyText }: Props) {
+export function BidBoard({ bids, error, cover, startCity = "all", unlock, initialOpenId = null, intro, emptyText }: Props) {
   const [city, setCity] = useState(startCity);
   const [setAside, setSetAside] = useState("all");
   const [q, setQ] = useState("");
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(initialOpenId);
 
   const rows = useMemo<Row[]>(() => {
     const term = q.trim().toLowerCase();
@@ -148,7 +155,7 @@ export function BidBoard({ bids, error, cover, startCity = "all", intro, emptyTe
         <TierColumns rows={rows} itemKey={(r) => r.b.id} card={(r) => <Card row={r} onOpen={() => setOpenId(r.b.id)} />} />
       )}
 
-      {open && <Detail row={open} onClose={() => setOpenId(null)} />}
+      {open && <Detail row={open} unlock={unlock} onClose={() => setOpenId(null)} />}
     </div>
   );
 }

@@ -25,12 +25,14 @@ export interface GovBid {
   sam_url: string | null;
   info_url: string | null;
   summary: string;
+  /** Set for a business owner: false while the contact phone and email and the SAM.gov link are hidden (pay to unlock). */
+  unlocked?: boolean;
 }
 
 export interface BidContact {
   name: string | null;
-  email: string | null;
-  phone: string | null;
+  email?: string | null;
+  phone?: string | null;
   title: string | null;
 }
 

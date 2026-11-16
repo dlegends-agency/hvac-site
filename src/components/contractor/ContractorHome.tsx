@@ -8,6 +8,7 @@ import { leadPrice, planName } from "@/config/pricing";
 import { useLiveQuery, useNow } from "@/lib/admin-hooks";
 import { activePlan } from "@/lib/plans";
 import { getSupabaseBrowser } from "@/lib/supabase";
+import { useContractorCounts } from "@/lib/use-contractor-counts";
 import { ClaimListing } from "./ClaimListing";
 import { OpportunityNotice } from "./OpportunityNotice";
 import { useContractor } from "./context";
@@ -35,6 +36,7 @@ export default function ContractorHome() {
   const [alertError, setAlertError] = useState(false);
   const { leads } = useMyLeads(Boolean(listing));
   const now = useNow(60_000);
+  const counts = useContractorCounts(Boolean(listing));
 
   if (!listing) {
     return (
@@ -117,9 +119,10 @@ export default function ContractorHome() {
         </Link>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <StatCard label="New requests" value={count("new")} hint={leads ? `${leads.length} received in total` : undefined} />
         <StatCard label="Locked" value={leads ? locked : "…"} hint={`$${price} each to unlock`} />
+        <StatCard label="Opportunities near you" value={counts.ready ? counts.opportunities : "…"} hint={counts.newOpportunities > 0 ? `${counts.newOpportunities} new today` : "Permits and government bids"} />
         <StatCard label="Contacted" value={count("contacted")} hint={`${count("won")} won`} />
         <StatCard label="Current plan" value={planName(plan)} hint={plan === "free" ? `Go Featured: $${leadPrice.paid} per request` : endsSoon ? `Ends ${new Date(listing.plan_until as string).toLocaleDateString()}` : undefined} />
       </div>
@@ -149,14 +152,14 @@ export default function ContractorHome() {
             </p>
           )}
           <p className="mt-3 text-xs text-slate-500">
-            You see the customer&apos;s name and the problem for free. Unlock a request for ${price} to see how to reach them.
+            You see everything about a request except the customer&apos;s phone number, email and street address. Unlock a request for ${price} to see them. Building permits and government bids near your business address work the same way.
             {plan === "free" && <> <Link to="/contractor/billing" className="font-semibold text-primary underline">Go Featured</Link> to pay ${leadPrice.paid} instead and be sent requests first.</>}
             {" "}Each request goes to up to 3 contractors near the customer, paid listings first. We can&apos;t promise any number of requests or jobs.
           </p>
           <div className="mt-4 flex items-center justify-between gap-3 rounded-xl bg-slate-50 p-3">
             <p className="flex items-start gap-2 text-sm text-slate-700">
               {notifyEmail ? <Bell className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden /> : <BellOff className="mt-0.5 size-4 shrink-0 text-slate-400" aria-hidden />}
-              <span>{notifyEmail ? <>Email alerts are <strong>on</strong>. We&apos;ll email <strong>{email}</strong> when a request arrives.</> : <>Email alerts are <strong>off</strong>. You&apos;ll only see requests here.</>}</span>
+              <span>{notifyEmail ? <>Email alerts are <strong>on</strong>. We&apos;ll email <strong>{email}</strong> when a request arrives, and a daily summary of new permits and bids near you.</> : <>Email alerts are <strong>off</strong>. You&apos;ll only see requests here.</>}</span>
             </p>
             <button type="button" role="switch" aria-checked={notifyEmail} aria-label="Email me new requests" disabled={savingAlerts} onClick={toggleAlerts}
               className={`shrink-0 rounded-full px-3.5 py-1.5 text-sm font-semibold disabled:opacity-60 ${notifyEmail ? "bg-green-100 text-green-800" : "bg-slate-200 text-slate-700"}`}>

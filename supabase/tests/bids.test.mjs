@@ -1,5 +1,5 @@
 // Loads the real schema files in order into in-memory Postgres (PGlite) and checks the two lead tables: gov_bids (SAM.gov) and
-// public_permits. Who can read each (admins and business owners, nobody else), that nothing can be written from the browser, and
+// public_permits. Who can read each (admins only; business owners go through schema-opportunities.sql), that nothing can be written from the browser, and
 // that a notice is saved once. Run: npm i --no-save @electric-sql/pglite && node supabase/tests/bids.test.mjs
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -47,7 +47,7 @@ assert.deepEqual((await q("select contacts from public.gov_bids where notice_id=
 for (const table of ["gov_bids", "public_permits"]) {
   const n = (user) => as(user, () => db.query(`select * from public.${table}`)).then((r) => r.rows.length);
   assert.equal(await n(admin), 1, `an admin reads ${table}`);
-  assert.equal(await n(owner), 1, `a business owner reads ${table}`);
+  assert.equal(await n(owner), 0, `a business owner cannot read ${table} directly (they use my_bids/my_permits, which keep phone and email back until paid)`);
   assert.equal(await n(stranger), 0, `a customer sees no ${table}`);
   await assert.rejects(() => as(owner, () => db.query(`delete from public.${table}`)), /permission denied/, `a business owner cannot change ${table}`);
   await assert.rejects(() => as(admin, () => db.query(`update public.${table} set summary = 'x'`)), /permission denied/, `nobody writes ${table} from the browser`);

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { scoreBid } from "./bid-score";
 import type { GovBid } from "./bids";
 import { scorePermit, type Coverage } from "./permit-score";
@@ -12,27 +12,28 @@ export interface Opportunities {
   loading: boolean;
   /** Either list could not be loaded (the SQL has not been run, or the account is not a business owner). */
   error: boolean;
+  /** Fetch both lists again (after a payment). */
+  reload: () => void;
 }
 
-/** Both lead sources for a business owner: HVAC building permits and open federal HVAC bids. Row level security decides who may read them. */
+/** Both lead sources for a business owner: the HVAC building permits and open federal HVAC bids in their area. The database sends only what reaches their business and keeps phone and email back until they pay (my_permits and my_bids). */
 export function useOpportunities(enabled = true): Opportunities {
-  const [state, setState] = useState<Opportunities>({ permits: [], bids: [], loading: true, error: false });
+  const [version, setVersion] = useState(0);
+  const [state, setState] = useState<Omit<Opportunities, "reload">>({ permits: [], bids: [], loading: true, error: false });
   useEffect(() => {
     if (!enabled || !isSupabaseConfigured) return;
     let live = true;
     const supabase = getSupabaseBrowser();
     void (async () => {
-      const [permits, bids] = await Promise.all([
-        supabase.from("public_permits").select("*").eq("trade", "HVAC").order("issued_on", { ascending: false, nullsFirst: false }).limit(1000),
-        supabase.from("gov_bids").select("*").order("posted_at", { ascending: false, nullsFirst: false }).limit(1000),
-      ]);
+      const [permits, bids] = await Promise.all([supabase.rpc("my_permits"), supabase.rpc("my_bids")]);
       if (live) setState({ permits: (permits.data as PublicPermit[] | null) ?? [], bids: (bids.data as GovBid[] | null) ?? [], loading: false, error: Boolean(permits.error || bids.error) });
     })();
     return () => {
       live = false;
     };
-  }, [enabled]);
-  return state;
+  }, [enabled, version]);
+  const reload = useCallback(() => setVersion((v) => v + 1), []);
+  return { ...state, reload };
 }
 
 /** Where this business works: its own city and the places named in its service areas. Texas counts as partly in area. */
