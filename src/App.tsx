@@ -53,6 +53,7 @@ const ClaimsAdmin = lazy(() => import("@/components/admin/ClaimsAdmin").then((m)
 const RecommendationsAdmin = lazy(() => import("@/components/admin/RecommendationsAdmin").then((m) => ({ default: m.RecommendationsAdmin })));
 const FlowLogs = lazy(() => import("@/components/admin/FlowLogs").then((m) => ({ default: m.FlowLogs })));
 const PermitsAdmin = lazy(() => import("@/components/admin/PermitsAdmin").then((m) => ({ default: m.PermitsAdmin })));
+const AdminAccount = lazy(() => import("@/components/admin/AdminAccount").then((m) => ({ default: m.AdminAccount })));
 const BidsAdmin = lazy(() => import("@/components/admin/BidsAdmin").then((m) => ({ default: m.BidsAdmin })));
 const ContractorOpportunities = lazy(() => import("@/components/contractor/ContractorOpportunities"));
 const AnalyticsReport = lazy(() => import("@/components/admin/AnalyticsReport").then((m) => ({ default: m.AnalyticsReport })));
@@ -116,6 +117,7 @@ export default function App() {
             <Route path="permits" element={<PermitsAdmin />} />
             <Route path="bids" element={<BidsAdmin />} />
             <Route path="seo-audit" element={<SeoAudit />} />
+            <Route path="account" element={<AdminAccount />} />
             <Route path="analytics" element={<AnalyticsReport />} />
           </Route>
           <Route path="*" element={<NotFoundPage />} />

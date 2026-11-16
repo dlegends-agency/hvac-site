@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Activity, BarChart3, Building2, ClipboardCheck, ExternalLink, FileText, Landmark, HardHat, MessageSquare, LayoutDashboard, Loader2, LogOut, Users } from "lucide-react";
+import { Activity, BarChart3, Settings, Building2, ClipboardCheck, ExternalLink, FileText, Landmark, HardHat, MessageSquare, LayoutDashboard, Loader2, LogOut, Users } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Logo } from "@/components/Logo";
 import { getSupabaseBrowser, isSupabaseConfigured } from "@/lib/supabase";
@@ -41,7 +41,7 @@ const groups: { title: string; items: NavItem[] }[] = [
       { href: "/admin/seo-audit", label: "SEO Audit", icon: ClipboardCheck },
     ],
   },
-  { title: "System", items: [{ href: "/admin/logs", label: "Logs", icon: Activity }] },
+  { title: "System", items: [{ href: "/admin/logs", label: "Logs", icon: Activity }, { href: "/admin/account", label: "Account settings", icon: Settings }] },
 ];
 
 type State = "loading" | "unconfigured" | "forbidden" | "ready";
@@ -52,6 +52,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const { pathname } = useLocation();
   const [state, setState] = useState<State>("loading");
   const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
   const counts = useAdminCounts();
   const badges: Record<BadgeKey, number> = { newLeads: counts.newLeads, newMessages: counts.newMessages, directory: counts.pendingListings + counts.pendingClaims };
 
@@ -67,10 +68,23 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       const user = data.session?.user;
       if (!user) return navigate("/admin/login", { replace: true });
       setEmail(user.email ?? "");
+      const given = (user.user_metadata as Record<string, unknown> | undefined)?.full_name;
+      setName(typeof given === "string" ? given : "");
       const { data: row } = await supabase.from("admin_users").select("user_id").eq("user_id", user.id).maybeSingle();
       setState(row ? "ready" : "forbidden");
     })();
   }, [navigate]);
+
+  // Saving the admin's information (Account settings) updates the name shown in the menu straight away.
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    const { data } = getSupabaseBrowser().auth.onAuthStateChange((event, session) => {
+      if (event !== "USER_UPDATED") return;
+      const given = (session?.user.user_metadata as Record<string, unknown> | undefined)?.full_name;
+      setName(typeof given === "string" ? given : "");
+    });
+    return () => data.subscription.unsubscribe();
+  }, []);
 
   async function signOut() {
     await getSupabaseBrowser().auth.signOut();
@@ -106,7 +120,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       <aside className="border-b border-slate-200 bg-white lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-60 lg:shrink-0 lg:flex-col lg:border-r lg:border-b-0">
         <div className="flex items-center justify-between gap-3 px-4 py-3 lg:block lg:px-5 lg:py-6">
           <Link to="/" aria-label="HVACHelp home"><Logo className="!h-8" /></Link>
-          <p className="hidden truncate text-xs text-slate-500 lg:mt-1 lg:block">{email}</p>
+          <p className="hidden lg:mt-1 lg:block">{name && <span className="block truncate text-sm font-semibold text-navy">{name}</span>}<span className="block truncate text-xs text-slate-500">{email}</span></p>
           <button onClick={signOut} className="flex items-center gap-1 text-sm font-medium text-slate-600 hover:text-navy lg:hidden">
             <LogOut className="size-4" aria-hidden /> Sign out
           </button>
