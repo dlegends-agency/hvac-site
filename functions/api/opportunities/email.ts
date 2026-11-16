@@ -60,7 +60,7 @@ export const onRequestPost = async ({ env, request }: { env: Env; request: Reque
     await sendEmail(env, { to: target.to_email, fromName: `${listing.business_name} via HVACHelp`, replyTo: listing.email || user.email || undefined, ...mail });
   } catch (e) {
     await log(e instanceof Error ? e.message : "send failed");
-    return json({ error: "The email could not be sent. Please try again." }, 502);
+    return json({ error: "The email could not be sent. Please try again.", detail: (e instanceof Error ? e.message : "send failed").slice(0, 300) }, 502);
   }
   await log();
   return json({ sent: true, to: target.to_name ?? target.to_email });

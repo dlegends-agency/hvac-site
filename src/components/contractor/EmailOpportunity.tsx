@@ -1,3 +1,4 @@
+import { emailFailureHint } from "@/lib/email-hints";
 import { callApi } from "./api";
 import { EmailComposer } from "./EmailComposer";
 
@@ -32,10 +33,10 @@ export function EmailOpportunity({ kind, itemId, index, email, recipient, busine
         : `Hello ${recipient.split(" ")[0] || ""},\n\nI am writing from ${businessName}…\n\n${businessName}`}
       note="Sent from HVACHelp. Replies come straight to your business email. Please only write about this job."
       onSend={async (subject, body) => {
-        const res = await callApi<{ sent?: boolean }>("/api/opportunities/email", { kind, itemId, index, subject, body });
+        const res = await callApi<{ sent?: boolean; detail?: string }>("/api/opportunities/email", { kind, itemId, index, subject, body });
         if (res.status === 200 && res.data.sent) return { ok: true, message: `Sent to ${recipient}. If they reply, it comes straight to your business email.` };
         if (res.status === 501) return { ok: false, error: "Email is not switched on yet. Please contact us." };
-        return { ok: false, error: res.error ?? "We could not send that. Please try again." };
+        return { ok: false, error: `${res.error ?? "We could not send that. Please try again."}${res.status === 502 && res.data.detail ? ` ${emailFailureHint(res.data.detail)}` : ""}` };
       }}
     />
   );
