@@ -68,6 +68,8 @@ on the dev server the server-HTML and sitemap checks are skipped. Audit visits a
 (single-page app) and `functions/sitemap.xml.ts` serves a dynamic sitemap of published posts only.
 Replace the domain in `public/robots.txt` with your real one.
 
+**Automatic publishing.** `.github/workflows/auto-merge.yml` runs on every push to any branch except `main`: it runs the types, lint, every offline test and the production build, and if all pass it opens a pull request into `main` and merges it, so Cloudflare Pages publishes the site. If a check fails nothing is merged. Put `[skip merge]` in the last commit message to push without publishing. One-time setting: GitHub > Settings > Actions > General > Workflow permissions > "Read and write permissions" and tick "Allow GitHub Actions to create and approve pull requests". It publishes the website only: run new SQL files from `/supabase` by hand in the Supabase SQL Editor.
+
 ## Where things live
 
 | Path | Purpose |
