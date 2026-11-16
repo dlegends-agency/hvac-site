@@ -44,7 +44,7 @@ export function SavedCards() {
   }
 
   return (
-    <Panel title="Payment methods" className="xl:col-span-2">
+    <Panel title="Payment methods">
       {unavailable ? (
         <p className="text-sm text-slate-700">Online payments aren&apos;t switched on yet, so cards can&apos;t be saved.</p>
       ) : failed ? (
