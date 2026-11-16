@@ -123,4 +123,25 @@ await assert.rejects(() => db.query("select * from public.my_bids()"), /permissi
 await db.exec("reset role");
 assert.equal((await as(customer, async () => (await db.query("select * from public.my_permits()")).rows)).length, 0, "a customer account gets nothing");
 
+// ---- daily email summary of what is new in each contractor's area ----
+await assert.rejects(() => as(Austin.user, () => db.query("select public.queue_opportunity_digests()")), /permission denied/, "only the server queues summaries");
+const svc = async (sql, p) => { await db.exec("set role service_role"); try { return (await db.query(sql, p)).rows; } finally { await db.exec("reset role"); } };
+await q("update public.listing_owners set notify_email = false where listing_id = $1", [Dallas.id]); // Dallas switched alerts off
+assert.equal((await svc("select public.queue_opportunity_digests() as n"))[0].n, 4, "Austin, Round Rock, Listed and Houston have something new; Dallas opted out, Pending is not published");
+const digests = await q("select l.business_name n, d.permits, d.bids from public.opportunity_digests d join public.listings l on l.id = d.listing_id order by 1");
+assert.deepEqual(digests.map((d) => [d.n, d.permits, d.bids]), [["Austin Air", 1, 1], ["Houston Air", 0, 1], ["Listed Air", 1, 1], ["RoundRock Air", 1, 1]]);
+assert.equal((await svc("select public.queue_opportunity_digests() as n"))[0].n, 0, "nothing new since the last summary, so nothing is queued");
+await q("insert into public.public_permits (source, source_id, city, zip, trade, summary, people) values ('austin','NEW-1','Austin','78701','HVAC','Residential HVAC: new ac.', $1::jsonb)", [people]);
+assert.equal((await svc("select public.queue_opportunity_digests() as n"))[0].n, 3, "a new Austin permit reaches the three Austin-area businesses");
+const claimed = await svc("select * from public.claim_opportunity_digests(10)");
+assert.equal(claimed.length, 7, "all seven are claimed once");
+assert.ok(claimed.every((c) => c.email.endsWith("@x.com")), "each goes to the owner's account email");
+assert.ok(!JSON.stringify(claimed).match(/806-7500|dan@d3|pat@va|713-555/), "no phone or email of a contractor or officer is in a summary");
+assert.equal((await svc("select count(*)::int n from public.claim_opportunity_digests(10)"))[0].n, 0, "a claimed summary is not handed out twice");
+const ids = claimed.map((c) => c.id);
+await svc("select public.finish_opportunity_digests($1::uuid[], $2::jsonb)", [ids.slice(0, 6), JSON.stringify({ [ids[6]]: "Resend 403" })]);
+assert.deepEqual((await q("select count(*) filter (where sent_at is not null)::int sent, count(*) filter (where last_error is not null)::int failed from public.opportunity_digests"))[0], { sent: 6, failed: 1 }, "failures are recorded for a retry");
+const switched = await q("select count(*)::int n from public.opportunity_digests d join public.listing_owners o using (listing_id) where not o.notify_email");
+assert.equal(switched[0].n, 0, "an opted-out business is never queued");
+
 console.log("opportunities SQL: all checks passed");

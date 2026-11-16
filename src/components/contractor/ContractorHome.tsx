@@ -159,7 +159,7 @@ export default function ContractorHome() {
           <div className="mt-4 flex items-center justify-between gap-3 rounded-xl bg-slate-50 p-3">
             <p className="flex items-start gap-2 text-sm text-slate-700">
               {notifyEmail ? <Bell className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden /> : <BellOff className="mt-0.5 size-4 shrink-0 text-slate-400" aria-hidden />}
-              <span>{notifyEmail ? <>Email alerts are <strong>on</strong>. We&apos;ll email <strong>{email}</strong> when a request arrives.</> : <>Email alerts are <strong>off</strong>. You&apos;ll only see requests here.</>}</span>
+              <span>{notifyEmail ? <>Email alerts are <strong>on</strong>. We&apos;ll email <strong>{email}</strong> when a request arrives, and a daily summary of new permits and bids near you.</> : <>Email alerts are <strong>off</strong>. You&apos;ll only see requests here.</>}</span>
             </p>
             <button type="button" role="switch" aria-checked={notifyEmail} aria-label="Email me new requests" disabled={savingAlerts} onClick={toggleAlerts}
               className={`shrink-0 rounded-full px-3.5 py-1.5 text-sm font-semibold disabled:opacity-60 ${notifyEmail ? "bg-green-100 text-green-800" : "bg-slate-200 text-slate-700"}`}>

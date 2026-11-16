@@ -149,3 +149,127 @@ revoke all on function public.my_permits() from public, anon;
 revoke all on function public.my_bids() from public, anon;
 grant execute on function public.my_permits() to authenticated;
 grant execute on function public.my_bids() to authenticated;
+
+-- 6. Email alerts for new permits and bids ---------------------------------------------------------------------
+-- A daily summary email (sent by the "Opportunity alerts" workflow after the scrapes) tells each contractor how many NEW permits and
+-- government bids reached their business since their last summary, with up to three titles. It never contains a phone number or an
+-- email address, only a link to the dashboard. The same on/off switch as the new-request emails controls it (listing_owners.notify_email).
+-- Nothing is sent when nothing new reached them.
+create table if not exists public.opportunity_digests (
+  id         uuid primary key default gen_random_uuid(),
+  listing_id uuid not null references public.listings (id) on delete cascade,
+  created_at timestamptz not null default now(),
+  since      timestamptz not null,                    -- only leads imported after this time are counted
+  permits    int not null default 0,
+  bids       int not null default 0,
+  highlights jsonb not null default '[]'::jsonb,      -- up to three newest: { kind, title, city }
+  claimed_at timestamptz,
+  sent_at    timestamptz,
+  attempts   int not null default 0,
+  last_error text
+);
+create index if not exists opportunity_digests_listing_idx on public.opportunity_digests (listing_id, created_at desc);
+create index if not exists opportunity_digests_pending_idx on public.opportunity_digests (created_at) where sent_at is null;
+alter table public.opportunity_digests enable row level security; -- no policies: only the functions below touch it
+
+-- Works out who has something new and queues one summary each. Returns how many were queued. Service role only.
+create or replace function public.queue_opportunity_digests()
+returns int
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  r record;
+  v_since timestamptz;
+  v_permits int;
+  v_bids int;
+  v_high jsonb;
+  n int := 0;
+begin
+  for r in
+    select o.listing_id
+    from public.listing_owners o
+    join public.listings li on li.id = o.listing_id
+    where o.notify_email and li.status = 'published'
+  loop
+    -- A first summary looks back a week; after that it counts from the previous summary.
+    select coalesce(max(d.created_at), now() - interval '7 days') into v_since from public.opportunity_digests d where d.listing_id = r.listing_id;
+
+    select count(*)::int into v_permits from public.public_permits p
+     where p.trade = 'HVAC' and p.imported_at > v_since and public.listing_reaches(r.listing_id, p.city, 'TX', p.zip);
+    select count(*)::int into v_bids from public.gov_bids b
+     where b.imported_at > v_since and public.listing_reaches(r.listing_id, b.city, b.state, b.zip);
+    continue when v_permits + v_bids = 0;
+
+    select coalesce(jsonb_agg(x.h order by x.t desc), '[]'::jsonb) into v_high from (
+      select * from (
+        select jsonb_build_object('kind', 'bid', 'title', b.title, 'city', b.city) as h, b.imported_at as t
+          from public.gov_bids b where b.imported_at > v_since and public.listing_reaches(r.listing_id, b.city, b.state, b.zip)
+        union all
+        select jsonb_build_object('kind', 'permit', 'title', p.summary, 'city', p.city), p.imported_at
+          from public.public_permits p where p.trade = 'HVAC' and p.imported_at > v_since and public.listing_reaches(r.listing_id, p.city, 'TX', p.zip)
+      ) y order by t desc limit 3
+    ) x;
+
+    insert into public.opportunity_digests (listing_id, since, permits, bids, highlights) values (r.listing_id, v_since, v_permits, v_bids, v_high);
+    n := n + 1;
+  end loop;
+  return n;
+end;
+$$;
+
+-- The sender claims a batch (safe if two senders run at once) and gets what it needs to write each email.
+create or replace function public.claim_opportunity_digests(p_limit int default 20)
+returns table (id uuid, email text, business_name text, permits int, bids int, highlights jsonb)
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  -- Contractors who switched alerts off are marked done without sending.
+  update public.opportunity_digests d
+     set sent_at = now(), last_error = 'alerts switched off'
+    from public.listing_owners o
+   where o.listing_id = d.listing_id and not o.notify_email and d.sent_at is null;
+
+  return query
+  with picked as (
+    select d.id from public.opportunity_digests d
+     where d.sent_at is null and d.attempts < 5 and (d.claimed_at is null or d.claimed_at < now() - interval '5 minutes')
+     order by d.created_at
+     limit greatest(p_limit, 0)
+     for update skip locked
+  ), marked as (
+    update public.opportunity_digests d set attempts = d.attempts + 1, claimed_at = now()
+      from picked where d.id = picked.id
+    returning d.id, d.listing_id, d.permits, d.bids, d.highlights
+  )
+  select m.id, u.email::text, li.business_name, m.permits, m.bids, m.highlights
+    from marked m
+    join public.listings li on li.id = m.listing_id
+    join public.listing_owners o on o.listing_id = m.listing_id
+    join auth.users u on u.id = o.user_id;
+end;
+$$;
+
+create or replace function public.finish_opportunity_digests(p_sent uuid[], p_failed jsonb default '{}'::jsonb)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update public.opportunity_digests set sent_at = now(), last_error = null where id = any (coalesce(p_sent, '{}'));
+  update public.opportunity_digests d set last_error = left(f.value, 300), claimed_at = null
+    from jsonb_each_text(coalesce(p_failed, '{}'::jsonb)) f
+   where d.id::text = f.key and d.sent_at is null;
+end;
+$$;
+
+revoke all on function public.queue_opportunity_digests() from public, anon, authenticated;
+revoke all on function public.claim_opportunity_digests(int) from public, anon, authenticated;
+revoke all on function public.finish_opportunity_digests(uuid[], jsonb) from public, anon, authenticated;
+grant execute on function public.queue_opportunity_digests() to service_role;
+grant execute on function public.claim_opportunity_digests(int) to service_role;
+grant execute on function public.finish_opportunity_digests(uuid[], jsonb) to service_role;

@@ -5,6 +5,7 @@ Sends new-lead alert emails to contractors. Helpers come from [`../../_lib`](../
 
 ## Interface
 - `send.ts`: `onRequestPost` for `POST /api/notify/send` with header `X-Notify-Secret`. Returns `{ sent, failed, more }`, where `more` is true when a full batch was claimed.
+- `digest.ts`: the same for `POST /api/notify/digest`: the daily summary of new building permits and government bids (`rpc/claim_opportunity_digests`, `rpc/finish_opportunity_digests`). Called by `.github/workflows/opportunity-alerts.yml`, which first runs `rpc/queue_opportunity_digests`. The email never contains a phone number or email address.
 
 ## Invariants
 - 501 unless `NOTIFY_SECRET`, `RESEND_API_KEY`, `NOTIFY_FROM_EMAIL` and `SUPABASE_SERVICE_ROLE_KEY` are set; 403 if the secret does not match (`secretsMatch`).

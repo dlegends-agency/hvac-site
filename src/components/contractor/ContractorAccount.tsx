@@ -150,7 +150,7 @@ function Alerts() {
       <div className="flex items-center justify-between gap-4">
         <p className="flex items-start gap-2 text-sm text-slate-700">
           {notifyEmail ? <Bell className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden /> : <BellOff className="mt-0.5 size-4 shrink-0 text-slate-400" aria-hidden />}
-          <span>{notifyEmail ? <>We email <strong>{email}</strong> when a customer request is sent to you.</> : "You won't be emailed about new requests. You'll still see them in your dashboard."}</span>
+          <span>{notifyEmail ? <>We email <strong>{email}</strong> when a customer request is sent to you, and once a day when new building permits or government bids reach your business.</> : "You won't be emailed about new requests, permits or bids. You'll still see them in your dashboard."}</span>
         </p>
         <button type="button" role="switch" aria-checked={notifyEmail} aria-label="Email me new requests" disabled={busy} onClick={toggle}
           className={`shrink-0 rounded-full px-3.5 py-1.5 text-sm font-semibold disabled:opacity-60 ${notifyEmail ? "bg-green-100 text-green-800" : "bg-slate-200 text-slate-700"}`}>

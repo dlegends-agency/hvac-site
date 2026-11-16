@@ -1,0 +1,53 @@
+name: Opportunity alerts
+
+# Emails each contractor a daily summary of the NEW building permits and government bids that reached their business address.
+# Runs every day at 10:00 AM Philippine time (02:00 UTC), after the permits import (8:00 AM) and the bids import (8:30 AM). It first asks the
+# database who has something new (public.queue_opportunity_digests), then asks the site to send the emails (/api/notify/digest).
+# Nothing is sent to a contractor with nothing new, or who switched alerts off. The email never contains a phone number or an email address.
+# Needs the repository secrets SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, NOTIFY_SECRET and SITE_URL (the same ones the other workflows use),
+# and supabase/schema-opportunities.sql run. Does nothing without them. You can also run it by hand: Actions > Opportunity alerts > Run workflow.
+
+on:
+  schedule:
+    - cron: "0 2 * * *" # 02:00 UTC = 10:00 AM Philippine time
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: opportunity-alerts
+  cancel-in-progress: false
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Queue and send the summaries
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          NOTIFY_SECRET: ${{ secrets.NOTIFY_SECRET }}
+          SITE_URL: ${{ secrets.SITE_URL }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_SERVICE_ROLE_KEY" ] || [ -z "$NOTIFY_SECRET" ] || [ -z "$SITE_URL" ]; then
+            echo "A required secret is not set; skipping."
+            exit 0
+          fi
+          status=$(curl -sS -o /tmp/queue.json -w "%{http_code}" -X POST \
+            -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" -H "Content-Type: application/json" -d '{}' \
+            "${SUPABASE_URL%/}/rest/v1/rpc/queue_opportunity_digests" || true)
+          echo "Queued: HTTP $status: $(cat /tmp/queue.json 2>/dev/null)"
+          if [ "$status" != "200" ]; then
+            echo "Could not queue the summaries. Has supabase/schema-opportunities.sql been run?"
+            exit 1
+          fi
+          # A batch is 25 emails; keep going while the site says there may be more.
+          for i in 1 2 3 4 5 6 7 8; do
+            status=$(curl -sS -o /tmp/out.json -w "%{http_code}" -X POST -H "X-Notify-Secret: $NOTIFY_SECRET" "${SITE_URL%/}/api/notify/digest" || true)
+            echo "Send $i: HTTP $status: $(cat /tmp/out.json 2>/dev/null)"
+            # 501 means email is not configured on the site yet; that is not a failure of this job.
+            if [ "$status" = "501" ]; then exit 0; fi
+            if [ "$status" != "200" ]; then exit 1; fi
+            if ! grep -q '"more":true' /tmp/out.json; then break; fi
+          done
