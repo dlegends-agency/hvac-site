@@ -4,6 +4,7 @@ import { ArrowLeft, ExternalLink, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Field, inputClass } from "@/components/ui/Field";
 import { services } from "@/config/services";
+import { addressProblems } from "@/lib/address-check";
 import { safeUrl, slugify } from "@/lib/directory";
 import { getSupabaseBrowser } from "@/lib/supabase";
 import { LISTING_STATUSES, type Listing, type ListingPrivate, type ListingStatus, type PlanId } from "@/lib/types";
@@ -174,6 +175,11 @@ export function ListingEditor() {
                 {field("phone", "Phone", { optional: true, type: "tel" })}
                 {field("email", "Public email", { optional: true, type: "email" })}
               </div>
+              {addressProblems(draft).length > 0 && (
+                <ul role="alert" className="space-y-1 rounded-xl border border-orange-200 bg-orange-50 p-3 text-sm text-orange-900">
+                  {addressProblems(draft).map((p) => <li key={p}>{p}</li>)}
+                </ul>
+              )}
               {field("website", "Website", { optional: true })}
               {field("service_areas", "Service areas", { optional: true })}
               <Field id="description" label="Description" optional>

@@ -165,6 +165,22 @@ const admin = await uid("admin@x.com");
 await db.query("insert into public.admin_users values ($1)", [admin]);
 assert.equal((await as(admin, async () => (await db.query("select public.admin_route_lead($1) as n", [await lead("Houston", "TX")])).rows[0].n)), 0);
 
+// The admin matching report says why each business did or did not match.
+const reportLead = await lead("Austin", "TX");
+const report = await as(admin, async () => (await db.query("select * from public.admin_route_report($1)", [reportLead])).rows);
+const why = (name) => report.find((r) => r.business_name === name);
+assert.equal(why("Alpha Paid").matched, true);
+assert.match(why("Alpha Paid").reason, /^Matches: same city/);
+assert.match(why("Echo Pending").reason, /Not published yet \(status: pending\)/, "an unpublished business is named as such");
+assert.match(why("Golf NoOwner").reason, /No contractor login/, "a business nobody has claimed cannot receive leads");
+assert.equal(why("Hotel Dallas").matched, false);
+assert.match(why("Hotel Dallas").reason, /Different city, and the business has no ZIP code/, "a different city with no ZIP says to add the ZIP");
+assert.match(why("Kilo Austin MN").reason, /Different state \(the business is listed in MN, the customer is in TX\)/, "a different state is called out");
+assert.ok(report.every((r) => r.reason && r.reason.length > 10), "every business has a reason");
+assert.equal(report.filter((r) => r.matched).length, (await db.query("select count(*)::int n from (select 1 from public.listings li join public.listing_owners o on o.listing_id = li.id where li.status = 'published' and (lower(btrim(li.city)) = 'austin' and public.norm_state(li.state) = 'texas' or li.service_areas ~* 'austin')) x")).rows[0].n, "the report matches the same businesses as the routing rule");
+await assert.rejects(() => as(B.user, () => db.query("select * from public.admin_route_report($1)", [reportLead])), /Admins only/, "only admins can run it");
+await assert.rejects(() => asRole("anon", () => db.query("select * from public.admin_route_report($1)", [reportLead])), /permission denied/);
+
 // ---------------------------------------------------------------- 4. free accounts cannot edit the paid-only fields
 const edit = (user, id, set, params = []) => as(user, () => db.query(`update public.listings set ${set} where id = $1`, [id, ...params]));
 const read = async (id) => (await db.query("select business_name, phone, description, services, service_areas, plan from public.listings where id=$1", [id])).rows[0];
