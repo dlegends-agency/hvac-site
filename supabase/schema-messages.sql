@@ -216,3 +216,41 @@ revoke all on function public.send_message(uuid, uuid, text), public.my_conversa
   public.conversation_messages(uuid, uuid), public.my_unread_messages(), public.my_request_log(uuid) from public, anon;
 grant execute on function public.send_message(uuid, uuid, text), public.my_conversations(), public.business_conversations(uuid),
   public.conversation_messages(uuid, uuid), public.my_unread_messages(), public.my_request_log(uuid) to authenticated;
+
+-- ---------------------------------------------------------------- emailing the customer
+-- When a business sends a message, the site also emails it to the customer (through /api/messages/email, using the site's own email
+-- sender). These record whether that email went out. Only the server (service role) uses them.
+alter table public.lead_messages add column if not exists emailed_at timestamptz;
+alter table public.lead_messages add column if not exists email_error text;
+
+create or replace function public.message_email_info(p_message bigint)
+returns table (id bigint, lead_id uuid, listing_id uuid, sender text, body text, created_at timestamptz, emailed_at timestamptz,
+               customer_email text, customer_name text, issue text, business_name text)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select m.id, m.lead_id, m.listing_id, m.sender, m.body, m.created_at, m.emailed_at,
+         l.email::text, l.first_name::text, l.issue::text, li.business_name::text
+    from public.lead_messages m
+    join public.leads l on l.id = m.lead_id
+    join public.listings li on li.id = m.listing_id
+   where m.id = p_message
+$$;
+
+create or replace function public.mark_message_emailed(p_message bigint, p_error text default null)
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  update public.lead_messages
+     set emailed_at = case when p_error is null then now() end, email_error = left(p_error, 300)
+   where id = p_message and emailed_at is null
+$$;
+
+revoke all on function public.message_email_info(bigint) from public, anon, authenticated;
+revoke all on function public.mark_message_emailed(bigint, text) from public, anon, authenticated;
+grant execute on function public.message_email_info(bigint) to service_role;
+grant execute on function public.mark_message_emailed(bigint, text) to service_role;

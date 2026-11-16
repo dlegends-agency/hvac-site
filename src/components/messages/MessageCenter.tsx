@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, Loader2, MessageSquare, Send } from "lucide-react";
+import { callApi } from "@/components/contractor/api";
 import { Button } from "@/components/ui/Button";
 import { inputClass } from "@/components/ui/Field";
 import { MAX_MESSAGE, preview, sendError, type ChatMessage, type Conversation, type Role } from "@/lib/messages";
@@ -163,9 +164,14 @@ function Thread({ role, conversation: c, upgradeHref, onBack, onChanged }: { rol
     if (!body || busy) return;
     setBusy(true);
     setError(null);
-    const { error: err } = await getSupabaseBrowser().rpc("send_message", { p_lead: c.lead_id, p_listing: c.listing_id, p_body: body });
+    const { data: sentId, error: err } = await getSupabaseBrowser().rpc("send_message", { p_lead: c.lead_id, p_listing: c.listing_id, p_body: body });
+    if (err) {
+      setBusy(false);
+      return setError(sendError(err.message));
+    }
+    // A message from a business is also emailed to the customer by the site (the customer's address never reaches the browser).
+    if (role === "business" && sentId) await callApi("/api/messages/email", { messageId: Number(sentId) });
     setBusy(false);
-    if (err) return setError(sendError(err.message));
     setText("");
     await load();
   }
