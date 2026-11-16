@@ -273,3 +273,86 @@ revoke all on function public.finish_opportunity_digests(uuid[], jsonb) from pub
 grant execute on function public.queue_opportunity_digests() to service_role;
 grant execute on function public.claim_opportunity_digests(int) to service_role;
 grant execute on function public.finish_opportunity_digests(uuid[], jsonb) to service_role;
+
+-- 7. Emailing the contact on a permit or a bid, from the site ---------------------------------------------------
+-- After a business has paid to unlock a permit or bid, it can email the contractor on the permit or the contracting officer on the bid
+-- through the site (/api/opportunities/email). Rules, enforced by the server with these functions:
+--   * only an UNLOCKED lead, and only an address that is on that lead (the browser sends which contact, never an address);
+--   * at most 2 emails to the same address from one business per day, and 20 per business per day;
+--   * never to an address on the opt-out list (email_optouts): add an address there to stop all emails to it.
+-- Each email goes out From "<Business> via HVACHelp" with Reply-To set to the business, so the answer goes straight to them.
+create table if not exists public.opportunity_emails (
+  id         bigint generated always as identity primary key,
+  created_at timestamptz not null default now(),
+  listing_id uuid not null references public.listings (id) on delete cascade,
+  kind       text not null check (kind in ('permit', 'bid')),
+  item_id    uuid not null,
+  to_email   text not null,
+  subject    text not null,
+  body       text not null,
+  error      text                                  -- set when the email could not be sent
+);
+create index if not exists opportunity_emails_listing_idx on public.opportunity_emails (listing_id, created_at desc);
+create index if not exists opportunity_emails_to_idx on public.opportunity_emails (lower(to_email), created_at desc);
+alter table public.opportunity_emails enable row level security;
+revoke all on public.opportunity_emails from anon, authenticated;
+grant select on public.opportunity_emails to authenticated;
+drop policy if exists "Admins read opportunity emails" on public.opportunity_emails;
+create policy "Admins read opportunity emails" on public.opportunity_emails for select to authenticated using (public.is_admin());
+
+-- Addresses that must never be emailed through the site. Add one by hand: insert into public.email_optouts (email) values ('someone@example.com');
+create table if not exists public.email_optouts (
+  email      text primary key check (email = lower(email)),
+  created_at timestamptz not null default now()
+);
+alter table public.email_optouts enable row level security;
+revoke all on public.email_optouts from anon, authenticated;
+grant select on public.email_optouts to authenticated;
+drop policy if exists "Admins read email optouts" on public.email_optouts;
+create policy "Admins read email optouts" on public.email_optouts for select to authenticated using (public.is_admin());
+
+-- What the server needs to email one contact: the address (read here, never taken from the browser) and the limits. Service role only.
+create or replace function public.opportunity_email_target(p_kind text, p_item uuid, p_listing uuid, p_index int)
+returns table (unlocked boolean, to_email text, to_name text, optout boolean, sent_to_today int, sent_total_today int)
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  v_email text;
+  v_name text;
+begin
+  if p_kind = 'permit' then
+    select nullif(btrim(x ->> 'email'), ''), coalesce(nullif(btrim(x ->> 'name'), ''), nullif(btrim(x ->> 'company'), ''))
+      into v_email, v_name
+      from public.public_permits p, lateral (select p.people -> p_index as x) j where p.id = p_item;
+  elsif p_kind = 'bid' then
+    select nullif(btrim(x ->> 'email'), ''), nullif(btrim(x ->> 'name'), '')
+      into v_email, v_name
+      from public.gov_bids b, lateral (select b.contacts -> p_index as x) j where b.id = p_item;
+  end if;
+  v_email := lower(v_email);
+  return query select
+    exists (select 1 from public.opportunity_unlocks u where u.listing_id = p_listing and u.kind = p_kind and u.item_id = p_item),
+    v_email, v_name,
+    exists (select 1 from public.email_optouts o where o.email = v_email),
+    (select count(*)::int from public.opportunity_emails e where e.listing_id = p_listing and lower(e.to_email) = v_email and e.created_at > now() - interval '1 day' and e.error is null),
+    (select count(*)::int from public.opportunity_emails e where e.listing_id = p_listing and e.created_at > now() - interval '1 day' and e.error is null);
+end;
+$$;
+
+create or replace function public.log_opportunity_email(p_listing uuid, p_kind text, p_item uuid, p_to text, p_subject text, p_body text, p_error text default null)
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  insert into public.opportunity_emails (listing_id, kind, item_id, to_email, subject, body, error)
+  values (p_listing, p_kind, p_item, lower(p_to), left(p_subject, 200), left(p_body, 4000), left(p_error, 300))
+$$;
+
+revoke all on function public.opportunity_email_target(text, uuid, uuid, int) from public, anon, authenticated;
+revoke all on function public.log_opportunity_email(uuid, text, uuid, text, text, text, text) from public, anon, authenticated;
+grant execute on function public.opportunity_email_target(text, uuid, uuid, int) to service_role;
+grant execute on function public.log_opportunity_email(uuid, text, uuid, text, text, text, text) to service_role;

@@ -86,6 +86,11 @@ export const Fact = ({ label, value }: { label: string; value: string | null | u
 export const selectClass = "rounded-lg border border-slate-300 bg-white px-3 py-1.5 font-normal";
 export const searchClass = "w-full max-w-sm rounded-lg border border-slate-300 bg-white px-3 py-1.5 sm:w-80";
 
+/** Business owners: the business emailing from a permit or bid. When given, an unlocked contact's email opens the email window instead of the mail program. */
+export interface ComposeInfo {
+  businessName: string;
+}
+
 /** How a business owner pays to see the phone and email on a lead. Admins never see this. */
 export interface UnlockInfo {
   /** US dollars: $5 on the paid plan, $10 otherwise (the server decides what is really charged). */
