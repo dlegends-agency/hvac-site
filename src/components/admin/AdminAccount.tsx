@@ -176,7 +176,7 @@ export function AdminAccount() {
       {!user ? (
         <p className="text-slate-600">Loading…</p>
       ) : (
-        <div className="grid max-w-5xl gap-6 lg:grid-cols-2">
+        <div className="grid w-full items-start gap-6 lg:grid-cols-2 xl:grid-cols-3">
           <Profile email={user.email} initial={user} onSaved={(full_name) => setUser((u) => (u ? { ...u, full_name } : u))} />
           <SignIn email={user.email} />
           <Sessions />
