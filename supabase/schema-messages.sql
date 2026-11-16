@@ -16,6 +16,8 @@ create table if not exists public.lead_messages (
   body       text not null check (char_length(btrim(body)) between 1 and 2000),
   read_at    timestamptz
 );
+-- An optional subject line, like an email (the business writes one when it emails the customer from the site).
+alter table public.lead_messages add column if not exists subject text check (subject is null or char_length(btrim(subject)) between 1 and 150);
 create index if not exists lead_messages_thread_idx on public.lead_messages (lead_id, listing_id, id);
 create index if not exists lead_messages_listing_idx on public.lead_messages (listing_id, created_at desc);
 alter table public.lead_messages enable row level security;
@@ -50,7 +52,9 @@ revoke all on function public.listing_is_paid(uuid), public.owns_listing(uuid), 
 grant execute on function public.listing_is_paid(uuid), public.owns_listing(uuid), public.is_customer_of_lead(uuid) to authenticated;
 
 -- ---------------------------------------------------------------- send
-create or replace function public.send_message(p_lead uuid, p_listing uuid, p_body text)
+-- Replaces the version without a subject (two versions would make every call ambiguous).
+drop function if exists public.send_message(uuid, uuid, text);
+create or replace function public.send_message(p_lead uuid, p_listing uuid, p_body text, p_subject text default null)
 returns bigint
 language plpgsql
 security definer
@@ -59,6 +63,7 @@ as $$
 declare
   v_sender text;
   v_body   text := btrim(coalesce(p_body, ''));
+  v_subject text := nullif(btrim(left(coalesce(p_subject, ''), 150)), '');
   v_id     bigint;
 begin
   if auth.uid() is null then raise exception 'Sign in first' using errcode = '42501'; end if;
@@ -77,7 +82,7 @@ begin
         and m.created_at > now() - interval '1 hour') >= 20 then
     raise exception 'Too many messages. Please wait a little.';
   end if;
-  insert into public.lead_messages (lead_id, listing_id, sender, body) values (p_lead, p_listing, v_sender, v_body) returning id into v_id;
+  insert into public.lead_messages (lead_id, listing_id, sender, body, subject) values (p_lead, p_listing, v_sender, v_body, v_subject) returning id into v_id;
   return v_id;
 end;
 $$;
@@ -141,7 +146,7 @@ $$;
 -- Returns the messages to whoever is in the conversation, and marks the other side's messages as read.
 drop function if exists public.conversation_messages(uuid, uuid);
 create or replace function public.conversation_messages(p_lead uuid, p_listing uuid)
-returns table (id bigint, created_at timestamptz, sender text, sender_name text, body text, mine boolean, read_at timestamptz)
+returns table (id bigint, created_at timestamptz, sender text, sender_name text, body text, mine boolean, read_at timestamptz, subject text)
 language plpgsql
 security definer
 set search_path = public
@@ -160,7 +165,7 @@ begin
     -- Who wrote each message: the business name, or the customer's account email (the request's email if the account has none).
     select m.id, m.created_at, m.sender,
            (case m.sender when 'business' then b.business_name::text else coalesce(u.email::text, l.email::text) end),
-           m.body, (m.sender = v_role), m.read_at
+           m.body, (m.sender = v_role), m.read_at, m.subject
       from public.lead_messages m
       join public.listings b on b.id = m.listing_id
       join public.leads l on l.id = m.lead_id
@@ -212,9 +217,9 @@ as $$
   order by created_at;
 $$;
 
-revoke all on function public.send_message(uuid, uuid, text), public.my_conversations(), public.business_conversations(uuid),
+revoke all on function public.send_message(uuid, uuid, text, text), public.my_conversations(), public.business_conversations(uuid),
   public.conversation_messages(uuid, uuid), public.my_unread_messages(), public.my_request_log(uuid) from public, anon;
-grant execute on function public.send_message(uuid, uuid, text), public.my_conversations(), public.business_conversations(uuid),
+grant execute on function public.send_message(uuid, uuid, text, text), public.my_conversations(), public.business_conversations(uuid),
   public.conversation_messages(uuid, uuid), public.my_unread_messages(), public.my_request_log(uuid) to authenticated;
 
 -- ---------------------------------------------------------------- emailing the customer
@@ -223,16 +228,17 @@ grant execute on function public.send_message(uuid, uuid, text), public.my_conve
 alter table public.lead_messages add column if not exists emailed_at timestamptz;
 alter table public.lead_messages add column if not exists email_error text;
 
+drop function if exists public.message_email_info(bigint);
 create or replace function public.message_email_info(p_message bigint)
 returns table (id bigint, lead_id uuid, listing_id uuid, sender text, body text, created_at timestamptz, emailed_at timestamptz,
-               customer_email text, customer_name text, issue text, business_name text)
+               customer_email text, customer_name text, issue text, business_name text, subject text)
 language sql
 stable
 security definer
 set search_path = public
 as $$
   select m.id, m.lead_id, m.listing_id, m.sender, m.body, m.created_at, m.emailed_at,
-         l.email::text, l.first_name::text, l.issue::text, li.business_name::text
+         l.email::text, l.first_name::text, l.issue::text, li.business_name::text, m.subject
     from public.lead_messages m
     join public.leads l on l.id = m.lead_id
     join public.listings li on li.id = m.listing_id
