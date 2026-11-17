@@ -8,8 +8,15 @@ import { db, getUser, json, ownedListingId, type Env } from "./stripe";
 
 export interface AssistantEnv extends Env {
   ANTHROPIC_API_KEY?: string; // encrypted Cloudflare secret
-  ASSISTANT_MODEL?: string; // optional: a different Claude model id
+  ASSISTANT_MODEL?: string; // optional: a different Claude model id (or the model name at the OpenAI-compatible provider below)
+  // Any OpenAI-compatible provider instead of Anthropic (OpenRouter, Groq, Google Gemini's OpenAI endpoint, ...). When AI_BASE_URL and
+  // AI_API_KEY are both set they are used and Anthropic is not.  For example AI_BASE_URL=https://openrouter.ai/api/v1
+  AI_BASE_URL?: string;
+  AI_API_KEY?: string; // encrypted Cloudflare secret
 }
+
+/** True when an AI provider is set up: an OpenAI-compatible one (AI_BASE_URL + AI_API_KEY) or Anthropic. */
+export const aiConfigured = (env: AssistantEnv) => Boolean((env.AI_BASE_URL && env.AI_API_KEY) || env.ANTHROPIC_API_KEY);
 
 export const DAILY_LIMIT = 60;
 export const DEFAULT_MODEL = "claude-haiku-5-5";
@@ -42,7 +49,7 @@ export interface Allowed {
 
 /** Checks the caller and counts one use. Returns the caller, or the response to send back. */
 export async function gate(env: AssistantEnv, request: Request): Promise<Allowed | Response> {
-  if (!env.ANTHROPIC_API_KEY || !env.SUPABASE_SERVICE_ROLE_KEY) return json({ error: "The AI Assistant is not switched on yet" }, 501);
+  if (!aiConfigured(env) || !env.SUPABASE_SERVICE_ROLE_KEY) return json({ error: "The AI Assistant is not switched on yet" }, 501);
   const user = await getUser(env, request);
   if (!user) return json({ error: "Sign in required" }, 401);
   const listingId = await ownedListingId(env, user.id);
@@ -130,7 +137,56 @@ export type Block = { type: "text"; text: string } | { type: "tool_use"; id: str
 export interface Msg { role: "user" | "assistant"; content: string | Block[] }
 export interface Reply { content: Block[]; stop_reason: string }
 
-export async function callClaude(env: AssistantEnv, a: { system: string; messages: Msg[]; tools?: ToolDef[]; toolChoice?: Record<string, unknown>; maxTokens?: number }): Promise<Reply> {
+type Ask = { system: string; messages: Msg[]; tools?: ToolDef[]; toolChoice?: Record<string, unknown>; maxTokens?: number };
+
+/** The same conversation in the OpenAI chat format that OpenRouter, Groq, Gemini and others accept. */
+function toOpenAi(a: Ask) {
+  const messages: Record<string, unknown>[] = [{ role: "system", content: a.system }];
+  for (const m of a.messages) {
+    if (typeof m.content === "string") {
+      messages.push({ role: m.role, content: m.content });
+    } else if (m.role === "assistant") {
+      const text = m.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join("\n");
+      const calls = m.content.filter((b): b is Extract<Block, { type: "tool_use" }> => b.type === "tool_use").map((b) => ({ id: b.id, type: "function", function: { name: b.name, arguments: JSON.stringify(b.input) } }));
+      messages.push({ role: "assistant", content: text || null, ...(calls.length ? { tool_calls: calls } : {}) });
+    } else {
+      for (const b of m.content) if (b.type === "tool_result") messages.push({ role: "tool", tool_call_id: b.tool_use_id, content: b.content });
+    }
+  }
+  return {
+    messages,
+    ...(a.tools ? { tools: a.tools.map((t) => ({ type: "function", function: { name: t.name, description: t.description, parameters: t.input_schema } })) } : {}),
+    ...(a.toolChoice && typeof a.toolChoice.name === "string" ? { tool_choice: { type: "function", function: { name: a.toolChoice.name } } } : {}),
+  };
+}
+
+async function callOpenAiCompatible(env: AssistantEnv, a: Ask, forced = true): Promise<Reply> {
+  // Some free models reject a forced tool call: ask again without forcing it (the draft endpoint also reads a plain "Subject:" answer).
+  if (!forced) a = { ...a, toolChoice: undefined };
+  const res = await fetch(`${(env.AI_BASE_URL ?? "").replace(/\/+$/, "")}/chat/completions`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${env.AI_API_KEY}`, "content-type": "application/json", "X-Title": "HVACHelp" },
+    body: JSON.stringify({ model: env.ASSISTANT_MODEL || "openrouter/free", max_tokens: a.maxTokens ?? 1200, ...toOpenAi(a) }),
+  });
+  if (!res.ok) {
+    if (forced && a.toolChoice && res.status >= 400 && res.status < 500 && res.status !== 401 && res.status !== 429) return callOpenAiCompatible(env, a, false);
+    const detail = ((await res.json().catch(() => ({}))) as { error?: { message?: string } }).error?.message ?? "";
+    throw new Error(`AI provider ${res.status}${detail ? `: ${detail}` : ""}`);
+  }
+  const data = (await res.json()) as { choices?: { finish_reason?: string; message?: { content?: string | null; tool_calls?: { id: string; function: { name: string; arguments: string } }[] } }[] };
+  const choice = data.choices?.[0];
+  const content: Block[] = [];
+  if (choice?.message?.content) content.push({ type: "text", text: choice.message.content });
+  for (const c of choice?.message?.tool_calls ?? []) {
+    let input: Record<string, unknown> = {};
+    try { input = JSON.parse(c.function.arguments || "{}") as Record<string, unknown>; } catch { /* a malformed call is treated as empty and rejected by the endpoint */ }
+    content.push({ type: "tool_use", id: c.id, name: c.function.name, input });
+  }
+  return { content, stop_reason: content.some((b) => b.type === "tool_use") ? "tool_use" : "end_turn" };
+}
+
+export async function callClaude(env: AssistantEnv, a: Ask): Promise<Reply> {
+  if (env.AI_BASE_URL && env.AI_API_KEY) return callOpenAiCompatible(env, a);
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "x-api-key": env.ANTHROPIC_API_KEY ?? "", "anthropic-version": "2023-06-01", "content-type": "application/json" },

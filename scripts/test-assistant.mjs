@@ -113,4 +113,41 @@ assert.equal((await post(draft, { kind: "lead", id: "L1" })).status, 403);
 reset(); state.script = [{ content: [{ type: "text", text: "no tool" }], stop_reason: "end_turn" }];
 assert.equal((await post(draft, { kind: "lead", id: "L1" })).status, 502, "no draft came back");
 
+// ---- an OpenAI-compatible provider (OpenRouter and others) instead of Anthropic
+const open = { VITE_SUPABASE_URL: env.VITE_SUPABASE_URL, VITE_SUPABASE_PUBLISHABLE_KEY: env.VITE_SUPABASE_PUBLISHABLE_KEY, SUPABASE_SERVICE_ROLE_KEY: "svc", RESEND_API_KEY: "re_test", NOTIFY_FROM_EMAIL: env.NOTIFY_FROM_EMAIL, VITE_SITE_URL: env.VITE_SITE_URL, AI_BASE_URL: "https://openrouter.ai/api/v1/", AI_API_KEY: "or-test", ASSISTANT_MODEL: "some/model:free" };
+const realFetch = globalThis.fetch;
+let oa, oaReplies;
+globalThis.fetch = async (url, init = {}) => {
+  if (String(url) === "https://openrouter.ai/api/v1/chat/completions") {
+    assert.equal(init.headers.Authorization, "Bearer or-test");
+    oa.push(JSON.parse(init.body));
+    const next = oaReplies.shift();
+    return typeof next === "number" ? new Response(JSON.stringify({ error: { message: "tool_choice not supported" } }), { status: next }) : new Response(JSON.stringify(next));
+  }
+  return realFetch(url, init);
+};
+assert.equal((await post(chat, { messages: ask }, { ...open, AI_API_KEY: undefined, ANTHROPIC_API_KEY: undefined })).status, 501, "no provider at all");
+
+reset(); oa = []; oaReplies = [
+  { choices: [{ finish_reason: "tool_calls", message: { content: null, tool_calls: [{ id: "c1", function: { name: "draft_email", arguments: JSON.stringify({ kind: "lead", id: "L1", subject: "Hi Chelsea", body: "We can help." }) } }] } }] },
+  { choices: [{ finish_reason: "stop", message: { content: "Here is your draft." } }] },
+];
+r = await post(chat, { messages: ask }, open);
+assert.deepEqual([r.status, r.data.reply, r.data.drafts.length], [200, "Here is your draft.", 1], "chat and tools work through an OpenAI-compatible provider");
+assert.equal(claude.length, 0, "Anthropic is not called");
+assert.equal(oa[0].model, "some/model:free");
+assert.equal(oa[0].messages[0].role, "system");
+assert.equal(oa[0].tools[0].type, "function");
+assert.deepEqual(oa[1].messages.at(-2).tool_calls[0].function.name, "draft_email", "the tool call is sent back in the OpenAI format");
+assert.equal(oa[1].messages.at(-1).role, "tool");
+
+// a model that rejects a forced tool call, then answers in plain text
+reset(); oa = []; oaReplies = [400, { choices: [{ finish_reason: "stop", message: { content: "Subject: Your AC request\n\nHi Chelsea, we can come by." } }] }];
+r = await post(draft, { kind: "lead", id: "L1" }, open);
+assert.deepEqual([r.status, r.data.subject, r.data.body], [200, "Your AC request", "Hi Chelsea, we can come by."], "plain Subject: answers are accepted");
+assert.ok(oa[0].tool_choice && !oa[1].tool_choice, "it retried without forcing the tool");
+reset(); oa = []; oaReplies = [429];
+assert.equal((await post(draft, { kind: "lead", id: "L1" }, open)).status, 502, "a rate-limited free model gives a friendly error");
+assert.equal(oa.length, 1, "a rate limit is not retried");
+
 console.log("assistant: all checks passed");
