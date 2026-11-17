@@ -146,6 +146,19 @@ reset(); oa = []; oaReplies = [400, { choices: [{ finish_reason: "stop", message
 r = await post(draft, { kind: "lead", id: "L1" }, open);
 assert.deepEqual([r.status, r.data.subject, r.data.body], [200, "Your AC request", "Hi Chelsea, we can come by."], "plain Subject: answers are accepted");
 assert.ok(oa[0].tool_choice && !oa[1].tool_choice, "it retried without forcing the tool");
+for (const [said, subject, body] of [
+  ["Here is your email:\n\n**Subject:** Your AC request\n\nHi Chelsea,\nWe can help.\n\nCool Air Houston", "Your AC request", "Hi Chelsea,\nWe can help.\n\nCool Air Houston"],
+  ["```\nSubject: Your AC request\nBody: Hi Chelsea, we can help.\n```", "Your AC request", "Hi Chelsea, we can help."],
+  ["Hi Chelsea, thanks for reaching out about your AC. We can come by tomorrow morning to take a look.", "Your HVAC request", "Hi Chelsea, thanks for reaching out about your AC. We can come by tomorrow morning to take a look."],
+]) {
+  reset(); oa = []; oaReplies = [{ choices: [{ finish_reason: "stop", message: { content: said } }] }];
+  r = await post(draft, { kind: "lead", id: "L1" }, open);
+  assert.deepEqual([r.status, r.data.subject, r.data.body], [200, subject, body], `a free model's answer is understood: ${said.slice(0, 30)}`);
+}
+reset(); oa = []; oaReplies = [{ choices: [{ finish_reason: "stop", message: { content: "" } }] }];
+r = await post(draft, { kind: "lead", id: "L1" }, open);
+assert.deepEqual([r.status, /The model answered/.test(r.data.detail)], [502, true], "an empty answer tells the site owner what came back");
+
 reset(); oa = []; oaReplies = [429];
 assert.equal((await post(draft, { kind: "lead", id: "L1" }, open)).status, 502, "a rate-limited free model gives a friendly error");
 assert.equal(oa.length, 1, "a rate limit is not retried");
