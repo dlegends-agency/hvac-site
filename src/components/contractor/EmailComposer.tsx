@@ -45,13 +45,13 @@ export function EmailComposer({ address, label, to, fromName, defaultSubject, pl
     if (!ai || drafting) return;
     setDrafting(true);
     setError(null);
-    const res = await callApi<{ subject?: string; body?: string }>("/api/assistant/draft", { ...ai, note: text.trim().slice(0, 300) });
+    const res = await callApi<{ subject?: string; body?: string; detail?: string }>("/api/assistant/draft", { ...ai, note: text.trim().slice(0, 300) });
     setDrafting(false);
     if (res.status === 200 && res.data.subject && res.data.body) {
       setSubject(res.data.subject);
       setText(res.data.body);
       box.current?.focus();
-    } else setError(res.status === 501 ? "The AI Assistant is not switched on yet. Please contact us." : res.error ?? "The assistant could not write a draft. Please try again.");
+    } else setError(res.status === 501 ? "The AI Assistant is not switched on yet. Please contact us." : `${res.error ?? "The assistant could not write a draft. Please try again."}${res.data.detail ? ` (Site owner: ${res.data.detail})` : ""}`);
   }
 
   useEffect(() => {

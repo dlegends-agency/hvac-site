@@ -60,13 +60,23 @@ export const onRequestPost = async ({ env, request }: { env: AssistantEnv; reque
     let out: Record<string, unknown> | null = use && use.type === "tool_use" ? use.input : null;
     if (!out) {
       // A model that ignored the tool: accept "Subject: ..." on the first line and the email below it.
-      const plain = reply.content.map((b) => (b.type === "text" ? b.text : "")).join("\n").trim();
-      const m = /^\s*subject\s*:\s*(.+?)\s*\n+([\s\S]+)$/i.exec(plain);
-      if (m) out = { subject: m[1], body: m[2] };
+      // Markdown marks, a code fence or a "Here is your email:" lead-in around it are tolerated.
+      const plain = reply.content.map((b) => (b.type === "text" ? b.text : "")).join("\n").replace(/```[a-z]*/gi, "").replace(/\*\*|__/g, "").trim();
+      const m = /(?:^|\n)\s*subject(?: line)?\s*:\s*(.+?)\s*(?:\n+|$)([\s\S]*)$/i.exec(plain);
+      if (m) {
+        const rest = m[2].replace(/^\s*(?:body|message|email)\s*:\s*/i, "").trim();
+        out = { subject: m[1], body: rest || plain.replace(m[0], "").trim() };
+      } else if (plain.length > 40) {
+        // No subject line at all: use the whole answer as the email and a plain subject the contractor can change.
+        out = { subject: kind === "lead" ? "Your HVAC request" : kind === "permit" ? "HVAC help on your permit" : `Interest in ${typeof item.solicitation_number === "string" && item.solicitation_number ? item.solicitation_number : "your solicitation"}`, body: plain };
+      }
     }
     const subject = typeof out?.subject === "string" ? out.subject.replace(/[\r\n]+/g, " ").trim().slice(0, 150) : "";
     const body = typeof out?.body === "string" ? out.body.trim().slice(0, 2000) : "";
-    if (!subject || !body) return json({ error: "The assistant could not write that. Please try again." }, 502);
+    if (!subject || !body) {
+      const got = reply.content.map((b) => (b.type === "text" ? b.text : b.type)).join(" ").replace(/\s+/g, " ").slice(0, 200);
+      return json({ error: "The assistant could not write that. Please try again.", detail: `The model answered: ${got || "(nothing)"}` }, 502);
+    }
     return json({ subject, body });
   } catch (e) {
     return json({ error: "The assistant is not available right now. Please try again.", detail: (e instanceof Error ? e.message : "failed").slice(0, 300) }, 502);
