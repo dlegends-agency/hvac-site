@@ -102,6 +102,14 @@ export function AuthPage({ audience }: { audience: Audience }) {
     <div className="min-h-screen bg-surface">
       <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-4 py-10">
         <Link to="/" aria-label="HVACHelp home" className="mb-6 self-center"><Logo /></Link>
+        <nav aria-label="Account type" className="mb-4 grid grid-cols-2 gap-1 rounded-2xl border border-slate-200 bg-white p-1 shadow-sm">
+          {([["customer", "Customer", "/account/login"], ["contractor", "Contractor", "/contractor/login"]] as const).map(([key, label, href]) => (
+            <Link key={key} to={href} replace aria-current={audience === key ? "page" : undefined}
+              className={`rounded-xl px-4 py-2.5 text-center text-sm font-bold transition-colors ${audience === key ? "bg-primary text-white shadow" : "text-slate-600 hover:bg-slate-100"}`}>
+              {label}
+            </Link>
+          ))}
+        </nav>
         <form ref={formRef} onSubmit={onSubmit} className="w-full space-y-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-lg shadow-slate-900/5 sm:p-8">
           <h1 className="text-2xl font-bold text-navy">{title}</h1>
           {mode === "signup" && (customer
@@ -141,9 +149,9 @@ export function AuthPage({ audience }: { audience: Audience }) {
           </div>
         </form>
         {customer ? (
-          <p className="mt-5 text-center text-sm text-slate-600">Need HVAC help? <Link to="/#request" className="font-semibold text-primary hover:underline">Send a request</Link>. Are you a contractor? <Link to="/contractor/login" className="font-semibold text-primary hover:underline">Contractor sign in</Link>.</p>
+          <p className="mt-5 text-center text-sm text-slate-600">Need HVAC help? <Link to="/#request" className="font-semibold text-primary hover:underline">Send a request</Link>.</p>
         ) : (
-          <p className="mt-5 text-center text-sm text-slate-600">New here? See <Link to="/pricing" className="font-semibold text-primary hover:underline">plans and pricing</Link>. Looking for a contractor? <Link to="/account/login" className="font-semibold text-primary hover:underline">Follow your requests</Link>.</p>
+          <p className="mt-5 text-center text-sm text-slate-600">New here? See <Link to="/pricing" className="font-semibold text-primary hover:underline">plans and pricing</Link>.</p>
         )}
       </main>
     </div>
