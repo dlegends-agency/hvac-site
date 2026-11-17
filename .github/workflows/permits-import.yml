@@ -58,7 +58,7 @@ jobs:
           TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
       - name: Record the run
         if: always() && steps.due.outputs.run == 'true'
-        run: node scripts/schedule/record.mjs permits "${{ steps.import.outcome }}" "${{ steps.due.outputs.started }}"
+        run: node scripts/schedule/record.mjs permits "${{ steps.import.outcome }}" "${{ steps.due.outputs.started }}" "${{ steps.due.outputs.row }}"
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}

@@ -52,4 +52,10 @@ await assert.rejects(() => q("update public.scrape_schedules set frequency = 'mo
 await assert.rejects(() => q("update public.scrape_schedules set minute = 15"), /check/, "start times are on the hour or half hour");
 await assert.rejects(() => q("update public.scrape_schedules set every_hours = 0"), /check/);
 
+await q("insert into public.scrape_runs (source, status) values ('permits', 'running')");
+assert.equal((await as(admin, () => db.query("select * from public.scrape_runs"))).rows.length, 1, "an admin reads the run log");
+assert.equal((await as(owner, () => db.query("select * from public.scrape_runs"))).rows.length, 0, "other users see no runs");
+await assert.rejects(() => as(admin, () => db.query("insert into public.scrape_runs (source) values ('bids')")), /permission denied/, "only the scrape jobs write runs");
+await assert.rejects(() => q("insert into public.scrape_runs (source, status) values ('permits', 'lost')"), /check/, "only four run states exist");
+
 console.log("schedule SQL: all checks passed");

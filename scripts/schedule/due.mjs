@@ -8,11 +8,31 @@ import { PH_OFFSET_MS, describe, isDue } from "./logic.mjs";
 
 const source = process.argv[2];
 const FALLBACK = { permits: { hour: 8, minute: 0 }, bids: { hour: 8, minute: 30 } };
-const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, EVENT_NAME, GITHUB_OUTPUT } = process.env;
-const out = (run) => {
+const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, EVENT_NAME, GITHUB_OUTPUT, GITHUB_SERVER_URL, GITHUB_REPOSITORY, GITHUB_RUN_ID } = process.env;
+
+/** Opens the run in the run history ("in progress") so Admin > Schedule shows it right away. Best effort: returns "" if it cannot. */
+async function openRun(started) {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) return "";
+  try {
+    const res = await fetch(`${SUPABASE_URL.replace(/\/+$/, "")}/rest/v1/scrape_runs`, {
+      method: "POST",
+      headers: { apikey: SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`, "Content-Type": "application/json", Prefer: "return=representation" },
+      body: JSON.stringify({
+        source, started_at: started, status: "running", trigger: EVENT_NAME === "workflow_dispatch" ? "manual" : "schedule",
+        run_url: GITHUB_RUN_ID ? `${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}` : null,
+      }),
+    });
+    return res.ok ? String((await res.json())[0]?.id ?? "") : "";
+  } catch {
+    return "";
+  }
+}
+
+const out = async (run) => {
   const started = new Date().toISOString();
-  console.log(`run=${run}, started=${started}`);
-  if (GITHUB_OUTPUT) appendFileSync(GITHUB_OUTPUT, `run=${run}\nstarted=${started}\n`);
+  const row = run ? await openRun(started) : "";
+  console.log(`run=${run}, started=${started}${row ? `, history row ${row}` : ""}`);
+  if (GITHUB_OUTPUT) appendFileSync(GITHUB_OUTPUT, `run=${run}\nstarted=${started}\nrow=${row}\n`);
 };
 
 if (!FALLBACK[source]) {
@@ -21,12 +41,12 @@ if (!FALLBACK[source]) {
 }
 if (EVENT_NAME === "workflow_dispatch") {
   console.log("Started by hand: running.");
-  out(true);
+  await out(true);
   process.exit(0);
 }
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   console.log("No Supabase secrets: not running.");
-  out(false);
+  await out(false);
   process.exit(0);
 }
 
@@ -49,9 +69,9 @@ if (!schedule) {
   const start = FALLBACK[source].hour * 60 + FALLBACK[source].minute;
   const run = minutes >= start && minutes < start + 30;
   console.log(`No saved schedule; using the fixed daily time: ${run ? "running" : "not now"}.`);
-  out(run);
+  await out(run);
 } else {
   const due = isDue(schedule, now);
   console.log(`Schedule: ${describe(schedule)}${schedule.run_requested ? " (run requested)" : ""}. Last run: ${schedule.last_run_at ?? "never"}. ${due ? "Due: running." : "Not due."}`);
-  out(due);
+  await out(due);
 }
