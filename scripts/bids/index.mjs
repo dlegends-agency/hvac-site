@@ -22,7 +22,9 @@ const arg = (name) => {
   return i > -1 ? process.argv[i + 1] : undefined;
 };
 const dryRun = process.argv.includes("--dry-run");
-const state = (arg("state") ?? "TX").toUpperCase();
+// One state or several, for example --state TX or --state TX,OK,LA,NM,AR. Federal HVAC notices are rare in one state, so the schedule reads Texas and its neighbours.
+const states = (arg("state") ?? process.env.BID_STATES ?? "TX").toUpperCase().split(",").map((x) => x.trim()).filter(Boolean);
+const state = states.join(", ");
 const file = arg("file");
 
 async function source() {
@@ -45,7 +47,9 @@ try {
       continue;
     }
     scanned++;
-    const bid = mapBid(row, cols, { state });
+    const rowState = row[cols.PopState] || row[cols.State];
+    if (!states.includes(rowState)) continue;
+    const bid = mapBid(row, cols, { state: rowState });
     if (bid?.notice_id) bids.set(bid.notice_id, bid);
   }
 } catch (e) {
@@ -88,7 +92,7 @@ for (let i = 0; i < list.length; i += 200) {
 }
 // Notices that closed, were cancelled or moved on are no longer in the open set: remove them.
 const keep = new Set(list.map((b) => b.notice_id));
-const { data: existing, error: readError } = await sb.from("gov_bids").select("notice_id").eq("state", state).limit(20000);
+const { data: existing, error: readError } = await sb.from("gov_bids").select("notice_id").in("state", states).limit(20000);
 if (readError) console.error(`Could not check for closed notices: ${readError.message}`);
 const stale = (existing ?? []).map((r) => r.notice_id).filter((id) => !keep.has(id));
 // Anything saved earlier without a contact name, phone and email is in `stale`, because it is not in the kept set.

@@ -21,3 +21,7 @@ Cloudflare Pages Function routes served under `/api`. Each file exports `onReque
 
 ## Verification
 - Run: `npm run test:stripe`, `npm run test:google`, `npm run test:notify`, `npm run test:account`, `npm run test:unlock`, `npm run test:recommend`, `npm run test:submit`
+
+## cron/scrapes.ts
+
+`POST /api/cron/scrapes` with header `X-Notify-Secret` starts the permits and bids scrapes that Admin > Schedule says are due (and skips any already running). GitHub's own 30-minute timer often skips hours, so point a free outside timer (cron-job.org, every 15 to 30 minutes, method POST, that header) at it. Needs `NOTIFY_SECRET`, `GITHUB_TOKEN`, `GITHUB_REPO` and `SUPABASE_SERVICE_ROLE_KEY` in Cloudflare.

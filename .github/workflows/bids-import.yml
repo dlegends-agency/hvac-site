@@ -37,11 +37,12 @@ jobs:
       - name: Install
         if: steps.due.outputs.run == 'true'
         run: npm ci --ignore-scripts
-      - name: Import open Texas HVAC bids
+      - name: Import open HVAC bids (Texas and neighbouring states)
         id: import
         if: steps.due.outputs.run == 'true'
         run: node scripts/bids/index.mjs
         env:
+          BID_STATES: "TX,OK,LA,NM,AR" # Texas and its neighbours; change this list to widen or narrow the search
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       - name: Record the run

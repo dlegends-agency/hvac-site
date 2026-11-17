@@ -49,8 +49,8 @@ jobs:
       - name: Import HVAC permits
         id: import
         if: steps.due.outputs.run == 'true'
-        # Scheduled runs read the last 14 days (it overlaps the earlier runs, and the same permit is never saved twice).
-        run: node scripts/permits/index.mjs --days ${{ github.event.inputs.days || '14' }} --per-city ${{ github.event.inputs.perCity || '500' }} --email-limit 800
+        # Scheduled runs read the last 30 days (it overlaps the earlier runs, and the same permit is never saved twice).
+        run: node scripts/permits/index.mjs --days ${{ github.event.inputs.days || '30' }} --per-city ${{ github.event.inputs.perCity || '500' }} --email-limit 1500
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
