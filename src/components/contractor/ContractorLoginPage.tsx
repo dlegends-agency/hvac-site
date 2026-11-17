@@ -115,7 +115,9 @@ export function AuthPage({ audience }: { audience: Audience }) {
           {mode === "signup" && (customer
             ? <p className="text-sm text-slate-600">Use the same email address you gave in your request. After you confirm it, your requests show up here, with the businesses that received them.</p>
             : <p className="text-sm text-slate-600">One account per business. After signing up you can claim your listing or add your business. We review every claim.</p>)}
-          {mode === "signin" && customer && <p className="text-sm text-slate-600">Follow the requests you sent: which businesses received them and whether they have been in touch.</p>}
+          {mode === "signin" && (customer
+            ? <p className="text-sm text-slate-600">Follow the requests you sent: which businesses received them and whether they have been in touch.</p>
+            : <p className="text-sm text-slate-600">Manage your business: see the customer requests, permits and government bids near you, message customers and update your listing.</p>)}
           {!isSupabaseConfigured && <p className="rounded-xl border border-orange-200 bg-orange-50 p-3 text-sm text-orange-900">Accounts are not available yet (Supabase is not configured).</p>}
           {linkProblem && <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{authLinkMessage(linkProblem)}</p>}
           <Field id="email" label="Email">
