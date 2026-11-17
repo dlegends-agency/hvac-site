@@ -19,6 +19,7 @@ export function EmailCustomer({ leadId, listingId, businessName, customerName, i
 }) {
   return (
     <EmailComposer
+      ai={{ kind: "lead", id: leadId }}
       address={email}
       to={`${customerName} <${email}>`}
       fromName={businessName}

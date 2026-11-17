@@ -198,3 +198,17 @@ export function renderOutreachEmail(a: OutreachEmail): { subject: string; html: 
 </body></html>`;
   return { subject, html, text };
 }
+
+/** A report the AI Assistant writes for a business, sent to that business's own email address. Plain text in the body, with a link back to the dashboard. */
+export function renderReportEmail(a: { business_name: string; subject: string; body: string }, siteUrl: string): { subject: string; html: string; text: string } {
+  const business = oneLine(a.business_name, 120);
+  const subject = oneLine(a.subject, 150) || `Your HVACHelp report`;
+  const body = a.body.trim().slice(0, 6000);
+  const link = `${siteUrl}/contractor`;
+  const text = [`Hi ${business},`, "", body, "", "--", `Written by the AI Assistant in your HVACHelp dashboard. Check the details before you act on them: ${link}`].join("\n");
+  const html = `<!doctype html><html><body style="margin:0;background:#f4f7fb;font-family:Arial,Helvetica,sans-serif;color:#14213d">
+<div style="max-width:600px;margin:0 auto;padding:24px 16px"><div style="background:#ffffff;border-radius:12px;padding:24px;font-size:15px;line-height:1.55">
+<p style="margin:0 0 12px">Hi ${escapeHtml(business)},</p><div style="white-space:pre-line">${escapeHtml(body)}</div></div>
+<p style="font-size:12px;line-height:1.5;color:#64748b;margin:12px 4px">Written by the AI Assistant in your HVACHelp dashboard. Check the details before you act on them. <a href="${escapeHtml(link)}" style="color:#2563eb">Open your dashboard</a></p></div></body></html>`;
+  return { subject, html, text };
+}

@@ -1,8 +1,11 @@
-import { useEffect, useRef, useState } from "react";
-import { CheckCircle2, Loader2, Mail, Send, X } from "lucide-react";
+import { useContext, useEffect, useRef, useState } from "react";
+import { CheckCircle2, Loader2, Mail, Send, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { inputClass } from "@/components/ui/Field";
 import { MAX_MESSAGE, MAX_SUBJECT } from "@/lib/messages";
+import { activePlan } from "@/lib/plans";
+import { callApi } from "./api";
+import { ContractorContext } from "./context";
 
 export type SendResult = { ok: true; message: string } | { ok: false; error: string };
 
@@ -11,7 +14,9 @@ export type SendResult = { ok: true; message: string } | { ok: false; error: str
  * site (a customer, the contractor on a permit, the contracting officer on a bid). The button that opens it is the address itself.
  * `onSend` does the sending and says what happened; this component only collects the subject and message and shows the result.
  */
-export function EmailComposer({ address, label, to, fromName, defaultSubject, placeholder, note, onSend }: {
+export function EmailComposer({ address, label, to, fromName, defaultSubject, placeholder, note, onSend, ai }: {
+  /** Which lead, permit or bid this email is about. Featured businesses get a "Draft with AI" button that writes the first draft for it. */
+  ai?: { kind: "lead" | "permit" | "bid"; id: string; index?: number };
   /** The address shown on the button that opens the window. */
   address: string;
   /** When given, the button that opens the window is a solid button with this text (for example "Send Project Email Proposal") instead of the address. */
@@ -32,6 +37,22 @@ export function EmailComposer({ address, label, to, fromName, defaultSubject, pl
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
   const box = useRef<HTMLTextAreaElement>(null);
+  const business = useContext(ContractorContext)?.listing;
+  const canDraft = Boolean(ai && business && activePlan(business) !== "free");
+  const [drafting, setDrafting] = useState(false);
+
+  async function draftWithAi() {
+    if (!ai || drafting) return;
+    setDrafting(true);
+    setError(null);
+    const res = await callApi<{ subject?: string; body?: string }>("/api/assistant/draft", { ...ai, note: text.trim().slice(0, 300) });
+    setDrafting(false);
+    if (res.status === 200 && res.data.subject && res.data.body) {
+      setSubject(res.data.subject);
+      setText(res.data.body);
+      box.current?.focus();
+    } else setError(res.status === 501 ? "The AI Assistant is not switched on yet. Please contact us." : res.error ?? "The assistant could not write a draft. Please try again.");
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -95,6 +116,13 @@ export function EmailComposer({ address, label, to, fromName, defaultSubject, pl
                 </div>
                 <label htmlFor="email-body" className="sr-only">Message</label>
                 <textarea id="email-body" ref={box} rows={9} maxLength={MAX_MESSAGE} value={text} onChange={(e) => setText(e.target.value)} className={`${inputClass} mt-3`} placeholder={placeholder} />
+                {canDraft && (
+                  <button type="button" onClick={draftWithAi} disabled={drafting || busy}
+                    className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-violet-300 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-800 hover:bg-violet-100 disabled:opacity-60">
+                    {drafting ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <Sparkles className="size-3.5" aria-hidden />}
+                    {drafting ? "Writing…" : text.trim() ? "Rewrite with AI (uses what you typed as a note)" : "Draft with AI"}
+                  </button>
+                )}
                 <p className="mt-1 flex justify-between gap-3 text-xs text-slate-500">
                   <span>{note}</span>
                   <span className="shrink-0">{text.length}/{MAX_MESSAGE}</span>
