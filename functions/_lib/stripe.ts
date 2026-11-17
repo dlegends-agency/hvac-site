@@ -12,6 +12,7 @@ export interface Env {
   RESEND_API_KEY?: string; // email alerts (resend.com), encrypted secret
   NOTIFY_FROM_EMAIL?: string; // for example "HVACHelp <leads@yourdomain.com>" (a domain verified in Resend)
   NOTIFY_SECRET?: string; // shared with the database and the scheduled workflow so only they can trigger sending
+  ANTHROPIC_API_KEY?: string; // the AI Assistant (console.anthropic.com), encrypted secret
   GOOGLE_PLACES_API_KEY?: string; // encrypted Cloudflare secret, restricted to the Places API and given a daily quota in Google Cloud
   TURNSTILE_SECRET_KEY?: string; // encrypted Cloudflare secret for the Turnstile CAPTCHA; when missing the CAPTCHA is not checked
 }

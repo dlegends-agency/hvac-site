@@ -11,6 +11,7 @@
     "discover:test": "node scripts/discovery-agent/test.mjs",
     "permits": "node scripts/permits/index.mjs",
     "test:opportunity-email": "node --import ./scripts/ts-resolve.mjs scripts/test-opportunity-email.mjs",
+    "test:assistant": "node --import ./scripts/ts-resolve.mjs scripts/test-assistant.mjs",
     "test:message-email":"node --import ./scripts/ts-resolve.mjs scripts/test-message-email.mjs",
     "address:test":"node --import ./scripts/ts-resolve.mjs scripts/test-address.mjs",
     "schedule:test":"node --import ./scripts/ts-resolve.mjs scripts/schedule/test.mjs",

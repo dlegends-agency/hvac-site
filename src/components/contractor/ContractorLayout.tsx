@@ -8,6 +8,7 @@ import { useUnreadMessages } from "@/lib/use-unread-messages";
 import { getSupabaseBrowser, isSupabaseConfigured } from "@/lib/supabase";
 import type { Listing, ListingBilling, ListingClaim } from "@/lib/types";
 import { usePageMeta } from "@/lib/use-page-meta";
+import { AssistantBubble } from "./AssistantBubble";
 import { ContractorContext, type ContractorState } from "./context";
 
 type BadgeKey = "newLeads" | "newOpportunities" | "messages";
@@ -152,6 +153,7 @@ export default function ContractorLayout() {
           </div>
         </aside>
         <main className="min-w-0 flex-1 px-4 py-8 sm:px-8 lg:px-10"><Outlet /></main>
+        <AssistantBubble />
       </div>
     </ContractorContext.Provider>
   );

@@ -23,6 +23,7 @@ export function EmailOpportunity({ kind, itemId, index, email, recipient, busine
 }) {
   return (
     <EmailComposer
+      ai={{ kind, id: itemId, index }}
       address={email}
       label={label}
       to={`${recipient} <${email}>`}
