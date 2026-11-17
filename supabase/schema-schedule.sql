@@ -34,3 +34,23 @@ drop policy if exists "Admins read scrape schedules" on public.scrape_schedules;
 create policy "Admins read scrape schedules" on public.scrape_schedules for select to authenticated using (public.is_admin());
 drop policy if exists "Admins change scrape schedules" on public.scrape_schedules;
 create policy "Admins change scrape schedules" on public.scrape_schedules for update to authenticated using (public.is_admin()) with check (public.is_admin());
+
+-- Every scrape run, for the run history on Admin > Schedule: when it started, whether it is still running, how it ended and how many new
+-- leads it saved. Written by the scrape jobs (service role); only admins read it.
+create table if not exists public.scrape_runs (
+  id          bigint generated always as identity primary key,
+  source      text not null check (source in ('permits', 'bids')),
+  started_at  timestamptz not null default now(),
+  finished_at timestamptz,
+  status      text not null default 'running' check (status in ('running', 'success', 'failed', 'cancelled')),
+  trigger     text,                 -- 'schedule' or 'manual'
+  added       int,                  -- new leads saved by this run
+  total       int,                  -- leads in the table after the run
+  run_url     text
+);
+create index if not exists scrape_runs_started_idx on public.scrape_runs (started_at desc);
+alter table public.scrape_runs enable row level security;
+revoke all on public.scrape_runs from anon, authenticated;
+grant select on public.scrape_runs to authenticated;
+drop policy if exists "Admins read scrape runs" on public.scrape_runs;
+create policy "Admins read scrape runs" on public.scrape_runs for select to authenticated using (public.is_admin());

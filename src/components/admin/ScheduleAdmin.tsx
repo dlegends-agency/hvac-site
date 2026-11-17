@@ -169,6 +169,93 @@ function ScheduleCard({ saved, saveable, onSaved }: { saved: ScrapeSchedule; sav
   );
 }
 
+interface RunRow {
+  id: number;
+  source: ScheduleSource;
+  started_at: string;
+  finished_at: string | null;
+  status: "running" | "success" | "failed" | "cancelled";
+  trigger: string | null;
+  added: number | null;
+  total: number | null;
+  run_url: string | null;
+}
+
+const duration = (from: string, to: number) => {
+  const s = Math.max(0, Math.round((to - new Date(from).getTime()) / 1000));
+  return s < 60 ? `${s}s` : s < 3600 ? `${Math.floor(s / 60)}m ${s % 60}s` : `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`;
+};
+
+/** Every scrape run: what is in progress, what finished, and how many new leads each one saved. Refreshes by itself. */
+function RunHistory() {
+  const supabase = getSupabaseBrowser();
+  const now = useNow(15_000);
+  const q = useLiveQuery<RunRow[]>([], () => supabase.from("scrape_runs").select("*").order("started_at", { ascending: false }).limit(30), { key: "scrape-runs", intervalMs: 15_000 });
+  // A run that never reported back (the job was killed) is shown as stopped, not "in progress" forever.
+  const stale = (r: RunRow) => r.status === "running" && now - new Date(r.started_at).getTime() > 2 * 3600_000;
+  const running = q.data.filter((r) => r.status === "running" && !stale(r));
+  const today = q.data.filter((r) => r.status === "success" && now - new Date(r.started_at).getTime() < 86_400_000);
+  const addedToday = (s: ScheduleSource) => today.filter((r) => r.source === s).reduce((n, r) => n + (r.added ?? 0), 0);
+
+  return (
+    <Panel title="Run log">
+      {q.error ? (
+        <p className="text-sm text-orange-900">The run log could not be loaded. Run the latest <code>supabase/schema-schedule.sql</code> in the Supabase SQL Editor to turn it on.</p>
+      ) : (
+        <>
+          <dl className="mb-4 grid gap-3 text-sm sm:grid-cols-3">
+            <div className="rounded-xl bg-slate-50 p-3">
+              <dt className="text-xs font-semibold text-slate-500">In progress now</dt>
+              <dd className="mt-0.5 flex items-center gap-1.5 font-semibold text-navy">
+                {running.length > 0 && <Loader2 className="size-4 animate-spin text-primary" aria-hidden />}
+                {running.length === 0 ? "Nothing running" : running.map((r) => SOURCE_LABEL[r.source]).join(", ")}
+              </dd>
+            </div>
+            <div className="rounded-xl bg-slate-50 p-3"><dt className="text-xs font-semibold text-slate-500">New permits, last 24 hours</dt><dd className="mt-0.5 text-xl font-bold text-navy">{addedToday("permits")}</dd></div>
+            <div className="rounded-xl bg-slate-50 p-3"><dt className="text-xs font-semibold text-slate-500">New bids, last 24 hours</dt><dd className="mt-0.5 text-xl font-bold text-navy">{addedToday("bids")}</dd></div>
+          </dl>
+          {q.data.length === 0 ? (
+            <p className="text-sm text-slate-600">{q.loading ? "Loading…" : "No runs yet. The next scrape, or Run now, shows up here while it works and after it finishes."}</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[40rem] text-left text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 text-xs font-semibold text-slate-500">
+                    <th className="py-2 pr-3">Source</th><th className="py-2 pr-3">Started</th><th className="py-2 pr-3">Status</th><th className="py-2 pr-3">Took</th>
+                    <th className="py-2 pr-3 text-right">New saved</th><th className="py-2 pr-3 text-right">Total now</th><th className="py-2">Log</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {q.data.map((r) => {
+                    const live = r.status === "running" && !stale(r);
+                    return (
+                      <tr key={r.id}>
+                        <td className="py-2 pr-3 font-semibold text-navy">{SOURCE_LABEL[r.source]}</td>
+                        <td className="py-2 pr-3 text-slate-700">{ago(r.started_at, now)}{r.trigger === "manual" ? " (by hand)" : ""}</td>
+                        <td className="py-2 pr-3">
+                          {live ? <span className="inline-flex items-center gap-1.5 font-medium text-primary"><Loader2 className="size-4 animate-spin" aria-hidden /> In progress</span>
+                            : r.status === "success" ? <span className="inline-flex items-center gap-1.5 text-green-700"><CheckCircle2 className="size-4" aria-hidden /> Done</span>
+                            : r.status === "cancelled" ? <span className="inline-flex items-center gap-1.5 text-slate-600"><XCircle className="size-4" aria-hidden /> Cancelled</span>
+                            : <span className="inline-flex items-center gap-1.5 text-red-700"><XCircle className="size-4" aria-hidden /> {stale(r) ? "Stopped" : "Failed"}</span>}
+                        </td>
+                        <td className="py-2 pr-3 text-slate-700">{live ? duration(r.started_at, now) : r.finished_at ? duration(r.started_at, new Date(r.finished_at).getTime()) : "–"}</td>
+                        <td className="py-2 pr-3 text-right font-semibold text-navy">{live ? "…" : r.added ?? "–"}</td>
+                        <td className="py-2 pr-3 text-right text-slate-700">{r.total ?? "–"}</td>
+                        <td className="py-2">{r.run_url ? <a href={r.run_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 font-medium text-primary hover:underline">open <ExternalLink className="size-3" aria-hidden /></a> : "–"}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <p className="mt-3 text-xs text-slate-500">&quot;New saved&quot; is how many leads that run added; a permit or bid that was already saved is not counted twice. A scrape that was not due is not listed.</p>
+        </>
+      )}
+    </Panel>
+  );
+}
+
 /** Admin > Schedule: when the permits and government-bids scrapes run. The schedule is saved in the database; GitHub checks it every 30 minutes. */
 export function ScheduleAdmin() {
   const supabase = getSupabaseBrowser();
@@ -188,6 +275,7 @@ export function ScheduleAdmin() {
           <ScheduleCard key={s} saved={bySource(s)} saveable={!q.error && !q.loading} onSaved={() => void q.reload()} />
         ))}
       </div>
+      <div className="mt-6 w-full"><RunHistory /></div>
       <p className="mt-6 max-w-3xl text-xs text-slate-500">
         &quot;Run now&quot; starts the scrape on GitHub straight away (it needs <code>GITHUB_TOKEN</code> and <code>GITHUB_REPO</code> in Cloudflare, the same as Find businesses). Without them it asks for a run and the next check starts it.
         A schedule that has never run starts once at the next check, then follows its schedule. New leads are emailed to contractors in their daily summary at 10:00 AM Philippine time.
