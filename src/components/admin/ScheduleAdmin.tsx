@@ -46,6 +46,12 @@ function ScheduleCard({ saved, saveable, onSaved }: { saved: ScrapeSchedule; sav
     setDraft((d) => ({ ...d, last_run_at: saved.last_run_at, last_status: saved.last_status, last_run_url: saved.last_run_url, run_requested: saved.run_requested }));
   }, [saved.last_run_at, saved.last_status, saved.last_run_url, saved.run_requested]);
 
+  // The card first draws before the saved schedule has loaded (showing the defaults), so when the real saved settings arrive or change, the form follows them.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- keep the form in step with the saved schedule
+    setDraft((d) => ({ ...d, frequency: saved.frequency, every_hours: saved.every_hours, weekday: saved.weekday, hour: saved.hour, minute: saved.minute }));
+  }, [saved.frequency, saved.every_hours, saved.weekday, saved.hour, saved.minute]);
+
   const dirty = (["frequency", "every_hours", "weekday", "hour", "minute"] as const).some((k) => draft[k] !== saved[k]);
   const patch = (p: Partial<ScrapeSchedule>) => setDraft((d) => ({ ...d, ...p }));
   const next = nextRunAt(saved, now);
@@ -53,12 +59,15 @@ function ScheduleCard({ saved, saveable, onSaved }: { saved: ScrapeSchedule; sav
   async function save() {
     setBusy("save");
     setMsg(null);
-    const { error } = await supabase
+    const { data: rows, error } = await supabase
       .from("scrape_schedules")
       .update({ frequency: draft.frequency, every_hours: draft.every_hours, weekday: draft.weekday, hour: draft.hour, minute: draft.minute, updated_at: new Date().toISOString() })
-      .eq("source", saved.source);
+      .eq("source", saved.source)
+      .select("source");
     setBusy(null);
     if (error) return setMsg({ ok: false, text: "We couldn't save the schedule. Has supabase/schema-schedule.sql been run?" });
+    // The database answers "ok" even when it changed nothing (no row for this source, or no admin rights), so check that a row really changed.
+    if (!rows?.length) return setMsg({ ok: false, text: "Nothing was saved: this schedule has no row in the database, or this account is not an admin. Run supabase/schema-schedule.sql in the Supabase SQL Editor." });
     setMsg({ ok: true, text: `Saved: ${describe(draft)}.` });
     onSaved();
   }
