@@ -54,30 +54,35 @@ export const onRequestPost = async ({ env, request }: { env: AssistantEnv; reque
     "Write the email now. Use the write_email tool; if you cannot, answer with the first line 'Subject: ...' and then the email body.",
   ].filter(Boolean).join("\n\n");
 
-  try {
-    const reply = await callClaude(env, { system: `${RULES}\n${KIND_RULES[kind]}`, messages: [{ role: "user", content: prompt }], tools: [TOOL], toolChoice: { type: "tool", name: "write_email" }, maxTokens: 900 });
-    const use = reply.content.find((b) => b.type === "tool_use");
-    let out: Record<string, unknown> | null = use && use.type === "tool_use" ? use.input : null;
+  // Free and OpenAI-compatible models answer most reliably in plain text, so they are asked for "Subject:" and the body. Claude gets the tool.
+  const plainMode = Boolean(env.AI_BASE_URL && env.AI_API_KEY);
+  const system = `${RULES}\n${KIND_RULES[kind]}${plainMode ? "\nAnswer with only the email: the first line is 'Subject: ...', then a blank line, then the email body. No other text, no markdown." : ""}`;
+  const parse = (blocks: { type: string; text?: string; input?: Record<string, unknown> }[]): { subject: string; body: string } | null => {
+    const tool = blocks.find((b) => b.type === "tool_use");
+    let out: Record<string, unknown> | null = tool?.input ?? null;
+    const plain = blocks.map((b) => (b.type === "text" ? b.text ?? "" : "")).join("\n").replace(/```[a-z]*/gi, "").replace(/\*\*|__/g, "").trim();
     if (!out) {
-      // A model that ignored the tool: accept "Subject: ..." on the first line and the email below it.
-      // Markdown marks, a code fence or a "Here is your email:" lead-in around it are tolerated.
-      const plain = reply.content.map((b) => (b.type === "text" ? b.text : "")).join("\n").replace(/```[a-z]*/gi, "").replace(/\*\*|__/g, "").trim();
       const m = /(?:^|\n)\s*subject(?: line)?\s*:\s*(.+?)\s*(?:\n+|$)([\s\S]*)$/i.exec(plain);
-      if (m) {
-        const rest = m[2].replace(/^\s*(?:body|message|email)\s*:\s*/i, "").trim();
-        out = { subject: m[1], body: rest || plain.replace(m[0], "").trim() };
-      } else if (plain.length > 40) {
-        // No subject line at all: use the whole answer as the email and a plain subject the contractor can change.
-        out = { subject: kind === "lead" ? "Your HVAC request" : kind === "permit" ? "HVAC help on your permit" : `Interest in ${typeof item.solicitation_number === "string" && item.solicitation_number ? item.solicitation_number : "your solicitation"}`, body: plain };
-      }
+      if (m) out = { subject: m[1], body: m[2].replace(/^\s*(?:body|message|email)\s*:\s*/i, "").trim() || plain.replace(m[0], "").trim() };
+      else if (plain.length > 40) out = { subject: kind === "lead" ? "Your HVAC request" : kind === "permit" ? "HVAC help on your permit" : `Interest in ${typeof item.solicitation_number === "string" && item.solicitation_number ? item.solicitation_number : "your solicitation"}`, body: plain };
     }
     const subject = typeof out?.subject === "string" ? out.subject.replace(/[\r\n]+/g, " ").trim().slice(0, 150) : "";
     const body = typeof out?.body === "string" ? out.body.trim().slice(0, 2000) : "";
-    if (!subject || !body) {
-      const got = reply.content.map((b) => (b.type === "text" ? b.text : b.type)).join(" ").replace(/\s+/g, " ").slice(0, 200);
-      return json({ error: "The assistant could not write that. Please try again.", detail: `The model answered: ${got || "(nothing)"}` }, 502);
+    return subject && body ? { subject, body } : null;
+  };
+
+  let last = "";
+  try {
+    // Two tries: a model that "thinks" first can run out of room and answer with nothing.
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const reply = await callClaude(env, plainMode
+        ? { system, messages: [{ role: "user", content: prompt }], maxTokens: 3000 }
+        : { system, messages: [{ role: "user", content: prompt }], tools: [TOOL], toolChoice: { type: "tool", name: "write_email" }, maxTokens: 900 });
+      const made = parse(reply.content);
+      if (made) return json(made);
+      last = reply.content.map((b) => (b.type === "text" ? b.text : b.type)).join(" ").replace(/\s+/g, " ").slice(0, 200);
     }
-    return json({ subject, body });
+    return json({ error: "The assistant could not write that. Please try again.", detail: `The model answered: ${last || "(nothing)"}` }, 502);
   } catch (e) {
     return json({ error: "The assistant is not available right now. Please try again.", detail: (e instanceof Error ? e.message : "failed").slice(0, 300) }, 502);
   }

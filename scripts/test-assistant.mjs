@@ -141,11 +141,14 @@ assert.equal(oa[0].tools[0].type, "function");
 assert.deepEqual(oa[1].messages.at(-2).tool_calls[0].function.name, "draft_email", "the tool call is sent back in the OpenAI format");
 assert.equal(oa[1].messages.at(-1).role, "tool");
 
-// a model that rejects a forced tool call, then answers in plain text
-reset(); oa = []; oaReplies = [400, { choices: [{ finish_reason: "stop", message: { content: "Subject: Your AC request\n\nHi Chelsea, we can come by." } }] }];
+// the draft button asks an OpenAI-compatible model in plain text (no forced tool)
+reset(); oa = []; oaReplies = [{ choices: [{ finish_reason: "stop", message: { content: "Subject: Your AC request\n\nHi Chelsea, we can come by." } }] }];
 r = await post(draft, { kind: "lead", id: "L1" }, open);
 assert.deepEqual([r.status, r.data.subject, r.data.body], [200, "Your AC request", "Hi Chelsea, we can come by."], "plain Subject: answers are accepted");
-assert.ok(oa[0].tool_choice && !oa[1].tool_choice, "it retried without forcing the tool");
+assert.ok(!oa[0].tools && !oa[0].tool_choice && oa[0].max_tokens >= 2000, "no forced tool, and room to think");
+reset(); oa = []; oaReplies = [{ choices: [{ finish_reason: "length", message: { content: "" } }] }, { choices: [{ finish_reason: "stop", message: { content: "Subject: Retry worked\n\nHi Chelsea, we can help." } }] }];
+r = await post(draft, { kind: "lead", id: "L1" }, open);
+assert.deepEqual([r.status, r.data.subject, oa.length], [200, "Retry worked", 2], "an empty first answer is tried again");
 for (const [said, subject, body] of [
   ["Here is your email:\n\n**Subject:** Your AC request\n\nHi Chelsea,\nWe can help.\n\nCool Air Houston", "Your AC request", "Hi Chelsea,\nWe can help.\n\nCool Air Houston"],
   ["```\nSubject: Your AC request\nBody: Hi Chelsea, we can help.\n```", "Your AC request", "Hi Chelsea, we can help."],
@@ -155,7 +158,7 @@ for (const [said, subject, body] of [
   r = await post(draft, { kind: "lead", id: "L1" }, open);
   assert.deepEqual([r.status, r.data.subject, r.data.body], [200, subject, body], `a free model's answer is understood: ${said.slice(0, 30)}`);
 }
-reset(); oa = []; oaReplies = [{ choices: [{ finish_reason: "stop", message: { content: "" } }] }];
+reset(); oa = []; oaReplies = [{ choices: [{ finish_reason: "stop", message: { content: "" } }] }, { choices: [{ finish_reason: "stop", message: { content: "" } }] }];
 r = await post(draft, { kind: "lead", id: "L1" }, open);
 assert.deepEqual([r.status, /The model answered/.test(r.data.detail)], [502, true], "an empty answer tells the site owner what came back");
 
