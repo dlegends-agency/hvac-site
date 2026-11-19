@@ -8,12 +8,13 @@ export function activePlan(l: Pick<Listing, "plan" | "plan_until">, now = Date.n
   return plan;
 }
 
-export const isFeatured = (l: Pick<Listing, "plan" | "plan_until">) => activePlan(l) !== "free";
+export const isFeatured = (l: Pick<Listing, "plan" | "plan_until"> & { premium?: boolean }) => activePlan(l) !== "free";
+export const isPremium = (l: Pick<Listing, "plan" | "plan_until"> & { premium?: boolean }) => activePlan(l) === "premium";
 
-const rank: Record<PlanId, number> = { featured: 0, free: 1 };
+const rank: Record<PlanId, number> = { premium: 0, featured: 1, free: 2 };
 
-/** Paid (Featured) listings first, then free ones. Stable: the incoming order is kept within each group. */
-export function sortByPlan<T extends Pick<Listing, "plan" | "plan_until">>(list: T[]): T[] {
+/** Premium first, then paid (Featured) listings, then free ones. Stable: the incoming order is kept within each group. */
+export function sortByPlan<T extends Pick<Listing, "plan" | "plan_until"> & { premium?: boolean }>(list: T[]): T[] {
   return list
     .map((item, i) => ({ item, i, r: rank[activePlan(item)] }))
     .sort((a, b) => a.r - b.r || a.i - b.i)

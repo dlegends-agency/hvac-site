@@ -9,6 +9,7 @@ import { Fact, LockedTag, ScoreBars, SidePanel, TIER_STYLE, TierColumns, UnlockB
 interface Row extends Scored {
   p: PublicPermit;
 }
+export type PermitRow = Row;
 
 /** The small card: just enough to tell permits apart. Click it for everything. */
 function Card({ row, onOpen }: { row: Row; onOpen: () => void }) {
@@ -58,7 +59,7 @@ function Person({ person, directory, adminLinks, locked }: { person: PermitPerso
   );
 }
 
-function Detail({ row, directory, adminLinks, unlock, compose, onClose }: { row: Row; directory: DirectoryBusiness[]; adminLinks: boolean; unlock?: UnlockInfo; compose?: ComposeInfo; onClose: () => void }) {
+export function PermitDetail({ row, directory, adminLinks, unlock, compose, onClose }: { row: Row; directory: DirectoryBusiness[]; adminLinks: boolean; unlock?: UnlockInfo; compose?: ComposeInfo; onClose: () => void }) {
   const { p } = row;
   const locked = p.unlocked === false;
   // The proposal goes to the first person on the permit that has an email (the server reads the address itself).
@@ -177,7 +178,7 @@ export function PermitBoard({ permits, error, cover, directory = [], adminLinks 
         <TierColumns rows={rows} itemKey={(r) => r.p.id} card={(r) => <Card row={r} onOpen={() => setOpenId(r.p.id)} />} />
       )}
 
-      {open && <Detail row={open} directory={directory} adminLinks={adminLinks} unlock={unlock} compose={compose} onClose={() => setOpenId(null)} />}
+      {open && <PermitDetail row={open} directory={directory} adminLinks={adminLinks} unlock={unlock} compose={compose} onClose={() => setOpenId(null)} />}
     </div>
   );
 }

@@ -44,7 +44,9 @@ const AccountSettings = lazy(() => import("@/components/account/AccountSettings"
 const ContractorMessages = lazy(() => import("@/components/contractor/ContractorMessages"));
 const ContractorLayout = lazy(() => import("@/components/contractor/ContractorLayout"));
 const ContractorHome = lazy(() => import("@/components/contractor/ContractorHome"));
-const ContractorLeads = lazy(() => import("@/components/contractor/ContractorLeads"));
+const ContractorLeadHub = lazy(() => import("@/components/contractor/ContractorLeadHub"));
+const ContractorMyLeads = lazy(() => import("@/components/contractor/ContractorMyLeads"));
+const ContractorProjects = lazy(() => import("@/components/contractor/ContractorProjects"));
 const ContractorBusiness = lazy(() => import("@/components/contractor/ContractorBusiness"));
 const ContractorBilling = lazy(() => import("@/components/contractor/ContractorBilling"));
 const ContractorAccount = lazy(() => import("@/components/contractor/ContractorAccount"));
@@ -56,7 +58,7 @@ const PermitsAdmin = lazy(() => import("@/components/admin/PermitsAdmin").then((
 const AdminAccount = lazy(() => import("@/components/admin/AdminAccount").then((m) => ({ default: m.AdminAccount })));
 const ScheduleAdmin = lazy(() => import("@/components/admin/ScheduleAdmin").then((m) => ({ default: m.ScheduleAdmin })));
 const BidsAdmin = lazy(() => import("@/components/admin/BidsAdmin").then((m) => ({ default: m.BidsAdmin })));
-const ContractorOpportunities = lazy(() => import("@/components/contractor/ContractorOpportunities"));
+
 const AnalyticsReport = lazy(() => import("@/components/admin/AnalyticsReport").then((m) => ({ default: m.AnalyticsReport })));
 
 export default function App() {
@@ -90,9 +92,11 @@ export default function App() {
           </Route>
           <Route path="/contractor" element={<ContractorLayout />}>
             <Route index element={<ContractorHome />} />
-            <Route path="leads" element={<ContractorLeads />} />
+            <Route path="leads" element={<ContractorLeadHub />} />
+            <Route path="my-leads" element={<ContractorMyLeads />} />
+            <Route path="projects" element={<ContractorProjects />} />
             <Route path="messages" element={<ContractorMessages />} />
-            <Route path="opportunities" element={<ContractorOpportunities />} />
+            <Route path="opportunities" element={<Navigate to="/contractor/leads" replace />} />
             <Route path="business" element={<ContractorBusiness />} />
             <Route path="recommendations" element={<ContractorRecommendations />} />
             <Route path="profile" element={<Navigate to="/contractor/business" replace />} />

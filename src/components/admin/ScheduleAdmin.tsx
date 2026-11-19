@@ -16,7 +16,7 @@ const FREQUENCIES: { id: Frequency; label: string }[] = [
   { id: "weekly", label: "Every week" },
 ];
 const BLURB: Record<ScheduleSource, string> = {
-  permits: "HVAC building permits from city open data (Austin and Dallas). The scrape also looks up each contractor's email, so it can take up to an hour.",
+  permits: "HVAC building permits from open data (Austin, Dallas and the cities of Collin County: Plano, Frisco, McKinney, Allen and more). The scrape also looks up each contractor's email, so it can take up to an hour.",
   bids: "Open federal HVAC notices in Texas from SAM.gov's public daily file. It takes about two minutes.",
 };
 

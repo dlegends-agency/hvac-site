@@ -1,12 +1,12 @@
 // POST /api/stripe/unlock-opportunity  { kind: "permit" | "bid", itemId }  (Authorization: Bearer <Supabase access token>)
 // Starts a one-time Stripe Checkout payment to see the phone number and email address on one building permit or government bid, and
 // returns { url }. The lead must be in the contractor's area (the same rule that decides what they see). The price is decided here,
-// never by the browser: $5 for a contractor on the paid plan, $10 otherwise (the same as a customer request).
+// never by the browser: a permit is $5 on Featured and $10 on Free; a government bid is $50 on Featured and $100 on Free. Premium has everything unlocked and never pays.
 // It is unlocked by the Stripe webhook, or by /api/stripe/confirm when the contractor comes back, after the payment succeeds.
 import { defaultCardId, payWithSavedCard } from "../../_lib/cards";
 import { unlockOpportunity } from "../../_lib/fulfil";
 import { isPaidNow } from "../../_lib/google";
-import { notConfigured, LEAD_PRICE_CENTS, billingFor, db, getUser, json, ownedListingId, siteOrigin, stripe, type Env } from "../../_lib/stripe";
+import { notConfigured, UNLOCK_CENTS, billingFor, db, getUser, json, ownedListingId, siteOrigin, stripe, type Env } from "../../_lib/stripe";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -29,21 +29,21 @@ export const onRequestPost = async ({ env, request }: { env: Env; request: Reque
   const [reachRes, unlockedRes, listingRes, itemRes] = await Promise.all([
     db(env, "rpc/opportunity_reaches", { method: "POST", body: JSON.stringify({ p_kind: kind, p_item: body.itemId, p_listing: listingId }) }),
     db(env, `opportunity_unlocks?listing_id=eq.${encodeURIComponent(listingId)}&kind=eq.${kind}&item_id=eq.${itemId}&select=item_id&limit=1`),
-    db(env, `listings?id=eq.${encodeURIComponent(listingId)}&select=plan,plan_until&limit=1`),
+    db(env, `listings?id=eq.${encodeURIComponent(listingId)}&select=plan,plan_until,premium&limit=1`),
     db(env, `${table}?id=eq.${itemId}&select=${kind === "permit" ? "summary" : "title"}&limit=1`),
   ]);
   const reaches = reachRes.ok && (await reachRes.json()) === true;
   const already = unlockedRes.ok && ((await unlockedRes.json()) as unknown[]).length > 0;
-  const listing = listingRes.ok ? ((await listingRes.json()) as { plan: string | null; plan_until: string | null }[])[0] : undefined;
+  const listing = listingRes.ok ? ((await listingRes.json()) as { plan: string | null; plan_until: string | null; premium: boolean | null }[])[0] : undefined;
   const item = itemRes.ok ? ((await itemRes.json()) as { summary?: string; title?: string }[])[0] : undefined;
   if (!reaches || !listing || !item) return json({ error: "That lead was not sent to you" }, 404);
   if (already) return json({ error: "Already unlocked" }, 409);
 
-  const cents = isPaidNow(listing) ? LEAD_PRICE_CENTS.paid : LEAD_PRICE_CENTS.free;
+  if (isPaidNow(listing) && listing.premium) return json({ error: "Already unlocked: Premium includes every lead" }, 409);
+  const cents = isPaidNow(listing) ? UNLOCK_CENTS[kind].paid : UNLOCK_CENTS[kind].free;
   const origin = siteOrigin(env, request);
   const label = (item.summary ?? item.title ?? "").replace(/\s+/g, " ").slice(0, 110);
   const meta = { kind: `${kind}_unlock`, item_id: body.itemId, listing_id: listingId };
-  const tab = kind === "permit" ? "&tab=permits" : "";
 
   // One click with the default saved card. If it is declined or needs confirming, the browser falls back to the Stripe Checkout page.
   const billing = await billingFor(env, listingId);
@@ -64,8 +64,8 @@ export const onRequestPost = async ({ env, request }: { env: Env; request: Reque
     "line_items[0][price_data][currency]": "usd",
     "line_items[0][price_data][unit_amount]": String(cents),
     "line_items[0][price_data][product_data][name]": `${kind === "permit" ? "Building permit" : "Government bid"}: ${label}`,
-    success_url: `${origin}/contractor/opportunities?unlocked=1&session_id={CHECKOUT_SESSION_ID}&open=${body.itemId}${tab}`,
-    cancel_url: `${origin}/contractor/opportunities${kind === "permit" ? "?tab=permits" : ""}`,
+    success_url: `${origin}/contractor/leads?unlocked=1&session_id={CHECKOUT_SESSION_ID}&open=${kind}:${body.itemId}`,
+    cancel_url: `${origin}/contractor/leads`,
     client_reference_id: listingId,
     "invoice_creation[enabled]": "true",
     "invoice_creation[invoice_data][description]": `Unlock the contact details on a ${kind === "permit" ? "building permit" : "government bid"}`,

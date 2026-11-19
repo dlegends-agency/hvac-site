@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { Bell, BellOff, CheckCircle2, Circle, Clock, MapPin } from "lucide-react";
 import { PageTitle, Panel, StatCard } from "@/components/admin/widgets";
 import { buttonClass } from "@/components/ui/Button";
-import { leadPrice, planName } from "@/config/pricing";
+import { planName, unlockPrice } from "@/config/pricing";
 import { useLiveQuery, useNow } from "@/lib/admin-hooks";
 import { activePlan } from "@/lib/plans";
 import { getSupabaseBrowser } from "@/lib/supabase";
@@ -80,7 +80,7 @@ export default function ContractorHome() {
   const published = listing.status === "published";
   const receiving = published; // free and paid listings both receive requests
   const locked = (leads ?? []).filter((l) => !l.unlocked).length;
-  const price = plan === "free" ? leadPrice.free : leadPrice.paid;
+  const price = plan === "free" ? unlockPrice.lead.free : unlockPrice.lead.paid;
   const areas = [...new Set([listing.city, ...(listing.service_areas ?? "").split(",").map((a) => a.trim())].filter(Boolean))];
   const endsSoon = plan !== "free" && Boolean(listing.plan_until) && new Date(listing.plan_until as string).getTime() - now < 7 * 864e5;
   const checklist = [
@@ -89,7 +89,7 @@ export default function ContractorHome() {
     { done: Boolean(listing.postal_code), label: "Add your ZIP code and how far you travel, so nearby requests reach you", to: "/contractor/business" },
     { done: Boolean(listing.description && listing.description.length >= 40), label: "Write your About us", to: "/contractor/business" },
     ...(plan === "free"
-      ? [{ done: false, label: "Go Featured to show your services and service areas, hours, photos and website, connect Google reviews, and unlock requests for $" + leadPrice.paid, to: "/contractor/billing" }]
+      ? [{ done: false, label: "Go Featured to show your services and service areas, hours, photos and website, connect Google reviews, and unlock requests for $" + unlockPrice.lead.paid, to: "/contractor/billing" }]
       : [
           { done: listing.services.length > 0, label: "Choose the services you offer", to: "/contractor/business" },
           { done: Boolean(listing.service_areas), label: "List the other cities you serve, so you get requests there too", to: "/contractor/business" },
@@ -124,7 +124,7 @@ export default function ContractorHome() {
         <StatCard label="Locked" value={leads ? locked : "…"} hint={`$${price} each to unlock`} />
         <StatCard label="Opportunities near you" value={counts.ready ? counts.opportunities : "…"} hint={counts.newOpportunities > 0 ? `${counts.newOpportunities} new today` : "Permits and government bids"} />
         <StatCard label="Contacted" value={count("contacted")} hint={`${count("won")} won`} />
-        <StatCard label="Current plan" value={planName(plan)} hint={plan === "free" ? `Go Featured: $${leadPrice.paid} per request` : endsSoon ? `Ends ${new Date(listing.plan_until as string).toLocaleDateString()}` : undefined} />
+        <StatCard label="Current plan" value={planName(plan)} hint={plan === "free" ? `Go Featured: $${unlockPrice.lead.paid} per request` : endsSoon ? `Ends ${new Date(listing.plan_until as string).toLocaleDateString()}` : undefined} />
       </div>
 
       <div className="mt-6">
@@ -153,7 +153,7 @@ export default function ContractorHome() {
           )}
           <p className="mt-3 text-xs text-slate-500">
             You see everything about a request except the customer&apos;s phone number, email and street address. Unlock a request for ${price} to see them. Building permits and government bids near your business address work the same way.
-            {plan === "free" && <> <Link to="/contractor/billing" className="font-semibold text-primary underline">Go Featured</Link> to pay ${leadPrice.paid} instead and be sent requests first.</>}
+            {plan === "free" && <> <Link to="/contractor/billing" className="font-semibold text-primary underline">Go Featured</Link> to pay ${unlockPrice.lead.paid} instead and be sent requests first.</>}
             {" "}Each request goes to up to 3 contractors near the customer, paid listings first. We can&apos;t promise any number of requests or jobs.
           </p>
           <div className="mt-4 flex items-center justify-between gap-3 rounded-xl bg-slate-50 p-3">

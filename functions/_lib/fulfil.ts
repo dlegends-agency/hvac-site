@@ -27,11 +27,12 @@ export async function applySubscription(env: Env, sub: StripeSubscription, listi
       current_period_end: until, billing_interval: interval, updated_at: new Date().toISOString(),
     }),
   });
-  const listing = await db(env, `listings?id=eq.${encodeURIComponent(id)}`, {
-    method: "PATCH",
-    headers: { Prefer: "return=minimal" },
-    body: JSON.stringify({ plan, plan_until: until }),
-  });
+  // Premium is a Featured listing with the premium flag on, so every "paid" check keeps working.
+  const patch = (body: Record<string, unknown>) => db(env, `listings?id=eq.${encodeURIComponent(id)}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify(body) });
+  const base = { plan: plan === "free" ? "free" : "featured", plan_until: until };
+  let listing = await patch({ ...base, premium: plan === "premium" });
+  // Before supabase/schema-revamp.sql has been run there is no premium column: still apply the plan, so a Featured payment is never lost.
+  if (!listing.ok && plan !== "premium") listing = await patch(base);
   if (!billing.ok || !listing.ok) throw new Error("Database update failed");
 }
 

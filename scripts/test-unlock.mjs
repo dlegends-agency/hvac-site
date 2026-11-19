@@ -5,17 +5,21 @@ import { readFileSync } from "node:fs";
 import { onRequestPost as unlock } from "../functions/api/stripe/unlock.ts";
 import { onRequestPost as checkout } from "../functions/api/stripe/checkout.ts";
 import { onRequestPost as webhook } from "../functions/api/stripe/webhook.ts";
-import { LEAD_PRICE_CENTS } from "../functions/_lib/stripe.ts";
+import { LEAD_PRICE_CENTS, UNLOCK_CENTS } from "../functions/_lib/stripe.ts";
 
 // The prices shown on the website and the prices charged by the server must be the same.
 const shown = readFileSync(new URL("../src/config/pricing.ts", import.meta.url), "utf8").match(/leadPrice = \{ free: (\d+), paid: (\d+) \}/);
 assert.ok(shown, "src/config/pricing.ts defines leadPrice");
 assert.deepEqual({ free: Number(shown[1]) * 100, paid: Number(shown[2]) * 100 }, LEAD_PRICE_CENTS, "the website and the server charge the same lead prices");
 assert.deepEqual(LEAD_PRICE_CENTS, { free: 1000, paid: 500 });
+assert.deepEqual(UNLOCK_CENTS, { lead: { free: 1000, paid: 500 }, permit: { free: 1000, paid: 500 }, bid: { free: 10000, paid: 5000 } }, "customer $10/$5, permit $10/$5, bid $100/$50");
+const unlockShown = readFileSync(new URL("../src/config/pricing.ts", import.meta.url), "utf8").match(/unlockPrice = \{\s*lead: \{ free: (\d+), paid: (\d+) \},\s*permit: \{ free: (\d+), paid: (\d+) \},\s*bid: \{ free: (\d+), paid: (\d+) \},/);
+assert.ok(unlockShown, "src/config/pricing.ts defines unlockPrice");
+assert.deepEqual(unlockShown.slice(1).map((n) => Number(n) * 100), [1000, 500, 1000, 500, 10000, 5000], "the website and the server charge the same unlock prices");
 
 const env = {
   STRIPE_SECRET_KEY: "sk_test", STRIPE_WEBHOOK_SECRET: "whsec_t", SUPABASE_SERVICE_ROLE_KEY: "svc", VITE_SUPABASE_URL: "https://x.supabase.co",
-  VITE_SUPABASE_PUBLISHABLE_KEY: "pub", STRIPE_PRICE_FEATURED: "price_m", STRIPE_PRICE_FEATURED_YEARLY: "price_y", VITE_SITE_URL: "https://site.test",
+  VITE_SUPABASE_PUBLISHABLE_KEY: "pub", STRIPE_PRICE_FEATURED: "price_m", STRIPE_PRICE_FEATURED_YEARLY: "price_y", STRIPE_PRICE_PREMIUM: "price_pm", STRIPE_PRICE_PREMIUM_YEARLY: "price_py", VITE_SITE_URL: "https://site.test",
 };
 const LEAD = "11111111-1111-4111-8111-111111111111";
 const LISTING = "22222222-2222-4222-8222-222222222222";
@@ -37,6 +41,7 @@ globalThis.fetch = async (url, init = {}) => {
   if (url.includes("/rest/v1/listing_billing") && method === "GET") return new Response(JSON.stringify(state.billing));
   if (url.includes("/rest/v1/")) return state.dbFail ? new Response("{}", { status: 500 }) : new Response(null, { status: 204 }); // writes
   if (url.endsWith("/rpc/unlock_lead")) return state.dbFail ? new Response("{}", { status: 500 }) : new Response("true");
+  if (url.startsWith("https://api.stripe.com/v1/prices/")) { const id = url.split("/").pop(); const p = { price_m: [9900, "month"], price_y: [99000, "year"], price_pm: [4900, "month"], price_py: [49900, "year"], price_old: [1000, "month"] }[id]; return p ? new Response(JSON.stringify({ unit_amount: p[0], currency: "usd", recurring: { interval: p[1] } })) : new Response("{}", { status: 404 }); }
   if (url.startsWith("https://api.stripe.com/v1/subscriptions/")) return new Response(JSON.stringify({ id: "sub_1", customer: "cus_1", status: "active", items: { data: [{ price: { id: "price_y" }, current_period_end: 1_900_000_000 }] } }));
   if (url.startsWith("https://api.stripe.com/v1/checkout/sessions")) { const r = stripeReply(url); return r instanceof Response ? r : new Response(JSON.stringify(r)); }
   throw new Error("unexpected " + url);
@@ -72,7 +77,7 @@ assert.deepEqual([f["metadata[kind]"], f["metadata[lead_id]"], f["metadata[listi
 assert.deepEqual([f["payment_intent_data[metadata][kind]"], f["payment_intent_data[metadata][lead_id]"]], ["lead_unlock", LEAD], "metadata also on the payment itself");
 assert.equal(f["invoice_creation[enabled]"], "true", "a receipt is created for payment history");
 assert.deepEqual([f.customer_creation, f.customer_email, f.customer], ["always", "o@a.com", undefined], "new customer is created and remembered");
-assert.equal(f.success_url, `https://site.test/contractor/leads?unlocked=1&lead=${LEAD}&session_id={CHECKOUT_SESSION_ID}`, "returns to the page and names the request, so it can show it unlocking");
+assert.equal(f.success_url, `https://site.test/contractor/leads?unlocked=1&open=lead:${LEAD}&lead=${LEAD}&session_id={CHECKOUT_SESSION_ID}`, "returns to the page and names the request, so it can show it unlocking");
 
 // $5 on the paid plan (monthly or yearly), but only while it is active.
 reset(); state.listing = [{ plan: "featured", plan_until: future }];
@@ -99,7 +104,14 @@ assert.deepEqual([f["line_items[0][price]"], f.mode, f["metadata[plan]"]], ["pri
 reset(); await checkout({ env, request: req({}) });
 assert.equal(form(stripeCall())["line_items[0][price]"], "price_m", "monthly by default");
 reset();
-assert.equal((await checkout({ env, request: req({ plan: "premium" }) })).status, 400, "the Premium plan no longer exists");
+assert.equal((await checkout({ env, request: req({ plan: "gold" }) })).status, 400, "an unknown plan");
+assert.equal((await checkout({ env, request: req({ plan: "premium", interval: "year" }) })).status, 200, "Premium can be bought");
+f = form(stripeCall());
+assert.deepEqual([f["line_items[0][price]"], f["metadata[plan]"]], ["price_py", "premium"], "Premium yearly price");
+reset(); await checkout({ env, request: req({ plan: "premium" }) });
+assert.equal(form(stripeCall())["line_items[0][price]"], "price_pm", "Premium monthly price");
+reset();
+assert.equal((await checkout({ env: { ...env, STRIPE_PRICE_PREMIUM: undefined }, request: req({ plan: "premium" }) })).status, 501, "Premium price not set up yet");
 assert.equal((await checkout({ env, request: req({ interval: "weekly" }) })).status, 400);
 reset(); state.billing = [{ stripe_customer_id: "cus_1", status: "active" }];
 assert.equal((await checkout({ env, request: req({}) })).status, 409, "already subscribed");
@@ -141,7 +153,7 @@ assert.equal((await send(ev({ id: "cs_2", mode: "subscription", subscription: "s
 const billing = JSON.parse(log.find((l) => l.url.includes("listing_billing") && l.method === "POST").body);
 assert.deepEqual([billing.plan, billing.billing_interval, billing.status, billing.current_period_end], ["featured", "year", "active", new Date(1_900_000_000 * 1000).toISOString()]);
 const patch = JSON.parse(log.find((l) => l.url.includes("/rest/v1/listings") && l.method === "PATCH").body);
-assert.deepEqual(patch, { plan: "featured", plan_until: new Date(1_900_000_000 * 1000).toISOString() });
+assert.deepEqual(patch, { plan: "featured", premium: false, plan_until: new Date(1_900_000_000 * 1000).toISOString() });
 
 // ------------------------------------------------------------ coming back from Stripe: /api/stripe/confirm
 const confirmMod = await import("../functions/api/stripe/confirm.ts");

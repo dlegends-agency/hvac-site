@@ -35,7 +35,7 @@ export function AuthPage({ audience }: { audience: Audience }) {
     return () => window.clearTimeout(t);
   }, []);
 
-  const after = customer ? "/account" : plan === "featured" ? `/contractor/billing?plan=featured&interval=${params.get("interval") === "month" ? "month" : "year"}` : "/contractor";
+  const after = customer ? "/account" : plan === "featured" || plan === "premium" ? `/contractor/billing?plan=${plan}&interval=${params.get("interval") === "month" ? "month" : "year"}` : "/contractor";
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();

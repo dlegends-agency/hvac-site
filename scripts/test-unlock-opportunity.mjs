@@ -52,15 +52,21 @@ let f = form();
 assert.equal(f["line_items[0][price_data][unit_amount]"], "1000");
 assert.equal(f["line_items[0][price_data][product_data][name]"], "Building permit: Residential HVAC: replace furnace");
 assert.deepEqual([f["metadata[kind]"], f["metadata[item_id]"], f["metadata[listing_id]"]], ["permit_unlock", ITEM, LISTING]);
-assert.equal(f.success_url, `https://site.test/contractor/opportunities?unlocked=1&session_id={CHECKOUT_SESSION_ID}&open=${ITEM}&tab=permits`);
+assert.equal(f.success_url, `https://site.test/contractor/leads?unlocked=1&session_id={CHECKOUT_SESSION_ID}&open=permit:${ITEM}`);
 
 reset(); state.listing = [{ plan: "featured", plan_until: future }]; state.item = [{ title: "Replace chiller" }];
 res = await unlock({ env, request: req({ kind: "bid", itemId: ITEM }) });
-assert.equal((await res.json()).cents, 500, "the paid plan pays $5");
+assert.equal((await res.json()).cents, 5000, "the paid plan pays $50 for a government bid");
 f = form();
 assert.equal(f["line_items[0][price_data][product_data][name]"], "Government bid: Replace chiller");
 assert.equal(f["metadata[kind]"], "bid_unlock");
-assert.ok(!f.success_url.includes("tab=permits"), "bids are the first tab");
+assert.ok(f.success_url.includes(`open=bid:${ITEM}`), "returns to the Leads page with the bid open");
+reset(); state.listing = [{ plan: "free", plan_until: null }]; state.item = [{ title: "Replace chiller" }];
+res = await unlock({ env, request: req({ kind: "bid", itemId: ITEM }) });
+assert.equal((await res.json()).cents, 10000, "a free business pays $100 for a government bid");
+reset(); state.listing = [{ plan: "featured", premium: true, plan_until: future }]; state.item = [{ title: "Replace chiller" }];
+res = await unlock({ env, request: req({ kind: "bid", itemId: ITEM }) });
+assert.equal(res.status, 409, "Premium has everything unlocked and never pays");
 
 // Coming back from Stripe: the server asks Stripe, then unlocks through the database function.
 reset();
