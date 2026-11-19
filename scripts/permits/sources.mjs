@@ -118,3 +118,43 @@ export const SOURCES = {
   austin: { label: "Austin", fetch: fetchAustin },
   dallas: { label: "Dallas", fetch: fetchDallas },
 };
+
+// ---------------------------------------------------------------- Collin County: "Collin CAD Building Permits" (data.texas.gov 82ee-gbj5)
+// One dataset for the many cities of Collin County (Plano, Frisco, McKinney, Allen, Prosper, Melissa and more). It has no HVAC permit type, so
+// the work description is searched. Property owners' names are never read or saved; the data lists the contractor's or builder's name only.
+const titleCity = (s) => String(s ?? "").toLowerCase().replace(/\b[a-z]/g, (c) => c.toUpperCase()).trim();
+
+export function mapCollin(r) {
+  const city = titleCity(r.situscity || String(r.permitissuedby ?? "").replace(/\s+CITY$/i, ""));
+  const contractor = r.permitbuildername || r.permitissuedto;
+  return buildPermit({
+    source: "collin",
+    sourceId: r.permitid,
+    city,
+    type: r.permittypedescr,
+    description: r.permitcomments,
+    label: r.proprescom,
+    issuedOn: isoDay(r.permitissueddate),
+    valueUsd: num(r.permitvalue),
+    address: r.situsconcatshort || r.situsconcat,
+    zip: r.situszip,
+    contractor,
+    url: null,
+    people: [buildPerson({ role: "Contractor", company: contractor })],
+  });
+}
+
+/** Only heating, cooling and ventilation permits, issued in the last `days` days, across every city in the county. */
+export async function fetchCollin({ limit = 200, days = 30, now = new Date() } = {}) {
+  // The county publishes a few weeks late, so always look back at least 90 days (the same permit is never saved twice).
+  days = Math.max(days, 90);
+  // Some rows carry impossible future dates, so the window also stops today.
+  const rows = await soda("data.texas.gov", "82ee-gbj5", {
+    $where: `permitissueddate >= '${isoDaysAgo(days, now)}' AND permitissueddate <= '${isoDaysAgo(0, now)}T23:59:59' AND permitcomments is not null AND (${likeAny("permitcomments")})`,
+    $order: "permitissueddate DESC, permitnum DESC",
+    $limit: String(limit * 8),
+  });
+  return dedupe(rows.map(mapCollin).filter((p) => p.trade === "HVAC" && p.address)).slice(0, limit * 4);
+}
+
+SOURCES.collin = { label: "Collin County (Plano, Frisco, McKinney and more)", fetch: fetchCollin };

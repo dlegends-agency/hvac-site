@@ -1,7 +1,7 @@
 // Offline tests for the permit classifier and the city mappers. Run: npm run permits:test
 import assert from "node:assert/strict";
 import { buildPermit, buildPerson, phoneText, classifyProperty, classifyTrade, cleanDescription, dedupe, summarize } from "./classify.mjs";
-import { dallasDate, mapAustin, mapDallas } from "./sources.mjs";
+import { dallasDate, mapAustin, mapCollin, mapDallas } from "./sources.mjs";
 import { ageInDays, scorePermit } from "../../src/lib/permit-score.ts";
 import { matchDirectory, permitTitle } from "../../src/lib/permits.ts";
 import { contactKey, domainGuesses, enrichPermits, findContractorEmail, isCompletePerson, isEmail, keepComplete, pageHasPhone, plainCompany } from "./contacts.mjs";
@@ -242,6 +242,16 @@ test("only permits whose contractor has a name, phone and email are kept", () =>
   const kept = keepComplete([{ id: 1, people: [full, { ...full, email: null }] }, { id: 2, people: [{ ...full, email: null }] }, { id: 3 }]);
   assert.deepEqual(kept.map((p) => p.id), [1]);
   assert.deepEqual(kept[0].people, [full], "contractors without full details are dropped from a kept permit");
+});
+
+test("Collin County: any city in the county, the contractor is the builder name only, owners are never read", () => {
+  const p = mapCollin({ permitid: "1072850", permitnum: "26-0001", permittypedescr: "Miscellaneous", permitissueddate: "2026-10-02T00:00:00.000", permitissuedby: "MELISSA CITY", permitvalue: "23000", permitcomments: "REPLACING EXISTING HVAC SYSTEM W/ A 4 TON GAS SYSTEM", permitbuildername: "ACCURATE AIR TX", proprescom: "Residential", propownername: "SOME OWNER", situsconcatshort: "3404 MONTGOMERY AVE", situscity: "MELISSA", situszip: "75454" });
+  assert.deepEqual([p.source, p.source_id, p.city, p.trade, p.issued_on, p.zip], ["collin", "1072850", "Melissa", "HVAC", "2026-10-02", "75454"]);
+  assert.equal(p.value_usd, 23000);
+  assert.equal(p.property_class, "residential");
+  assert.equal(p.contractor_name, "ACCURATE AIR TX");
+  assert.ok(!JSON.stringify(p).includes("SOME OWNER"), "the property owner is never kept");
+  assert.equal(mapCollin({ permitid: "2", permitissuedby: "PLANO CITY", permitcomments: "ROOF", permittypedescr: "Roof/Re-Roof" }).city, "Plano", "the city falls back to the issuing city");
 });
 
 await Promise.all(pending);

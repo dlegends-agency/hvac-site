@@ -19,7 +19,9 @@ For each permit it:
 | --- | --- | --- |
 | Austin | [Issued Construction Permits](https://data.austintexas.gov/resource/3syk-w9eu) on data.austintexas.gov | open Socrata data |
 | Dallas | [Building Permits](https://www.dallasopendata.com/resource/e7gq-4sah) on dallasopendata.com | open Socrata data; the issue date is text, so it is read month by month |
-| Collin County | [Collin CAD Building Permits](https://data.texas.gov/resource/82ee-gbj5) on data.texas.gov | not added yet |
+| Collin County (Plano, Frisco, McKinney, Allen, Prosper, Melissa and more) | [Collin CAD Building Permits](https://data.texas.gov/resource/82ee-gbj5) on data.texas.gov | open Socrata data; no HVAC permit type, so the work description is searched; the county publishes a few weeks late, so it always looks back 90 days; lists the builder or contractor name only |
+| Fort Worth | Development Permits (ArcGIS) | not added: the data has no contractor name, only the owner, and owners are never read |
+| San Antonio, El Paso, Arlington, Corpus Christi and others | none | no open permit feed that allows automated use was found |
 | Houston | none | Houston does not publish its permits as an open data feed, and its permitting site blocks automated access, so it is not included |
 
 ## People details
