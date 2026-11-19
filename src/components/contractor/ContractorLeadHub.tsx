@@ -251,8 +251,8 @@ export default function ContractorLeadHub() {
                   </button>
                   <div className="flex shrink-0 flex-col items-end gap-1.5">
                     {i.unlocked
-                      ? <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-xs font-semibold text-green-800"><Check className="size-3" aria-hidden /> Unlocked</span>
-                      : <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600"><Lock className="size-3" aria-hidden /> Unlock ${i.price}</span>}
+                      ? <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-1 text-xs font-bold text-green-800"><Check className="size-3.5" aria-hidden /> {plan === "premium" ? "Unlocked (Premium)" : "Paid & unlocked"}</span>
+                      : <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-900"><Lock className="size-3.5" aria-hidden /> Locked · ${i.price} to unlock</span>}
                     {saved
                       ? <span className="inline-flex items-center gap-1 text-xs font-semibold text-primary"><BookmarkCheck className="size-4" aria-hidden /> Saved</span>
                       : <button type="button" onClick={() => void saveChosen([i])} disabled={saving} className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline disabled:opacity-60"><BookmarkPlus className="size-4" aria-hidden /> Save</button>}
@@ -281,7 +281,7 @@ export default function ContractorLeadHub() {
       })()}
 
       <p className="mt-8 max-w-3xl text-xs text-slate-500">
-        Customer requests can be sent to up to three contractors, and we can&apos;t guarantee any number of requests or jobs. Permits and bids come from public records (city open data and SAM.gov) and are found for you each morning.
+        Customer requests can be sent to up to three contractors, and we can&apos;t guarantee any number of requests or jobs. Permits and bids come from public records (city and federal open data) and are found for you each morning.
         Unlocked leads are not refundable. Use contact details only to respond to the lead and follow the rules that apply to calls, texts and emails.
       </p>
     </>

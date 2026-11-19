@@ -102,7 +102,7 @@ export function UnlockBox({ kind, itemId, price, what }: { kind: "permit" | "bid
   return (
     <div className="mt-3 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4">
       <p className="flex items-center gap-2 text-sm font-semibold text-navy"><Lock className="size-4 text-slate-500" aria-hidden /> Phone and email are locked</p>
-      <p className="mt-1 text-sm text-slate-600">You can see everything else about this {what}. Unlock it to see {kind === "permit" ? "the contractor's phone number, email and website, and the city record" : "the contracting officer's phone number and email, and the SAM.gov links"}.</p>
+      <p className="mt-1 text-sm text-slate-600">You can see everything else about this {what}. Unlock it to see {kind === "permit" ? "the contractor's phone number, email and website, and the city record" : "the contracting officer's phone number and email, and the full notice details"}.</p>
       <div className="mt-3">
         <UnlockButtons endpoint="/api/stripe/unlock-opportunity" body={{ kind, itemId }} price={price} returnTo={`/contractor/leads?unlocked=1&open=${kind}:${itemId}`} />
         <p className="mt-2 text-xs text-slate-500">One payment for this {what}. Not refundable.</p>

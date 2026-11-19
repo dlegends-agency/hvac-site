@@ -52,12 +52,12 @@ export function BidDetail({ row, unlock, compose, onClose }: { row: Row; unlock?
       <p className="mt-4 rounded-xl bg-slate-50 p-3 text-sm text-slate-800">{b.summary}</p>
 
       <div className="mt-4 flex flex-wrap gap-2">
-        {b.sam_url && <a href={b.sam_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white hover:opacity-90">Open on SAM.gov <ExternalLink className="size-4" aria-hidden /></a>}
+        {b.sam_url && !compose && <a href={b.sam_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white hover:opacity-90">Open on SAM.gov <ExternalLink className="size-4" aria-hidden /></a>}
         {proposalTo && compose && (
           <EmailOpportunity kind="bid" itemId={b.id} index={proposalIndex} email={proposalTo.email as string} recipient={proposalTo.name ?? (proposalTo.email as string)} businessName={compose.businessName}
             label="Send Project Email Proposal" project={bidTitle(b)} defaultSubject={`Proposal: ${bidTitle(b)}`.slice(0, 150)} />
         )}
-        {b.info_url && <a href={b.info_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-navy hover:bg-slate-50">More information <ExternalLink className="size-4" aria-hidden /></a>}
+        {b.info_url && !compose && <a href={b.info_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-navy hover:bg-slate-50">More information <ExternalLink className="size-4" aria-hidden /></a>}
       </div>
 
       <h3 className="mt-6 text-sm font-bold text-navy">Why this score</h3>
@@ -80,7 +80,7 @@ export function BidDetail({ row, unlock, compose, onClose }: { row: Row; unlock?
       <h3 className="mt-6 text-sm font-bold text-navy">Contracting contacts</h3>
       {locked && unlock && <UnlockBox kind="bid" itemId={b.id} price={unlock.price} what="bid" />}
       {b.contacts.length === 0 ? (
-        <p className="mt-1 text-sm text-slate-500">No contact is listed. Use the SAM.gov notice.</p>
+        <p className="mt-1 text-sm text-slate-500">No contact is listed for this bid.</p>
       ) : (
         <ul className="mt-2 grid gap-3 sm:grid-cols-2">
           {b.contacts.map((c, i) => (
@@ -97,7 +97,7 @@ export function BidDetail({ row, unlock, compose, onClose }: { row: Row; unlock?
       )}
 
       {b.description && <><h3 className="mt-6 text-sm font-bold text-navy">Description</h3><p className="mt-1 text-sm whitespace-pre-line text-slate-700">{b.description}</p></>}
-      <p className="mt-4 text-xs text-slate-500">Federal notices come from SAM.gov, the government&apos;s contracting site, through its public daily file. Always read the full notice there: deadlines and requirements can change.</p>
+      <p className="mt-4 text-xs text-slate-500">Federal notices come from the government&apos;s public contracting data. Deadlines and requirements can change, so confirm them with the contracting officer.</p>
     </SidePanel>
   );
 }
