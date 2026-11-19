@@ -46,6 +46,8 @@ export function ListingEditor() {
   const [notes, setNotes] = useState("");
   // False until contractor SQL has been run (the plan columns do not exist yet), so saving keeps working before then.
   const [planColumn, setPlanColumn] = useState(false);
+  // False until supabase/schema-revamp.sql has been run (the premium column does not exist yet).
+  const [premiumColumn, setPremiumColumn] = useState(false);
   // Same for the license and verification columns (profiles SQL). `licenseSince` keeps the date an earlier check was recorded.
   const [profileColumns, setProfileColumns] = useState(false);
   const [licenseSince, setLicenseSince] = useState<string | null>(null);
@@ -64,7 +66,10 @@ export function ListingEditor() {
       supabase.from("listing_private").select("*").eq("listing_id", id).maybeSingle(),
     ]).then(([l, p]) => {
       const row = l.data as Listing | null;
-      if (row) setPlanColumn(row.plan !== undefined);
+      if (row) {
+        setPlanColumn(row.plan !== undefined);
+        setPremiumColumn(row.premium !== undefined);
+      }
       if (row) {
         setProfileColumns(row.license_number !== undefined);
         setLicenseSince(row.license_verified_at ?? null);
@@ -79,7 +84,7 @@ export function ListingEditor() {
           services: row.services, emergency_service: row.emergency_service, phone: row.phone ?? "", email: row.email ?? "",
           website: row.website ?? "", address: row.address ?? "", city: row.city, state: row.state,
           postal_code: row.postal_code ?? "", service_areas: row.service_areas ?? "",
-          plan: row.plan ?? "free", plan_until: row.plan_until ? row.plan_until.slice(0, 10) : "",
+          plan: row.plan === "featured" && row.premium ? "premium" : row.plan ?? "free", plan_until: row.plan_until ? row.plan_until.slice(0, 10) : "",
           license_number: row.license_number ?? "", license_verified: Boolean(row.license_verified_at),
         });
       }
@@ -114,7 +119,7 @@ export function ListingEditor() {
       phone: draft.phone.trim() || null, email: draft.email.trim() || null, website: draft.website.trim() || null,
       address: draft.address.trim() || null, city: draft.city.trim(), state: draft.state.trim(),
       postal_code: draft.postal_code.trim() || null, service_areas: draft.service_areas.trim() || null,
-      ...(planColumn || draft.plan !== "free" ? { plan: draft.plan, plan_until: draft.plan_until ? new Date(`${draft.plan_until}T23:59:59Z`).toISOString() : null } : {}),
+      ...(planColumn || draft.plan !== "free" ? { plan: draft.plan === "premium" ? "featured" : draft.plan, ...(premiumColumn || draft.plan === "premium" ? { premium: draft.plan === "premium" } : {}), plan_until: draft.plan_until ? new Date(`${draft.plan_until}T23:59:59Z`).toISOString() : null } : {}),
       ...(profileColumns ? {
         license_number: draft.license_number.trim() || null,
         // A mark needs a number. The date of an earlier check is kept; a new check is dated now.
@@ -214,7 +219,7 @@ export function ListingEditor() {
               <Panel title="Plan (advertising)">
                 <label htmlFor="plan" className="sr-only">Plan</label>
                 <select id="plan" value={draft.plan} onChange={(e) => set("plan", e.target.value as PlanId)} className={`${inputClass} capitalize`}>
-                  <option value="free">Free</option><option value="featured">Featured (paid)</option>
+                  <option value="free">Free</option><option value="featured">Featured (paid)</option><option value="premium">Premium (paid)</option>
                 </select>
                 <label htmlFor="plan_until" className="mt-3 mb-1 block text-sm font-semibold text-navy">Paid until <span className="font-normal text-slate-500">(optional)</span></label>
                 <input id="plan_until" type="date" value={draft.plan_until} onChange={(e) => set("plan_until", e.target.value)} className={inputClass} />

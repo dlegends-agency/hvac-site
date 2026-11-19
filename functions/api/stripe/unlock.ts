@@ -1,11 +1,11 @@
 // POST /api/stripe/unlock  { leadId }  (Authorization: Bearer <Supabase access token>)
 // Starts a one-time Stripe Checkout payment to see one customer's full details, and returns { url }.
-// The price is decided here, never by the browser: $5 for a contractor on the paid plan, $10 otherwise.
+// The price is decided here, never by the browser: $5 for a contractor on the Featured plan, $10 on Free. Premium has everything unlocked and never pays.
 // The lead is unlocked by the Stripe webhook after the payment succeeds.
 import { defaultCardId, payWithSavedCard } from "../../_lib/cards";
 import { unlockLead } from "../../_lib/fulfil";
 import { isPaidNow } from "../../_lib/google";
-import { notConfigured, LEAD_PRICE_CENTS, billingFor, db, getUser, json, ownedListingId, siteOrigin, stripe, type Env } from "../../_lib/stripe";
+import { notConfigured, UNLOCK_CENTS, billingFor, db, getUser, json, ownedListingId, siteOrigin, stripe, type Env } from "../../_lib/stripe";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -24,16 +24,17 @@ export const onRequestPost = async ({ env, request }: { env: Env; request: Reque
   const leadId = encodeURIComponent(body.leadId);
   const [assignmentRes, listingRes, leadRes] = await Promise.all([
     db(env, `lead_assignments?lead_id=eq.${leadId}&listing_id=eq.${encodeURIComponent(listingId)}&select=unlocked_at&limit=1`),
-    db(env, `listings?id=eq.${encodeURIComponent(listingId)}&select=plan,plan_until&limit=1`),
+    db(env, `listings?id=eq.${encodeURIComponent(listingId)}&select=plan,plan_until,premium&limit=1`),
     db(env, `leads?id=eq.${leadId}&select=issue&limit=1`),
   ]);
   const assignment = assignmentRes.ok ? ((await assignmentRes.json()) as { unlocked_at: string | null }[])[0] : undefined;
-  const listing = listingRes.ok ? ((await listingRes.json()) as { plan: string | null; plan_until: string | null }[])[0] : undefined;
+  const listing = listingRes.ok ? ((await listingRes.json()) as { plan: string | null; plan_until: string | null; premium: boolean | null }[])[0] : undefined;
   const lead = leadRes.ok ? ((await leadRes.json()) as { issue: string }[])[0] : undefined;
   if (!assignment || !listing || !lead) return json({ error: "That request was not sent to you" }, 404);
   if (assignment.unlocked_at) return json({ error: "Already unlocked" }, 409);
 
-  const cents = isPaidNow(listing) ? LEAD_PRICE_CENTS.paid : LEAD_PRICE_CENTS.free;
+  if (isPaidNow(listing) && listing.premium) return json({ error: "Already unlocked: Premium includes every request" }, 409);
+  const cents = isPaidNow(listing) ? UNLOCK_CENTS.lead.paid : UNLOCK_CENTS.lead.free;
   const origin = siteOrigin(env, request);
   const name = `Customer request: ${lead.issue.replace(/\s+/g, " ").slice(0, 120)}`;
   const meta = { kind: "lead_unlock", lead_id: body.leadId, listing_id: listingId };
@@ -57,7 +58,7 @@ export const onRequestPost = async ({ env, request }: { env: Env; request: Reque
     "line_items[0][price_data][currency]": "usd",
     "line_items[0][price_data][unit_amount]": String(cents),
     "line_items[0][price_data][product_data][name]": name,
-    success_url: `${origin}/contractor/leads?unlocked=1&lead=${body.leadId}&session_id={CHECKOUT_SESSION_ID}`,
+    success_url: `${origin}/contractor/leads?unlocked=1&open=lead:${body.leadId}&lead=${body.leadId}&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${origin}/contractor/leads`,
     client_reference_id: listingId,
     "invoice_creation[enabled]": "true",

@@ -19,5 +19,10 @@ assert.deepEqual(entitlement(env, sub("past_due", "price_y")), { plan: "featured
 assert.equal(entitlement(env, sub("canceled")).plan, "free");
 assert.equal(entitlement(env, sub("unpaid")).plan, "free");
 assert.equal(entitlement(env, sub("active", "price_unknown")).plan, "free");
-assert.ok(isPlan("featured") && !isPlan("free") && !isPlan("premium") && !isPlan("admin"));
+assert.ok(isPlan("featured") && isPlan("premium") && !isPlan("free") && !isPlan("admin"));
+const env2 = { ...env, STRIPE_PRICE_PREMIUM: "price_pm", STRIPE_PRICE_PREMIUM_YEARLY: "price_py" };
+assert.equal(planForPrice(env2, "price_pm"), "premium"); assert.equal(planForPrice(env2, "price_py"), "premium"); assert.equal(planForPrice(env2, "price_f"), "featured");
+assert.equal(intervalForPrice(env2, "price_pm"), "month"); assert.equal(intervalForPrice(env2, "price_py"), "year");
+assert.equal(priceFor(env2, "premium", "year"), "price_py"); assert.equal(priceFor(env2, "premium", "month"), "price_pm");
+assert.equal(entitlement(env2, sub("active", "price_py")).plan, "premium");
 console.log("stripe helpers: all passed");

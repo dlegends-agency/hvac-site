@@ -38,7 +38,7 @@ function Locked({ lead, price }: { lead: ContractorLead; price: number }) {
       <p className="flex items-center gap-2 text-sm font-semibold text-navy"><Lock className="size-4 text-slate-500" aria-hidden /> Phone, email and street address are locked</p>
       <p className="mt-1 text-sm text-slate-600">Unlock to call or email the customer and see their exact address.</p>
       <div className="mt-3">
-        <UnlockButtons endpoint="/api/stripe/unlock" body={{ leadId: lead.id }} price={price} returnTo={`/contractor/leads?unlocked=1&lead=${lead.id}`} />
+        <UnlockButtons endpoint="/api/stripe/unlock" body={{ leadId: lead.id }} price={price} returnTo={`/contractor/leads?unlocked=1&open=lead:${lead.id}&lead=${lead.id}`} />
         <p className="mt-2 text-xs text-slate-500">One payment for this request. Not refundable.</p>
       </div>
     </div>
@@ -192,7 +192,7 @@ function LeadRow({ lead, onOpen }: { lead: ContractorLead; onOpen: () => void })
 }
 
 /** The whole request in a panel that slides over the page. Escape or a click outside closes it. */
-function LeadPanel({ lead, price, onSaved, onClose }: { lead: ContractorLead; price: number; onSaved: (l: ContractorLead) => void; onClose: () => void }) {
+export function LeadPanel({ lead, price, onSaved, onClose }: { lead: ContractorLead; price: number; onSaved: (l: ContractorLead) => void; onClose: () => void }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     document.addEventListener("keydown", onKey);

@@ -162,13 +162,12 @@ export function OverviewDashboard() {
   // Businesses on a paid plan right now (a plan only counts until its paid-until date).
   const paying = useMemo(() => {
     const billingById = new Map(billingQ.data.map((b) => [b.listing_id, b]));
-    const featured = plans.find((p) => p.id === "featured")!.price;
     const rows = listings
       .filter((l) => activePlan(l) !== "free")
       .map((l) => ({ l, plan: activePlan(l), billing: billingById.get(l.id) }))
       .sort((a, b) => a.l.business_name.localeCompare(b.l.business_name));
     // Yearly subscribers count as a twelfth of the yearly price each month.
-    const monthly = rows.reduce((sum, r) => sum + (r.billing?.billing_interval === "year" ? featured.year / 12 : featured.month), 0);
+    const monthly = rows.reduce((sum, r) => { const price = plans.find((p) => p.id === r.plan)?.price ?? { month: 0, year: 0 }; return sum + (r.billing?.billing_interval === "year" ? price.year / 12 : price.month); }, 0);
     return { rows, monthly: Math.round(monthly) };
   }, [listings, billingQ.data]);
   // Money from customers' requests that contractors paid to unlock (last 30 days).

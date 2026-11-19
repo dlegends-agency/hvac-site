@@ -1,6 +1,6 @@
-// POST /api/stripe/checkout  { plan: "featured", interval: "month" | "year" }  (Authorization: Bearer <Supabase access token>)
+// POST /api/stripe/checkout  { plan: "featured" | "premium", interval: "month" | "year" }  (Authorization: Bearer <Supabase access token>)
 // Starts a Stripe Checkout subscription for the signed-in contractor's listing and returns { url }.
-import { notConfigured, billingFor, getUser, isInterval, isPlan, json, ownedListingId, priceFor, siteOrigin, stripe, type Env } from "../../_lib/stripe";
+import { notConfigured, billingFor, getUser, isInterval, isPlan, json, ownedListingId, priceFor, priceMatches, priceSetting, siteOrigin, stripe, type Env } from "../../_lib/stripe";
 
 export const onRequestPost = async ({ env, request }: { env: Env; request: Request }) => {
   const notReady = notConfigured(env);
@@ -14,7 +14,12 @@ export const onRequestPost = async ({ env, request }: { env: Env; request: Reque
   const interval = body.interval ?? "month";
   if (!isPlan(plan) || !isInterval(interval)) return json({ error: "Unknown plan" }, 400);
   const price = priceFor(env, plan, interval);
-  if (!price) return json({ error: "Payments are not configured", missing: [interval === "year" ? "STRIPE_PRICE_FEATURED_YEARLY" : "STRIPE_PRICE_FEATURED"] }, 501);
+  if (!price) return json({ error: "Payments are not configured", missing: [priceSetting(plan, interval)] }, 501);
+
+  // Never charge an amount that differs from the one on the website: a stale price id in Cloudflare is refused.
+  const matches = await priceMatches(env, price, plan, interval).catch(() => null);
+  if (matches === null) return json({ error: "Could not check the plan price" }, 502);
+  if (!matches) return json({ error: "The Stripe price does not match the plan price on the website", missing: [priceSetting(plan, interval)] }, 501);
 
   const listingId = await ownedListingId(env, user.id);
   if (!listingId) return json({ error: "No approved listing on this account" }, 403);

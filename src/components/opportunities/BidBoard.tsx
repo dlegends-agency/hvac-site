@@ -10,6 +10,8 @@ interface Row extends ScoredBid {
   b: GovBid;
 }
 
+export type BidRow = Row;
+
 const shortType = (t: string) => t.replace(/combined synopsis\/solicitation/i, "Solicitation").replace(/presolicitation/i, "Presolicitation");
 const postedText = (age: number | null) => (age === null ? "" : age === 0 ? "posted today" : age === 1 ? "posted yesterday" : `posted ${age} days ago`);
 
@@ -38,7 +40,7 @@ function Card({ row, onOpen }: { row: Row; onOpen: () => void }) {
   );
 }
 
-function Detail({ row, unlock, compose, onClose }: { row: Row; unlock?: UnlockInfo; compose?: ComposeInfo; onClose: () => void }) {
+export function BidDetail({ row, unlock, compose, onClose }: { row: Row; unlock?: UnlockInfo; compose?: ComposeInfo; onClose: () => void }) {
   const { b } = row;
   const locked = b.unlocked === false;
   // The proposal goes to the first contracting contact that has an email (the server reads the address itself).
@@ -165,7 +167,7 @@ export function BidBoard({ bids, error, cover, startCity = "all", unlock, compos
         <TierColumns rows={rows} itemKey={(r) => r.b.id} card={(r) => <Card row={r} onOpen={() => setOpenId(r.b.id)} />} />
       )}
 
-      {open && <Detail row={open} unlock={unlock} compose={compose} onClose={() => setOpenId(null)} />}
+      {open && <BidDetail row={open} unlock={unlock} compose={compose} onClose={() => setOpenId(null)} />}
     </div>
   );
 }

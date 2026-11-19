@@ -52,7 +52,8 @@ export interface ContractorLead {
   contacted_at: string | null;
   issue: string;
   first_name: string;
-  last_name: string;
+  /** Null on the Free plan: a free business sees the first name only. */
+  last_name: string | null;
   urgency: string | null;
   city: string | null;
   state: string | null;
@@ -117,7 +118,9 @@ export interface Listing {
   source?: "submitted" | "seed" | "agent" | "manual";
   source_url?: string | null;
   attribution?: string | null;
-  plan?: PlanId;
+  /** The database stores "free" or "featured". Premium is "featured" with `premium` true (see activePlan). */
+  plan?: "free" | "featured";
+  premium?: boolean;
   plan_until?: string | null;
   google_reviews_url?: string | null;
   google_place_id?: string | null;
@@ -138,7 +141,7 @@ export type DayKey = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
 /** Opening hours by day, "HH:MM" in 24-hour time. A missing or null day means closed. */
 export type BusinessHours = Partial<Record<DayKey, { open: string; close: string } | null>>;
 
-export type PlanId = "free" | "featured";
+export type PlanId = "free" | "featured" | "premium";
 
 export interface ListingClaim {
   id: string;

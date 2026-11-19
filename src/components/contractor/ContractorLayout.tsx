@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { Briefcase, CreditCard, ExternalLink, LayoutDashboard, Loader2, LogOut, MessageSquare, Settings, Sparkles, ThumbsUp, UserCog, Users } from "lucide-react";
+import { BookmarkCheck, ClipboardList, CreditCard, ExternalLink, LayoutDashboard, Loader2, LogOut, MessageSquare, Settings, Sparkles, ThumbsUp, UserCog, Users } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { activePlan } from "@/lib/plans";
 import { useContractorCounts } from "@/lib/use-contractor-counts";
@@ -17,6 +17,7 @@ interface NavItem {
   label: string;
   icon: typeof Users;
   badge?: BadgeKey;
+  /** Also the active item for these paths (the page it replaced, and where payments return). */
 }
 
 /** The menu, grouped by what you do there. A number on an item is something waiting for you. */
@@ -25,8 +26,9 @@ const groups: { title: string; items: NavItem[] }[] = [
     title: "Work",
     items: [
       { href: "/contractor", label: "Dashboard", icon: LayoutDashboard },
-      { href: "/contractor/leads", label: "Customer requests", icon: Users, badge: "newLeads" },
-      { href: "/contractor/opportunities", label: "Opportunities", icon: Briefcase, badge: "newOpportunities" },
+      { href: "/contractor/leads", label: "Leads", icon: Users, badge: "newLeads" },
+      { href: "/contractor/my-leads", label: "My Leads", icon: BookmarkCheck },
+      { href: "/contractor/projects", label: "Projects & bids", icon: ClipboardList },
       { href: "/contractor/messages", label: "Messages", icon: MessageSquare, badge: "messages" },
     ],
   },

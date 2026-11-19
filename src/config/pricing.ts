@@ -18,51 +18,78 @@ export interface Plan {
  */
 export const leadPrice = { free: 10, paid: 5 } as const;
 
+/**
+ * What it costs to unlock ONE customer request, building permit or government bid, by plan ("paid" is Featured), in US dollars.
+ * Premium unlocks everything and pays nothing. The server charges functions/_lib/stripe.ts UNLOCK_CENTS: keep them the same.
+ */
+export const unlockPrice = {
+  lead: { free: 10, paid: 5 },
+  permit: { free: 10, paid: 5 },
+  bid: { free: 100, paid: 50 },
+} as const;
+
 export const plans: Plan[] = [
   {
     id: "free",
     name: "Free",
     price: { month: 0, year: 0 },
-    blurb: "Get listed in the directory.",
+    blurb: "Get listed and see what is out there.",
     features: [
       "Directory listing with your business name, phone number and address",
-      "About us and an emergency-service label on your listing",
-      "Show your license number with a license badge",
-      "Customer recommendations on your listing, which you choose to show",
-      "Customer requests near you: you see the customer's name and the problem",
-      `Unlock a customer's full details for $${leadPrice.free} per request`,
-      "Contractor login and dashboard",
+      "About us, an emergency-service label, license badge and customer recommendations",
+      "One Leads page with customer requests, building permits and government bids near you",
+      "See a customer's first name and the problem; permits and bids show a short preview",
+      "Save leads to My Leads and track your projects and bids",
+      `Unlock the full details: $${unlockPrice.lead.free} per customer request, $${unlockPrice.permit.free} per permit, $${unlockPrice.bid.free} per government bid`,
     ],
-    locked: ["List of services", "Service areas", "Opening hours", "Verified by HVACHelp badge", "Featured recommendation above About us", "Google star rating and reviews"],
+    locked: ["Customer's full name", "List of services, service areas, opening hours and photos", "Verified by HVACHelp badge", "Google star rating and reviews"],
   },
   {
     id: "featured",
     name: "Featured",
-    price: { month: 10, year: 99 },
-    blurb: "Stand out and get more from every request.",
+    price: { month: 99, year: 990 },
+    blurb: "Stand out in the directory and pay half as much to unlock.",
     highlight: true,
     features: [
       "Everything in Free",
+      "See the customer's full name on every request",
       "Featured badge and placement above free listings",
       "Services, service areas, website and email shown on your directory listing",
-      "Opening hours with an \"Open now\" label",
-      "Verified by HVACHelp badge",
-      "Feature one recommendation above About us",
-      "Connect your Google reviews: star rating and review count shown live",
-      `Unlock a customer's full details for just $${leadPrice.paid} per request`,
+      "Opening hours with an \"Open now\" label, photos and the Verified by HVACHelp badge",
+      "Feature one recommendation and connect your Google reviews",
       "Customer requests are sent to paid listings first",
+      `Unlock for half price: $${unlockPrice.lead.paid} per customer request, $${unlockPrice.permit.paid} per permit, $${unlockPrice.bid.paid} per government bid`,
+    ],
+  },
+  {
+    id: "premium",
+    name: "Premium",
+    price: { month: 49, year: 499 },
+    blurb: "Every lead fully unlocked, with all the Featured benefits.",
+    features: [
+      "Everything in Featured",
+      "Every customer request, building permit and government bid is fully unlocked: full details, phone, email and address, at no extra cost",
+      "Unlimited unlocks, nothing to pay per lead",
+      "Every Featured benefit on the directory",
     ],
   },
 ];
 
 export const planName = (id: PlanId | undefined) => plans.find((p) => p.id === id)?.name ?? "Free";
 
-export const yearlySaving = plans.find((p) => p.id === "featured")!.price.month * 12 - plans.find((p) => p.id === "featured")!.price.year;
+/** What a contractor on this plan pays to unlock one lead of this kind (0 for Premium). */
+export const unlockCost = (plan: PlanId, kind: keyof typeof unlockPrice): number => (plan === "premium" ? 0 : unlockPrice[kind][plan === "featured" ? "paid" : "free"]);
+
+/** How much a year saves over twelve months, for a plan. */
+export const yearlySavingFor = (id: PlanId) => {
+  const p = plans.find((x) => x.id === id);
+  return p ? Math.max(0, p.price.month * 12 - p.price.year) : 0;
+};
 
 export const pricingFaq: { question: string; answer: string }[] = [
   {
     question: "What do I see before I pay for a request?",
-    answer: `Only the customer's name and the problem they described. To see their phone number, email, address and the rest of their message you unlock that request: $${leadPrice.free} on the Free plan or $${leadPrice.paid} on the Featured plan. You pay per request, only for the ones you want.`,
+    answer: `The Free plan shows a customer's first name and the problem; Featured also shows the full name. Building permits and government bids show a short preview. To see the phone number, email, address and the rest, you unlock that lead: customer requests ${unlockPrice.lead.free} (Free) or ${unlockPrice.lead.paid} (Featured), building permits ${unlockPrice.permit.free} or ${unlockPrice.permit.paid}, government bids ${unlockPrice.bid.free} or ${unlockPrice.bid.paid}. Premium has every lead unlocked at no extra cost. You pay per lead, only for the ones you want.`,
   },
   {
     question: "Are customer requests guaranteed?",

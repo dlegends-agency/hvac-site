@@ -3,7 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { Check, Loader2, Lock } from "lucide-react";
 import { PageTitle, Panel } from "@/components/admin/widgets";
 import { Button } from "@/components/ui/Button";
-import { leadPrice, planName, plans, yearlySaving } from "@/config/pricing";
+import { planName, plans, unlockPrice, yearlySavingFor } from "@/config/pricing";
 import { activePlan } from "@/lib/plans";
 import { callApi, paymentsNotReady } from "./api";
 import { useContractor } from "./context";
@@ -33,7 +33,7 @@ export default function ContractorBilling() {
   }
 
   const current = activePlan(listing);
-  const wantsFeatured = params.get("plan") === "featured";
+  const wantsPlan = params.get("plan");
 
   async function go(path: string, body: unknown, key: string) {
     setBusy(key);
@@ -61,23 +61,23 @@ export default function ContractorBilling() {
       <p className="mb-5 text-sm text-slate-700">
         Current plan: <strong>{planName(current)}</strong>
         {billing?.current_period_end && current !== "free" && <> · renews or ends {new Date(billing.current_period_end).toLocaleDateString()}</>}
-        {" "}· Unlocking a customer request costs <strong>${current === "free" ? leadPrice.free : leadPrice.paid}</strong> each.
+        {" "}· {current === "premium" ? <>Every lead is unlocked for you.</> : <>Unlocking costs <strong>${unlockPrice.lead[current === "free" ? "free" : "paid"]}</strong> per customer request, <strong>${unlockPrice.permit[current === "free" ? "free" : "paid"]}</strong> per permit and <strong>${unlockPrice.bid[current === "free" ? "free" : "paid"]}</strong> per government bid.</>}
       </p>
 
       <div role="group" aria-label="Billing period" className="mb-6 inline-flex rounded-full border border-slate-300 bg-white p-1 text-sm font-semibold">
         {(["month", "year"] as const).map((i) => (
           <button key={i} type="button" aria-pressed={interval === i} onClick={() => setInterval(i)}
             className={`rounded-full px-5 py-2 ${interval === i ? "bg-primary text-white" : "text-navy hover:bg-slate-50"}`}>
-            {i === "month" ? "Monthly" : <>Yearly <span className={interval === i ? "text-blue-100" : "text-green-700"}>save ${yearlySaving}</span></>}
+            {i === "month" ? "Monthly" : <>Yearly <span className={interval === i ? "text-blue-100" : "text-green-700"}>save up to ${yearlySavingFor("featured")}</span></>}
           </button>
         ))}
       </div>
 
-      <ul className="grid gap-5 md:grid-cols-2">
+      <ul className="grid gap-5 lg:grid-cols-3">
         {plans.map((p) => {
           const isCurrent = p.id === current;
           return (
-            <li key={p.id} className={`flex flex-col rounded-2xl border bg-white p-5 shadow-sm ${p.id === "featured" && wantsFeatured && !isCurrent ? "border-primary ring-2 ring-primary/20" : "border-slate-200"}`}>
+            <li key={p.id} className={`flex flex-col rounded-2xl border bg-white p-5 shadow-sm ${p.id === wantsPlan && !isCurrent ? "border-primary ring-2 ring-primary/20" : "border-slate-200"}`}>
               <h2 className="text-lg font-bold text-navy">{p.name}</h2>
               <p className="mt-1 text-2xl font-extrabold text-navy">
                 {p.price[interval] === 0 ? "Free" : `$${p.price[interval]}`}
@@ -91,10 +91,10 @@ export default function ContractorBilling() {
               {isCurrent ? (
                 <p className="mt-5 rounded-full bg-green-50 py-2 text-center text-sm font-semibold text-green-800">Your current plan</p>
               ) : p.id === "free" ? (
-                <p className="mt-5 text-center text-xs text-slate-500">To go back to Free, cancel below. You keep Featured until the end of the period you paid for.</p>
+                <p className="mt-5 text-center text-xs text-slate-500">To go back to Free, cancel below. You keep your paid plan until the end of the period you paid for.</p>
               ) : (
-                <Button onClick={() => go("/api/stripe/checkout", { plan: "featured", interval }, p.id)} disabled={busy !== null} className="mt-5 !rounded-full">
-                  {busy === p.id && <Loader2 className="size-4 animate-spin" aria-hidden />} Get Featured, {interval === "month" ? "monthly" : "yearly"}
+                <Button onClick={() => go("/api/stripe/checkout", { plan: p.id, interval }, p.id)} disabled={busy !== null} className="mt-5 !rounded-full">
+                  {busy === p.id && <Loader2 className="size-4 animate-spin" aria-hidden />} {current !== "free" ? "Switch to" : "Get"} {p.name}, {interval === "month" ? "monthly" : "yearly"}
                 </Button>
               )}
             </li>

@@ -7,8 +7,10 @@ export interface Env {
   SUPABASE_SERVICE_ROLE_KEY?: string; // encrypted Cloudflare secret; used only here, never sent to the browser
   STRIPE_SECRET_KEY?: string;
   STRIPE_WEBHOOK_SECRET?: string;
-  STRIPE_PRICE_FEATURED?: string; // the paid plan, billed monthly
-  STRIPE_PRICE_FEATURED_YEARLY?: string; // the same plan, billed yearly
+  STRIPE_PRICE_FEATURED?: string; // Featured, $99 billed monthly
+  STRIPE_PRICE_FEATURED_YEARLY?: string; // Featured, $990 billed yearly
+  STRIPE_PRICE_PREMIUM?: string; // Premium, $49 billed monthly
+  STRIPE_PRICE_PREMIUM_YEARLY?: string; // Premium, $499 billed yearly
   RESEND_API_KEY?: string; // email alerts (resend.com), encrypted secret
   NOTIFY_FROM_EMAIL?: string; // for example "HVACHelp <leads@yourdomain.com>" (a domain verified in Resend)
   NOTIFY_SECRET?: string; // shared with the database and the scheduled workflow so only they can trigger sending
@@ -17,11 +19,21 @@ export interface Env {
   TURNSTILE_SECRET_KEY?: string; // encrypted Cloudflare secret for the Turnstile CAPTCHA; when missing the CAPTCHA is not checked
 }
 
-export type Plan = "featured";
+export type Plan = "featured" | "premium";
 export type Interval = "month" | "year";
 
 /** What a contractor pays to see one customer's full details, in US cents. Keep in step with leadPrice in src/config/pricing.ts. */
 export const LEAD_PRICE_CENTS = { free: 1000, paid: 500 } as const;
+
+/**
+ * What a contractor pays to unlock one customer request, building permit or government bid, by plan ("paid" is Featured). Premium unlocks everything
+ * for free, so it never pays. Keep in step with unlockPrice in src/config/pricing.ts (npm run test:unlock checks it).
+ */
+export const UNLOCK_CENTS = {
+  lead: { free: 1000, paid: 500 },
+  permit: { free: 1000, paid: 500 },
+  bid: { free: 10000, paid: 5000 },
+} as const;
 
 export const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -34,22 +46,27 @@ export function notConfigured(env: Env, also: [string, string | undefined][] = [
   return missing.length ? json({ error: "Payments are not configured", missing }, 501) : null;
 }
 
-export const isPlan = (v: unknown): v is Plan => v === "featured";
+export const isPlan = (v: unknown): v is Plan => v === "featured" || v === "premium";
 export const isInterval = (v: unknown): v is Interval => v === "month" || v === "year";
 
-export function priceFor(env: Env, _plan: Plan, interval: Interval): string | undefined {
+export function priceFor(env: Env, plan: Plan, interval: Interval): string | undefined {
+  if (plan === "premium") return interval === "year" ? env.STRIPE_PRICE_PREMIUM_YEARLY : env.STRIPE_PRICE_PREMIUM;
   return interval === "year" ? env.STRIPE_PRICE_FEATURED_YEARLY : env.STRIPE_PRICE_FEATURED;
 }
 
+/** The name of the Cloudflare setting that holds the Stripe price for a plan, for the "not configured" message. */
+export const priceSetting = (plan: Plan, interval: Interval) => `STRIPE_PRICE_${plan.toUpperCase()}${interval === "year" ? "_YEARLY" : ""}`;
+
 export function planForPrice(env: Env, priceId: string | undefined): Plan | null {
   if (!priceId) return null;
+  if (priceId === env.STRIPE_PRICE_PREMIUM || priceId === env.STRIPE_PRICE_PREMIUM_YEARLY) return "premium";
   return priceId === env.STRIPE_PRICE_FEATURED || priceId === env.STRIPE_PRICE_FEATURED_YEARLY ? "featured" : null;
 }
 
 export function intervalForPrice(env: Env, priceId: string | undefined): Interval | null {
   if (!priceId) return null;
-  if (priceId === env.STRIPE_PRICE_FEATURED_YEARLY) return "year";
-  return priceId === env.STRIPE_PRICE_FEATURED ? "month" : null;
+  if (priceId === env.STRIPE_PRICE_FEATURED_YEARLY || priceId === env.STRIPE_PRICE_PREMIUM_YEARLY) return "year";
+  return priceId === env.STRIPE_PRICE_FEATURED || priceId === env.STRIPE_PRICE_PREMIUM ? "month" : null;
 }
 
 /** Calls the Stripe REST API: a form-encoded body for POST, the query string for GET. */
@@ -146,4 +163,16 @@ export function entitlement(env: Env, sub: StripeSubscription): { plan: "free" |
   const end = sub.current_period_end ?? item?.current_period_end;
   if (!plan || !ENTITLED.has(sub.status) || !end) return { plan: "free", until: null, interval: null };
   return { plan, until: new Date(end * 1000).toISOString(), interval: intervalForPrice(env, item?.price?.id) };
+}
+
+/** What each plan costs in US cents, by billing period. Keep in step with plans in src/config/pricing.ts. Checkout refuses a Stripe price that differs. */
+export const PLAN_CENTS = {
+  featured: { month: 9900, year: 99000 },
+  premium: { month: 4900, year: 49900 },
+} as const;
+
+/** True when the Stripe price really charges what the website promises (so a stale price id in Cloudflare can never charge the wrong amount). */
+export async function priceMatches(env: Env, priceId: string, plan: Plan, interval: Interval): Promise<boolean> {
+  const p = await stripe<{ unit_amount?: number | null; currency?: string; recurring?: { interval?: string } | null }>(env, "GET", `/prices/${encodeURIComponent(priceId)}`);
+  return p.unit_amount === PLAN_CENTS[plan][interval] && p.currency === "usd" && p.recurring?.interval === interval;
 }

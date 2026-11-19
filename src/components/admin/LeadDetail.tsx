@@ -7,7 +7,7 @@ import { Button, buttonClass } from "@/components/ui/Button";
 import { inputClass } from "@/components/ui/Field";
 import { getSupabaseBrowser } from "@/lib/supabase";
 import { activePlan } from "@/lib/plans";
-import { LEAD_STATUSES, type Lead, type LeadStatus, type Listing, type PlanId } from "@/lib/types";
+import { LEAD_STATUSES, type Lead, type LeadStatus, type Listing } from "@/lib/types";
 
 interface Assignment {
   listing_id: string;
@@ -17,7 +17,7 @@ interface Assignment {
   contacted_at: string | null;
   unlocked_at: string | null;
   unlock_cents: number | null;
-  listings: { business_name: string; city: string; plan: PlanId; plan_until: string | null } | null;
+  listings: { business_name: string; city: string; plan: "free" | "featured"; premium?: boolean; plan_until: string | null } | null;
 }
 import { RouteReport } from "./RouteReport";
 import { Panel, QueryState, StatusBadge } from "./widgets";
