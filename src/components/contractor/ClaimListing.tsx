@@ -46,7 +46,7 @@ export function ClaimListing() {
       listingId = crypto.randomUUID();
       const { error: err } = await supabase.from("listings").insert({
         id: listingId, slug: `${slugify(`${name} ${city}`)}-${listingId.slice(0, 4)}`, status: "pending", source: "submitted",
-        business_name: name, city, state, phone: String(f.get("phone") ?? "").trim() || null, website: String(f.get("website") ?? "").trim() || null,
+        business_name: name, city, state, phone: String(f.get("phone") ?? "").trim() || null, email: String(f.get("email") ?? "").trim() || null, website: String(f.get("website") ?? "").trim() || null,
         services: [], emergency_service: false,
       });
       if (err) {
@@ -112,15 +112,16 @@ export function ClaimListing() {
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field id="phone" label="Business phone" optional>{(a) => <input id="phone" name="phone" type="tel" className={inputClass} {...a} />}</Field>
-                <Field id="website" label="Website" optional>{(a) => <input id="website" name="website" className={inputClass} {...a} />}</Field>
+                <Field id="email" label="Business email" optional>{(a) => <input id="email" name="email" type="email" autoComplete="email" className={inputClass} {...a} />}</Field>
               </div>
+              <Field id="website" label="Website" optional>{(a) => <input id="website" name="website" className={inputClass} {...a} />}</Field>
             </>
           )}
           <div className="grid gap-4 sm:grid-cols-2">
             <Field id="contact_name" label="Your name">{(a) => <input id="contact_name" name="contact_name" autoComplete="name" className={inputClass} {...a} />}</Field>
             <Field id="contact_phone" label="Your phone" optional>{(a) => <input id="contact_phone" name="contact_phone" type="tel" autoComplete="tel" className={inputClass} {...a} />}</Field>
           </div>
-          <Field id="note" label="How can we confirm you represent this business?" optional hint="For example your work email address, or a call-back number that matches the business.">
+          <Field id="note" label="How can we confirm you represent this business?" optional hint="For example a work email address that matches your website, or a call-back number that matches the business.">
             {(a) => <textarea id="note" name="note" rows={3} maxLength={1000} className={inputClass} {...a} />}
           </Field>
           <div role="alert">{error && <p className="text-sm font-medium text-red-700">{error}</p>}</div>
