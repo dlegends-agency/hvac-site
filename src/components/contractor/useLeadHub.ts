@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { scoreBid } from "@/lib/bid-score";
 import { bidTitle, type GovBid } from "@/lib/bids";
 import { scorePermit, type Coverage, type Tier } from "@/lib/permit-score";
@@ -118,12 +118,14 @@ export function useLeadHub(listing: Listing | null) {
   const cover = useMemo(() => coverageForListing(listing), [listing]);
   const [pipeline, setPipeline] = useState<PipelineRow[]>([]);
   const [pipelineError, setPipelineError] = useState(false);
+  const [pipelineLoaded, setPipelineLoaded] = useState(false);
   const { reload: reloadLeads } = mine;
   const { reload: reloadOpps } = opps;
 
   const loadPipeline = useCallback(async () => {
     const { data, error } = await getSupabaseBrowser().from("lead_pipeline").select("*").order("updated_at", { ascending: false }).limit(2000);
     setPipelineError(Boolean(error));
+    setPipelineLoaded(true);
     setPipeline((data as PipelineRow[] | null) ?? []);
   }, []);
   useEffect(() => {
@@ -153,6 +155,17 @@ export function useLeadHub(listing: Listing | null) {
     await loadPipeline();
     return { ok: true as const };
   }, [listing, loadPipeline]);
+
+  // A lead that has been paid for goes to My Leads by itself. (On Premium everything is unlocked, so only leads you save are listed.)
+  const tried = useRef(new Set<string>());
+  useEffect(() => {
+    if (!listing || !pipelineLoaded || pipelineError || plan === "premium" || mine.leads === null || opps.loading) return;
+    const have = new Set(pipeline.map((r) => `${r.kind}:${r.item_id}`));
+    const missing = items.filter((i) => i.unlocked && !have.has(i.key) && !tried.current.has(i.key));
+    if (missing.length === 0) return;
+    for (const i of missing) tried.current.add(i.key);
+    void save(missing);
+  }, [listing, pipelineLoaded, pipelineError, plan, mine.leads, opps.loading, items, pipeline, save]);
 
   const update = useCallback(async (row: Pick<PipelineRow, "kind" | "item_id">, patch: Partial<Pick<PipelineRow, "stage" | "note" | "amount_usd" | "due_on">>) => {
     if (!listing) return false;

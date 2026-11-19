@@ -67,7 +67,7 @@ export default function ContractorMyLeads() {
 
   return (
     <>
-      <PageTitle title="My Leads" description="The leads you saved while you decide. Unlock the ones you want, then start the project to track it." />
+      <PageTitle title="My Leads" description="The leads you saved while you decide, plus every lead you have paid for (those arrive here by themselves). Unlock the ones you want, then start the project to track it." />
       {waiting && params.get("unlocked") === "1" && (
         <p role="status" className="mb-4 flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-900"><Loader2 className="size-4 animate-spin" aria-hidden /> Payment received. Unlocking, this takes a few seconds…</p>
       )}
@@ -121,7 +121,7 @@ export default function ContractorMyLeads() {
                     </Button>
                   )}
                   {item && <Link to={`/contractor/leads?open=${key}`} className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-navy hover:bg-slate-50">View details</Link>}
-                  <button type="button" onClick={() => void drop(r)} disabled={busy === key} className="ml-auto inline-flex items-center gap-1 text-sm font-medium text-slate-500 hover:text-red-700"><Trash2 className="size-4" aria-hidden /> Remove</button>
+                  {!(item?.unlocked && plan !== "premium") && <button type="button" onClick={() => void drop(r)} disabled={busy === key} className="ml-auto inline-flex items-center gap-1 text-sm font-medium text-slate-500 hover:text-red-700"><Trash2 className="size-4" aria-hidden /> Remove</button>}
                 </div>
                 {item && !item.unlocked && payOpen === key && (
                   <div className="mt-3">
