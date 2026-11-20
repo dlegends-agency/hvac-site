@@ -14,11 +14,15 @@ const defaultSubject = (issue: string) => {
  * The customer's email address as a button. Clicking it opens an email window. The email is sent through the site (never by the contractor's
  * own mail program): it is saved in the customer's dashboard, where they reply, and the site emails it to them.
  */
-export function EmailCustomer({ leadId, listingId, businessName, customerName, issue, email }: {
-  leadId: string; listingId: string; businessName: string; customerName: string; issue: string; email: string;
+export function EmailCustomer({ leadId, listingId, businessName, customerName, issue, email, onSent, label }: {
+  leadId: string; listingId: string; businessName: string; customerName: string; issue: string; email: string; onSent?: (subject: string) => void;
+  /** Show a button with this text instead of the address. */
+  label?: string;
 }) {
   return (
     <EmailComposer
+      label={label}
+      onSent={onSent}
       ai={{ kind: "lead", id: leadId }}
       address={email}
       to={`${customerName} <${email}>`}

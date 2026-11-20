@@ -14,7 +14,9 @@ export type SendResult = { ok: true; message: string } | { ok: false; error: str
  * site (a customer, the contractor on a permit, the contracting officer on a bid). The button that opens it is the address itself.
  * `onSend` does the sending and says what happened; this component only collects the subject and message and shows the result.
  */
-export function EmailComposer({ address, label, to, fromName, defaultSubject, placeholder, note, onSend, ai }: {
+export function EmailComposer({ address, label, to, fromName, defaultSubject, placeholder, note, onSend, onSent, ai }: {
+  /** Called after an email was sent, with its subject (for example to log it on the lead's timeline). */
+  onSent?: (subject: string) => void;
   /** Which lead, permit or bid this email is about. Featured businesses get a "Draft with AI" button that writes the first draft for it. */
   ai?: { kind: "lead" | "permit" | "bid"; id: string; index?: number };
   /** The address shown on the button that opens the window. */
@@ -40,12 +42,13 @@ export function EmailComposer({ address, label, to, fromName, defaultSubject, pl
   const business = useContext(ContractorContext)?.listing;
   const canDraft = Boolean(ai && business && activePlan(business) !== "free");
   const [drafting, setDrafting] = useState(false);
+  const [purpose, setPurpose] = useState<"first" | "reply" | "proposal" | "contract">("first");
 
   async function draftWithAi() {
     if (!ai || drafting) return;
     setDrafting(true);
     setError(null);
-    const res = await callApi<{ subject?: string; body?: string; detail?: string }>("/api/assistant/draft", { ...ai, note: text.trim().slice(0, 300) });
+    const res = await callApi<{ subject?: string; body?: string; detail?: string }>("/api/assistant/draft", { ...ai, purpose, note: text.trim().slice(0, purpose === "first" ? 300 : 1500) });
     setDrafting(false);
     if (res.status === 200 && res.data.subject && res.data.body) {
       setSubject(res.data.subject);
@@ -73,6 +76,7 @@ export function EmailComposer({ address, label, to, fromName, defaultSubject, pl
     if (!result.ok) return setError(result.error);
     setText("");
     setDone(result.message);
+    onSent?.(subject.trim());
   }
 
   const row = "flex items-baseline gap-3 border-b border-slate-200 py-2 text-sm";
@@ -117,11 +121,29 @@ export function EmailComposer({ address, label, to, fromName, defaultSubject, pl
                 <label htmlFor="email-body" className="sr-only">Message</label>
                 <textarea id="email-body" ref={box} rows={9} maxLength={MAX_MESSAGE} value={text} onChange={(e) => setText(e.target.value)} className={`${inputClass} mt-3`} placeholder={placeholder} />
                 {canDraft && (
-                  <button type="button" onClick={draftWithAi} disabled={drafting || busy}
-                    className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-violet-300 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-800 hover:bg-violet-100 disabled:opacity-60">
-                    {drafting ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <Sparkles className="size-3.5" aria-hidden />}
-                    {drafting ? "Writing…" : text.trim() ? "Rewrite with AI (uses what you typed as a note)" : "Draft with AI"}
-                  </button>
+                  <div className="mt-2 rounded-xl border border-violet-200 bg-violet-50/60 p-2.5">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Sparkles className="size-4 text-violet-700" aria-hidden />
+                      <label htmlFor="email-ai-purpose" className="sr-only">What should the AI write?</label>
+                      <select id="email-ai-purpose" value={purpose} onChange={(e) => setPurpose(e.target.value as typeof purpose)} disabled={drafting || busy}
+                        className="rounded-lg border border-violet-300 bg-white px-2 py-1 text-xs font-semibold text-violet-900">
+                        <option value="first">Write the first email</option>
+                        <option value="reply">Reply to their message</option>
+                        <option value="proposal">Write a proposal email</option>
+                        <option value="contract">Draft a service agreement</option>
+                      </select>
+                      <button type="button" onClick={draftWithAi} disabled={drafting || busy}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-violet-300 bg-white px-3 py-1 text-xs font-semibold text-violet-800 hover:bg-violet-100 disabled:opacity-60">
+                        {drafting ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <Sparkles className="size-3.5" aria-hidden />}
+                        {drafting ? "Writing…" : text.trim() ? "Rewrite with AI" : "Draft with AI"}
+                      </button>
+                    </div>
+                    <p className="mt-1.5 text-xs text-slate-600">
+                      {purpose === "reply" ? "Customer requests: the AI reads your thread. Otherwise paste their message in the box first."
+                        : purpose === "first" ? "Anything you type in the box is used as a note to the AI."
+                        : "Type the price, dates and terms in the box first. Anything missing is left as a [placeholder]."} You read and edit it before it is sent. The AI never sends anything.
+                    </p>
+                  </div>
                 )}
                 <p className="mt-1 flex justify-between gap-3 text-xs text-slate-500">
                   <span>{note}</span>
