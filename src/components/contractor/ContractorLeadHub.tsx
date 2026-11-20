@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { BookmarkCheck, BookmarkPlus, Check, Clock, Loader2, Lock, MapPin, Search, Sparkles } from "lucide-react";
-import { PageTitle, Panel, StatStrip } from "@/components/admin/widgets";
+import { PageTitle, Panel } from "@/components/admin/widgets";
 import { BidDetail } from "@/components/opportunities/BidBoard";
 import { PermitDetail } from "@/components/opportunities/PermitBoard";
 import { TIER_STYLE } from "@/components/opportunities/shared";
@@ -13,6 +13,7 @@ import { scorePermit, TIERS } from "@/lib/permit-score";
 import { callApi } from "./api";
 import { LeadPanel } from "./ContractorLeads";
 import { useContractor } from "./context";
+import { LeadsTabs } from "./LeadsTabs";
 import { KIND_LABEL, KIND_PLURAL, KIND_STYLE, type HubItem, type LeadKind, useLeadHub } from "./useLeadHub";
 import { ago } from "./useMyLeads";
 
@@ -134,37 +135,29 @@ export default function ContractorLeadHub() {
     setSaving(false);
     if (!res.ok) return setNote({ ok: false, text: `We couldn't save. Has supabase/schema-revamp.sql been run? (${res.error})` });
     setPicked(new Set());
-    setNote({ ok: true, text: `${chosen.length === 1 ? "Saved" : `${chosen.length} leads saved`} to My Leads.` });
+    setNote({ ok: true, text: `${chosen.length === 1 ? "Saved" : `${chosen.length} leads saved`}.` });
   }
 
   const open = openKey ? items.find((i) => i.key === openKey) ?? null : null;
   const paidTier = plan === "free" ? "free" : "paid";
-  const locked = items.filter((i) => !i.unlocked).length;
-  const hot = items.filter((i) => i.tier === "hot").length;
+  const savedCount = pipeline.filter((r) => r.stage === "saved").length;
+  const projectCount = pipeline.length - savedCount;
 
   return (
     <>
-      <PageTitle title="Leads" description="Every lead for your business in one list: requests from customers on our website, government bids and building permits near you." />
+      <PageTitle title="Leads" description="Customer requests, government bids and building permits near you, in one list." />
+      <LeadsTabs saved={savedCount} projects={projectCount} />
 
       {plan === "premium" ? (
-        <p className="mb-5 flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 p-3 text-sm text-violet-900"><Sparkles className="size-4 shrink-0" aria-hidden /> Premium: every lead is fully unlocked for you, with phone, email and address.</p>
+        <p className="mb-5 flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 p-3 text-sm text-violet-900"><Sparkles className="size-4 shrink-0" aria-hidden /> Premium: every lead is fully unlocked for you.</p>
       ) : (
         <p className="mb-5 rounded-xl border border-blue-100 bg-blue-50/60 p-3 text-sm text-slate-800">
-          <strong>{plan === "free" ? "Free plan" : "Featured plan"}.</strong> {plan === "free" ? "You see a customer's first name, and a short preview of each permit and bid." : "You see a customer's full name, and a short preview of each permit and bid."} Unlock the full details when you decide: {feeLine(paidTier)}.{" "}
-          <Link to="/contractor/billing" className="font-semibold text-primary underline">{plan === "free" ? "Go Featured to pay half, or Premium to unlock everything" : "Go Premium to unlock everything"}</Link>.
+          Locked leads show a preview. Unlock one when you decide: {feeLine(paidTier)}.{" "}
+          <Link to="/contractor/billing" className="font-semibold text-primary underline">{plan === "free" ? "Pay half with Featured, or unlock everything with Premium" : "Unlock everything with Premium"}</Link>
         </p>
       )}
 
       {waiting && justPaid && <p role="status" className="mb-4 flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-900"><Loader2 className="size-4 animate-spin" aria-hidden /> Payment received. Unlocking, this takes a few seconds…</p>}
-
-      <StatStrip items={[
-        { label: "Customer requests", value: hub.loading ? "…" : counts.lead },
-        { label: "Government bids", value: hub.loading ? "…" : counts.bid },
-        { label: "Building permits", value: hub.loading ? "…" : counts.permit },
-        { label: "Hot leads", value: hub.loading ? "…" : hot, tone: hot > 0 ? "good" : undefined },
-        { label: "Saved in My Leads", value: pipeline.filter((r) => r.stage === "saved").length },
-        { label: "Still locked", value: hub.loading ? "…" : locked, tone: locked > 0 && plan !== "premium" ? "warn" : undefined },
-      ]} />
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <div role="tablist" aria-label="Lead type" className="flex flex-wrap gap-1.5">
@@ -209,12 +202,12 @@ export default function ContractorLeadHub() {
         <div className="sticky top-2 z-20 mb-3 flex flex-wrap items-center gap-3 rounded-xl border border-primary/30 bg-white p-3 shadow-md">
           <p className="text-sm font-semibold text-navy">{picked.size} selected</p>
           <Button onClick={() => void saveChosen(items.filter((i) => picked.has(i.key)))} disabled={saving} className="!rounded-full !px-4 !py-2 text-sm">
-            {saving ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <BookmarkPlus className="size-4" aria-hidden />} Save to My Leads
+            {saving ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <BookmarkPlus className="size-4" aria-hidden />} Save
           </Button>
           <button type="button" onClick={() => setPicked(new Set())} className="text-sm font-medium text-slate-600 underline">Clear</button>
         </div>
       )}
-      <div role="status">{note && <p className={`mb-3 text-sm font-medium ${note.ok ? "text-green-700" : "text-red-700"}`}>{note.ok ? <>{note.text} <Link to="/contractor/my-leads" className="underline">Open My Leads</Link></> : note.text}</p>}</div>
+      <div role="status">{note && <p className={`mb-3 text-sm font-medium ${note.ok ? "text-green-700" : "text-red-700"}`}>{note.ok ? <>{note.text} <Link to="/contractor/my-leads" className="underline">See saved leads</Link></> : note.text}</p>}</div>
 
       {hub.error && items.length === 0 ? (
         <p className="rounded-xl border border-orange-200 bg-orange-50 p-4 text-sm text-orange-900">Leads couldn&apos;t be loaded. Run <code>supabase/schema-revamp.sql</code> (and the permits and bids SQL files) in the Supabase SQL Editor.</p>

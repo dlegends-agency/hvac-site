@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { ArrowRight, Loader2, MapPin } from "lucide-react";
-import { PageTitle, Panel, StatStrip } from "@/components/admin/widgets";
+import { PageTitle, Panel } from "@/components/admin/widgets";
 import { Button } from "@/components/ui/Button";
 import { inputClass } from "@/components/ui/Field";
 import { useContractor } from "./context";
+import { LeadsTabs } from "./LeadsTabs";
 import { KIND_LABEL, KIND_STYLE, STAGE_LABEL, STAGE_STYLE, stagesFor, type PipelineRow, useLeadHub } from "./useLeadHub";
 
 const money = (n: number | null) => (n === null ? "" : `$${Number(n).toLocaleString("en-US")}`);
@@ -117,19 +118,8 @@ export default function ContractorProjects() {
 
   return (
     <>
-      <PageTitle title="Projects & bids" description="Everything you are working on, with its status. Start a project from My Leads once a lead is unlocked." />
-
-      <StatStrip items={tab === "bids" ? [
-        { label: "Bids in progress", value: bids.filter((r) => !["won", "lost"].includes(r.stage)).length },
-        { label: "Bids submitted", value: count(bids, "submitted") },
-        { label: "Won", value: count(bids, "won"), tone: count(bids, "won") > 0 ? "good" : undefined },
-        { label: "Lost", value: count(bids, "lost") },
-      ] : [
-        { label: "Active projects", value: projects.filter((r) => !["won", "lost"].includes(r.stage)).length },
-        { label: "Quoted", value: count(projects, "quoted") },
-        { label: "Won", value: count(projects, "won"), tone: count(projects, "won") > 0 ? "good" : undefined },
-        { label: "Lost", value: count(projects, "lost") },
-      ]} />
+      <PageTitle title="Leads" description="What you are working on, with its status, amount, date and notes." />
+      <LeadsTabs saved={hub.pipeline.filter((r) => r.stage === "saved").length} projects={mine.length} />
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <div role="tablist" aria-label="Projects or bids" className="flex gap-1.5">
@@ -141,7 +131,7 @@ export default function ContractorProjects() {
         <label className="ml-auto flex items-center gap-2 text-sm font-medium text-slate-700">Status
           <select value={stageFilter} onChange={(e) => setStageFilter(e.target.value as typeof stageFilter)} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 font-normal">
             <option value="all">All</option>
-            {stages.filter((s) => s !== "saved").map((s) => <option key={s} value={s}>{STAGE_LABEL[s]}</option>)}
+            {stages.filter((s) => s !== "saved").map((s) => <option key={s} value={s}>{STAGE_LABEL[s]} ({count(list, s)})</option>)}
           </select>
         </label>
       </div>
@@ -151,8 +141,8 @@ export default function ContractorProjects() {
       ) : shown.length === 0 ? (
         <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center">
           <p className="text-lg font-semibold text-navy">{list.length === 0 ? (tab === "bids" ? "No bids yet" : "No projects yet") : "Nothing with that status"}</p>
-          <p className="mt-2 text-sm text-slate-600">Save a lead on the Leads page, unlock it in My Leads, then choose <strong>Start project</strong>.</p>
-          <Link to="/contractor/my-leads" className="mt-4 inline-flex items-center gap-1.5 font-semibold text-primary hover:underline">Open My Leads <ArrowRight className="size-4" aria-hidden /></Link>
+          <p className="mt-2 text-sm text-slate-600">Save a lead, unlock it, then choose <strong>Start project</strong>.</p>
+          <Link to="/contractor/my-leads" className="mt-4 inline-flex items-center gap-1.5 font-semibold text-primary hover:underline">Open saved leads <ArrowRight className="size-4" aria-hidden /></Link>
         </div>
       ) : (
         <ul className="grid gap-3">

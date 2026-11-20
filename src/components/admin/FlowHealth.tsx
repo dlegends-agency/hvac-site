@@ -26,7 +26,7 @@ function Tile({ label, value, hint, tone = "neutral" }: { label: string; value: 
 }
 
 /** What is stuck in the request flow right now. A tile turns red or amber when something needs a person. */
-export function FlowHealth({ showLink = true }: { showLink?: boolean }) {
+export function FlowHealth({ showLink = true, compact = false }: { showLink?: boolean; compact?: boolean }) {
   const q = useLiveQuery<Health | null>(null, () => getSupabaseBrowser().rpc("admin_flow_health"), { key: "flow-health", intervalMs: 30_000 });
   const h = q.data;
 
@@ -35,6 +35,15 @@ export function FlowHealth({ showLink = true }: { showLink?: boolean }) {
   }
   if (!h) return null;
   const clear = h.unmatched === 0 && h.alerts_failed === 0 && h.alerts_waiting === 0 && h.unlocked_not_contacted === 0;
+  // Compact: when nothing is stuck, one slim line instead of six tiles.
+  if (compact && clear) {
+    return (
+      <p className="mb-6 flex flex-wrap items-center gap-2 rounded-xl border border-green-200 bg-green-50 px-4 py-2.5 text-sm text-green-900">
+        <span className="font-semibold">Request flow: all clear.</span> {h.leads_24h} requests in the last 24 hours.
+        {showLink && <Link to="/admin/logs" className="ml-auto font-semibold text-primary hover:underline">Open the logs →</Link>}
+      </p>
+    );
+  }
 
   return (
     <section aria-label="Request flow health" className="mb-6">

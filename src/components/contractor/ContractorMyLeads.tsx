@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { ArrowRight, Check, Loader2, Lock, MapPin, Trash2 } from "lucide-react";
-import { PageTitle, Panel, StatStrip } from "@/components/admin/widgets";
+import { PageTitle, Panel } from "@/components/admin/widgets";
 import { Button } from "@/components/ui/Button";
 import { callApi } from "./api";
 import { useContractor } from "./context";
+import { LeadsTabs } from "./LeadsTabs";
 import { UnlockButtons } from "./UnlockButtons";
 import { KIND_LABEL, KIND_STYLE, type PipelineRow, useLeadHub } from "./useLeadHub";
 
@@ -67,25 +68,24 @@ export default function ContractorMyLeads() {
 
   return (
     <>
-      <PageTitle title="My Leads" description="The leads you saved while you decide, plus every lead you have paid for (those arrive here by themselves). Unlock the ones you want, then start the project to track it." />
+      <PageTitle title="Leads" description="Leads you saved while you decide, and every lead you have paid for. Unlock one, then start the project." />
+      <LeadsTabs saved={saved.length} projects={hub.pipeline.length - saved.length} />
       {waiting && params.get("unlocked") === "1" && (
         <p role="status" className="mb-4 flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-900"><Loader2 className="size-4 animate-spin" aria-hidden /> Payment received. Unlocking, this takes a few seconds…</p>
       )}
-
-      <StatStrip items={[
-        { label: "Saved leads", value: saved.length },
-        { label: "Ready to start", value: rows.filter((x) => x.item?.unlocked).length, tone: "good" },
-        { label: "Still locked", value: toBuy.length, tone: toBuy.length > 0 && plan !== "premium" ? "warn" : undefined },
-        { label: plan === "premium" ? "Cost to unlock all" : "Cost to unlock all saved", value: plan === "premium" ? "$0" : `$${total}` },
-      ]} />
+      {saved.length > 0 && (
+        <p className="mb-4 text-sm text-slate-600">
+          {rows.filter((x) => x.item?.unlocked).length} ready to start{toBuy.length > 0 && plan !== "premium" ? <> · {toBuy.length} still locked (${total} to unlock all)</> : null}
+        </p>
+      )}
 
       {hub.pipelineError ? (
         <p className="rounded-xl border border-orange-200 bg-orange-50 p-4 text-sm text-orange-900">My Leads could not be loaded. Run <code>supabase/schema-revamp.sql</code> in the Supabase SQL Editor.</p>
       ) : saved.length === 0 ? (
         <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center">
           <p className="text-lg font-semibold text-navy">Nothing saved yet</p>
-          <p className="mt-2 text-sm text-slate-600">On the Leads page, tick the customer requests, bids and permits worth a second look and choose <strong>Save to My Leads</strong>.</p>
-          <Link to="/contractor/leads" className="mt-4 inline-flex items-center gap-1.5 font-semibold text-primary hover:underline">Browse leads <ArrowRight className="size-4" aria-hidden /></Link>
+          <p className="mt-2 text-sm text-slate-600">In Find leads, tick the customer requests, bids and permits worth a second look and choose <strong>Save</strong>.</p>
+          <Link to="/contractor/leads" className="mt-4 inline-flex items-center gap-1.5 font-semibold text-primary hover:underline">Find leads <ArrowRight className="size-4" aria-hidden /></Link>
         </div>
       ) : (
         <ul className="grid gap-3">
