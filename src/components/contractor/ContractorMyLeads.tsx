@@ -5,7 +5,6 @@ import { PageTitle, Panel } from "@/components/admin/widgets";
 import { Button } from "@/components/ui/Button";
 import { callApi } from "./api";
 import { useContractor } from "./context";
-import { LeadsTabs } from "./LeadsTabs";
 import { UnlockButtons } from "./UnlockButtons";
 import { KIND_LABEL, KIND_STYLE, type PipelineRow, useLeadHub } from "./useLeadHub";
 
@@ -69,7 +68,6 @@ export default function ContractorMyLeads() {
   return (
     <>
       <PageTitle title="Leads" description="Leads you saved while you decide, and every lead you have paid for. Unlock one, then start the project." />
-      <LeadsTabs saved={saved.length} projects={hub.pipeline.length - saved.length} />
       {waiting && params.get("unlocked") === "1" && (
         <p role="status" className="mb-4 flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-900"><Loader2 className="size-4 animate-spin" aria-hidden /> Payment received. Unlocking, this takes a few seconds…</p>
       )}

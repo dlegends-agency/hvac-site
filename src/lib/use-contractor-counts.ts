@@ -4,6 +4,8 @@ import { getSupabaseBrowser, isSupabaseConfigured } from "@/lib/supabase";
 export interface ContractorCounts {
   /** Customer requests sent to this business that nobody has contacted yet. */
   newLeads: number;
+  /** Unlocked requests nobody has contacted yet: the number on My Leads. */
+  newUnlocked: number;
   /** Requests whose phone and email are still locked. */
   lockedLeads: number;
   /** Permits and bids in this business's area that were added in the last day and a half. */
@@ -13,7 +15,7 @@ export interface ContractorCounts {
   ready: boolean;
 }
 
-const EMPTY: ContractorCounts = { newLeads: 0, lockedLeads: 0, newOpportunities: 0, opportunities: 0, ready: false };
+const EMPTY: ContractorCounts = { newLeads: 0, newUnlocked: 0, lockedLeads: 0, newOpportunities: 0, opportunities: 0, ready: false };
 
 /** The small numbers shown in the contractor menu and on the dashboard. Every list comes from the same database functions as its page. */
 export function useContractorCounts(enabled: boolean, intervalMs = 300_000): ContractorCounts {
@@ -30,6 +32,7 @@ export function useContractorCounts(enabled: boolean, intervalMs = 300_000): Con
       const since = Date.now() - 36 * 3_600_000;
       setCounts({
         newLeads: l.filter((x) => x.contractor_status === "new").length,
+        newUnlocked: l.filter((x) => x.contractor_status === "new" && x.unlocked).length,
         lockedLeads: l.filter((x) => !x.unlocked).length,
         newOpportunities: items.filter((x) => new Date(x.imported_at).getTime() >= since).length,
         opportunities: items.length,

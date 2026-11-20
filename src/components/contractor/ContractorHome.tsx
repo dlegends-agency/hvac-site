@@ -114,18 +114,20 @@ function Dashboard({ listing }: { listing: Listing }) {
     step = { title: items.length > 0 ? `${items.length.toLocaleString()} leads near you` : "No leads in your area yet", body: items.length > 0 ? "Save the ones worth a look and unlock them when you decide." : "New permits and bids are added every morning. Check your ZIP code and travel distance.", to: items.length > 0 ? "/contractor/leads" : "/contractor/business", cta: items.length > 0 ? "Find leads" : "Check my service area" };
   }
 
+  // Latest Opportunities: only what is still locked (on Premium, what is not yet saved to My Leads), newest first.
+  const latest = useMemo(() => items.filter((i) => !i.unlocked || (plan === "premium" && !savedKeys.has(i.key))), [items, plan, savedKeys]);
   const counts = useMemo(() => {
-    const c: Record<Tab, number> = { all: items.length, lead: 0, permit: 0, bid: 0 };
-    for (const i of items) c[i.kind]++;
+    const c: Record<Tab, number> = { all: latest.length, lead: 0, permit: 0, bid: 0 };
+    for (const i of latest) c[i.kind]++;
     return c;
-  }, [items]);
-  const cities = useMemo(() => [...new Set(items.map((i) => i.city).filter((c): c is string => Boolean(c)))].sort(), [items]);
+  }, [latest]);
+  const cities = useMemo(() => [...new Set(latest.map((i) => i.city).filter((c): c is string => Boolean(c)))].sort(), [latest]);
   const list = useMemo(() => {
     const term = q.trim().toLowerCase();
-    return items
-      .filter((i) => (tab === "all" || i.kind === tab) && (city === "all" || i.city === city) && (!term || `${i.title} ${i.place}`.toLowerCase().includes(term)))
-      .sort((a, b) => b.score - a.score || (b.when ?? "").localeCompare(a.when ?? ""));
-  }, [items, tab, city, q]);
+    return latest
+      .filter((i) => (tab === "all" || i.kind === tab) && (city === "all" || i.city === city) && (!term || `${i.title} ${i.subject} ${i.place} ${i.trade}`.toLowerCase().includes(term)))
+      .sort((a, b) => (b.when ?? "").localeCompare(a.when ?? ""));
+  }, [latest, tab, city, q]);
 
   async function save(i: HubItem) {
     setSaving(i.key);
@@ -159,8 +161,8 @@ function Dashboard({ listing }: { listing: Listing }) {
 
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm" aria-labelledby="best-leads">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 id="best-leads" className="flex items-center gap-2 text-lg font-bold text-navy"><Target className="size-5 text-primary" aria-hidden /> Leads for you</h2>
-              <Link to="/contractor/leads" className="text-sm font-semibold text-primary hover:underline">View all leads →</Link>
+              <h2 id="best-leads" className="flex items-center gap-2 text-lg font-bold text-navy"><Target className="size-5 text-primary" aria-hidden /> Latest Opportunities</h2>
+              <Link to="/contractor/leads" className="text-sm font-semibold text-primary hover:underline">Discover more →</Link>
             </div>
 
             <div role="tablist" aria-label="Lead type" className="mt-3 flex flex-wrap gap-x-5 gap-y-1 border-b border-slate-200">
@@ -189,15 +191,11 @@ function Dashboard({ listing }: { listing: Listing }) {
               {!ready ? (
                 <p className="py-6 text-center text-sm text-slate-500">Loading…</p>
               ) : list.length === 0 ? (
-                <p className="rounded-xl bg-slate-50 p-6 text-center text-sm text-slate-600">{items.length === 0 ? "No leads within reach yet. New ones are added every morning." : "No leads match."}</p>
+                <p className="rounded-xl bg-slate-50 p-6 text-center text-sm text-slate-600">{latest.length === 0 ? "No new opportunities right now. Everything near you is unlocked, or new ones are added every morning." : "No opportunities match."}</p>
               ) : (
                 <ul className="grid gap-3">
                   {list.slice(0, SHOWN).map((i) => {
                     const Icon = KIND_ICON[i.kind];
-                    // Customer requests are titled "Name: concern". Show them as two separate things.
-                    const cut = i.kind === "lead" ? i.title.indexOf(": ") : -1;
-                    const heading = cut > 0 ? i.title.slice(0, cut) : i.title;
-                    const concern = cut > 0 ? i.title.slice(cut + 2) : "";
                     const isSaved = savedKeys.has(i.key);
                     return (
                       <li key={i.key} className="flex flex-wrap items-stretch gap-4 rounded-xl border border-slate-200 p-3 transition-colors hover:border-primary/40 sm:flex-nowrap">
@@ -207,19 +205,25 @@ function Dashboard({ listing }: { listing: Listing }) {
                             <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ring-1 ring-inset ${KIND_STYLE[i.kind]}`}>{KIND_LABEL[i.kind]}</span>
                             {i.urgent && i.kind !== "lead" && <span className="rounded-full bg-emergency-soft px-2 py-0.5 text-xs font-semibold text-emergency">{i.kind === "bid" ? "Closing soon" : "Needs help now"}</span>}
                           </p>
-                          <Link to={`/contractor/leads?open=${i.key}`} className="mt-1 line-clamp-2 block font-semibold text-navy hover:text-primary">{heading}</Link>
-                          {concern && <p className="mt-1 line-clamp-2 text-sm text-slate-600"><span className="font-semibold text-slate-500">Concern: </span>{concern}</p>}
+                          <Link to={`/contractor/leads?open=${i.key}`} className="mt-1 line-clamp-2 block font-semibold text-navy hover:text-primary">{i.subject}</Link>
+                          {i.blurb && <p className="mt-1 line-clamp-2 text-sm text-slate-600"><span className="font-semibold text-slate-500">{i.kind === "lead" ? "Concern: " : ""}</span>{i.blurb}</p>}
                           <p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
                             {i.place && <span className="inline-flex items-center gap-1"><MapPin className="size-3.5" aria-hidden /> {i.place}</span>}
-                            {i.when && <span className="inline-flex items-center gap-1"><Clock className="size-3.5" aria-hidden /> {ago(i.when.length === 10 ? `${i.when}T12:00:00Z` : i.when)}</span>}
+                            <span>{i.industry} · {i.trade}</span>
+                            {i.when && <span className="inline-flex items-center gap-1"><Clock className="size-3.5" aria-hidden /> Found {ago(i.when.length === 10 ? `${i.when}T12:00:00Z` : i.when)}</span>}
+                          </p>
+                          <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
+                            <span>Source: {i.source}</span>
+                            <span className="inline-flex items-center gap-1 font-medium text-amber-800"><Lock className="size-3" aria-hidden /> Contact information locked</span>
                           </p>
                         </div>
                         <div className="flex w-full shrink-0 flex-col items-stretch gap-2 border-t border-slate-200 pt-3 sm:w-44 sm:items-end sm:border-t-0 sm:border-l sm:pt-0 sm:pl-4">
                           <div className="flex items-start justify-between gap-2 sm:w-full">
                             <div className="sm:text-right">
-                              {i.fact && <p className="text-sm font-bold text-navy">{i.fact}</p>}
+                              <p className="text-[11px] font-semibold tracking-wide text-slate-500 uppercase">{i.value !== null ? "Est. value" : i.kind === "bid" ? "Deadline" : "Value"}</p>
+                              <p className="text-sm font-bold text-navy">{i.value !== null ? `$${Math.round(i.value).toLocaleString("en-US")}` : i.fact ?? "Not listed"}</p>
                               {i.unlocked
-                                ? <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-bold text-green-800"><Check className="size-3" aria-hidden /> {plan === "premium" ? "Premium" : "Unlocked"}</span>
+                                ? <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-bold text-green-800"><Check className="size-3" aria-hidden /> Premium</span>
                                 : <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-bold text-amber-900"><Lock className="size-3" aria-hidden /> Locked</span>}
                             </div>
                             <button type="button" onClick={() => void (isSaved ? Promise.resolve() : save(i))} disabled={isSaved || saving === i.key}
@@ -230,15 +234,16 @@ function Dashboard({ listing }: { listing: Listing }) {
                           </div>
                           <Link to={`/contractor/leads?open=${i.key}`}
                             className={`rounded-lg px-4 py-2 text-center text-sm font-semibold ${i.unlocked ? "border border-slate-300 bg-white text-navy hover:bg-slate-50" : "bg-primary text-white hover:opacity-90"}`}>
-                            {i.unlocked ? "View details" : `Unlock for $${i.price}`}
+                            {i.unlocked ? "Unlock lead" : `Unlock lead · $${i.price}`}
                           </Link>
+                          <Link to={`/contractor/leads?open=${i.key}`} className="text-center text-sm font-semibold text-primary hover:underline sm:text-right">View details</Link>
                         </div>
                       </li>
                     );
                   })}
                 </ul>
               )}
-              {list.length > SHOWN && <Link to={tab === "all" ? "/contractor/leads" : `/contractor/leads?type=${tab}`} className="mt-4 inline-block text-sm font-semibold text-primary hover:underline">See all {list.length.toLocaleString()} leads →</Link>}
+              {list.length > SHOWN && <Link to={tab === "all" ? "/contractor/leads" : `/contractor/leads?type=${tab}`} className="mt-4 inline-block text-sm font-semibold text-primary hover:underline">See all {list.length.toLocaleString()} opportunities →</Link>}
             </div>
           </section>
 

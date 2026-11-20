@@ -5,7 +5,6 @@ import { PageTitle, Panel } from "@/components/admin/widgets";
 import { Button } from "@/components/ui/Button";
 import { inputClass } from "@/components/ui/Field";
 import { useContractor } from "./context";
-import { LeadsTabs } from "./LeadsTabs";
 import { KIND_LABEL, KIND_STYLE, STAGE_LABEL, STAGE_STYLE, stagesFor, type PipelineRow, useLeadHub } from "./useLeadHub";
 
 const money = (n: number | null) => (n === null ? "" : `$${Number(n).toLocaleString("en-US")}`);
@@ -119,7 +118,6 @@ export default function ContractorProjects() {
   return (
     <>
       <PageTitle title="Leads" description="What you are working on, with its status, amount, date and notes." />
-      <LeadsTabs saved={hub.pipeline.filter((r) => r.stage === "saved").length} projects={mine.length} />
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <div role="tablist" aria-label="Projects or bids" className="flex gap-1.5">
