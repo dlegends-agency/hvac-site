@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowRight, BellRing, CalendarClock, Check, ChevronDown, FileText, Loader2, Mail, MapPin, MessageSquarePlus, Phone, Receipt, ArrowRightCircle } from "lucide-react";
+import { ArrowRight, BellRing, CalendarClock, Check, ChevronDown, FileText, Loader2, MapPin, MessageSquarePlus, Phone, Receipt, ArrowRightCircle } from "lucide-react";
 import { PageTitle, Panel } from "@/components/admin/widgets";
 import { Button } from "@/components/ui/Button";
 import { inputClass } from "@/components/ui/Field";
 import { getSupabaseBrowser } from "@/lib/supabase";
 import { callApi } from "./api";
 import { useContractor } from "./context";
+import { EmailCustomer } from "./EmailCustomer";
+import { EmailOpportunity } from "./EmailOpportunity";
 import { KIND_LABEL, KIND_STYLE, STAGE_LABEL, STAGE_STYLE, stagesFor, type HubItem, type PipelineRow, type Stage, useLeadHub } from "./useLeadHub";
 import { ago } from "./useMyLeads";
 
@@ -26,7 +28,7 @@ const tabOf = (s: Stage): Exclude<TabId, "all"> =>
 
 interface Receipt { kind: string; item_id: string; unlocked_at: string; unlock_cents: number | null; unlock_ref: string | null }
 interface Activity { created_at: string; type: string; body: string | null }
-interface Contact { name: string | null; company: string | null; position: string | null; phone: string | null; email: string | null }
+interface Contact { name: string | null; company: string | null; position: string | null; phone: string | null; email: string | null; index: number; issue?: string }
 
 const ACTIVITY_LABEL: Record<string, string> = { status: "Status", note: "Note", follow_up: "Follow-up", call: "Call", email: "Email", unlock: "Unlocked", converted: "Converted" };
 const day = (iso: string) => new Date(iso.length === 10 ? `${iso}T12:00:00Z` : iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: iso.length === 10 ? "UTC" : undefined });
@@ -41,6 +43,7 @@ function LeadCard({ r, item, contact, description, receipt, plan, projectId, onC
   onChanged: () => void; update: (patch: Partial<Pick<PipelineRow, "stage" | "follow_up_on">>) => Promise<boolean>;
 }) {
   const navigate = useNavigate();
+  const { listing } = useContractor();
   const [panel, setPanel] = useState<null | "follow" | "note" | "details" | "convert">(null);
   const [value, setValue] = useState(r.amount_usd ? String(r.amount_usd) : "");
   const [quoteNote, setQuoteNote] = useState("");
@@ -128,7 +131,7 @@ function LeadCard({ r, item, contact, description, receipt, plan, projectId, onC
           <Row label="Name">{contact.name ?? "Not listed"}</Row>
           <Row label="Company">{contact.company ?? "Not listed"}</Row>
           <Row label="Phone">{contact.phone ? <a href={`tel:${contact.phone}`} className="font-semibold text-primary hover:underline">{contact.phone}</a> : "Not listed"}</Row>
-          <Row label="Email">{contact.email ? <a href={`mailto:${contact.email}`} className="font-semibold text-primary hover:underline">{contact.email}</a> : "Not listed"}</Row>
+          <Row label="Email">{contact.email ? <span className="break-all font-semibold text-slate-900">{contact.email}</span> : "Not listed"}</Row>
           {contact.position && <Row label="Position">{contact.position}</Row>}
         </dl>
         <dl className="space-y-1.5 rounded-xl bg-slate-50 p-3">
@@ -154,9 +157,10 @@ function LeadCard({ r, item, contact, description, receipt, plan, projectId, onC
         {contact.phone && (
           <a href={`tel:${contact.phone}`} onClick={() => void log("call", "Called " + (contact.name ?? "the contact"))} className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white hover:opacity-90"><Phone className="size-4" aria-hidden /> Call</a>
         )}
-        {contact.email && (
-          <a href={`mailto:${contact.email}`} onClick={() => void log("email", "Opened an email to " + (contact.name ?? "the contact"))} className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-navy hover:bg-slate-50"><Mail className="size-4" aria-hidden /> Email</a>
-        )}
+        {contact.email && listing && (r.kind === "lead"
+          ? <EmailCustomer leadId={r.item_id} listingId={listing.id} businessName={listing.business_name} customerName={(contact.name ?? "").split(" ")[0] || "there"} issue={contact.issue ?? ""} email={contact.email} label="Email" onSent={(s) => void log("email", `Emailed ${contact.name ?? "the customer"}: ${s}`)} />
+          : <EmailOpportunity kind={r.kind as "permit" | "bid"} itemId={r.item_id} index={contact.index} email={contact.email} recipient={contact.name ?? contact.company ?? contact.email} businessName={listing.business_name} label="Email"
+              defaultSubject={r.kind === "bid" ? `Interest in ${item.subject}` : `HVAC help on ${item.subject}`} project={item.subject} onSent={(s) => void log("email", `Emailed ${contact.name ?? "the contact"}: ${s}`)} />)}
         <button type="button" onClick={() => toggle("follow")} aria-expanded={panel === "follow"} className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-navy hover:bg-slate-50"><CalendarClock className="size-4" aria-hidden /> Schedule Follow-Up</button>
         <button type="button" onClick={() => toggle("note")} aria-expanded={panel === "note"} className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-navy hover:bg-slate-50"><MessageSquarePlus className="size-4" aria-hidden /> Add Notes</button>
         <button type="button" onClick={() => toggle("details")} aria-expanded={panel === "details"} className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-navy hover:bg-slate-50"><FileText className="size-4" aria-hidden /> View Full Details <ChevronDown className={`size-4 transition-transform ${panel === "details" ? "rotate-180" : ""}`} aria-hidden /></button>
@@ -308,16 +312,21 @@ export default function ContractorMyLeads() {
   const detailsOf = (item: HubItem): { contact: Contact; description: string } => {
     if (item.kind === "lead") {
       const l = (hub.leads ?? []).find((x) => x.id === item.id);
-      return { contact: { name: l ? [l.first_name, l.last_name].filter(Boolean).join(" ") : item.subject, company: null, position: null, phone: l?.phone ?? null, email: l?.email ?? null }, description: l?.description || item.blurb };
+      return { contact: { name: l ? [l.first_name, l.last_name].filter(Boolean).join(" ") : item.subject, company: null, position: null, phone: l?.phone ?? null, email: l?.email ?? null, index: 0, issue: l?.issue }, description: l?.description || item.blurb };
     }
+    // The server is told which contact by position (never the address), so remember where the chosen one sits in the list.
+    const pick = <T extends { phone?: string | null; email?: string | null }>(list: T[] | null | undefined) => {
+      const i = Math.max(0, (list ?? []).findIndex((x) => x.phone || x.email));
+      return { person: (list ?? [])[i], index: i };
+    };
     if (item.kind === "permit") {
       const p = hub.permits.find((x) => x.id === item.id);
-      const person = p?.people?.find((x) => x.phone || x.email) ?? p?.people?.[0];
-      return { contact: { name: person?.name ?? null, company: person?.company ?? p?.contractor_name ?? null, position: person?.role ?? null, phone: person?.phone ?? null, email: person?.email ?? null }, description: p?.description || item.blurb };
+      const { person, index } = pick(p?.people);
+      return { contact: { name: person?.name ?? null, company: person?.company ?? p?.contractor_name ?? null, position: person?.role ?? null, phone: person?.phone ?? null, email: person?.email ?? null, index }, description: p?.description || item.blurb };
     }
     const b = hub.bids.find((x) => x.id === item.id);
-    const c = b?.contacts?.find((x) => x.phone || x.email) ?? b?.contacts?.[0];
-    return { contact: { name: c?.name ?? null, company: b?.agency ?? null, position: c?.title ?? null, phone: c?.phone ?? null, email: c?.email ?? null }, description: b?.summary || item.blurb };
+    const { person: c, index } = pick(b?.contacts);
+    return { contact: { name: c?.name ?? null, company: b?.agency ?? null, position: c?.title ?? null, phone: c?.phone ?? null, email: c?.email ?? null, index }, description: b?.summary || item.blurb };
   };
 
   return (

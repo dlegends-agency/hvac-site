@@ -7,7 +7,8 @@ import { EmailComposer } from "./EmailComposer";
  * through the site. The browser only says which contact (its position on the lead): the server reads the address itself, and checks the
  * lead is unlocked, the daily limits and the opt-out list. Replies go straight to the business.
  */
-export function EmailOpportunity({ kind, itemId, index, email, recipient, businessName, defaultSubject, label, project }: {
+export function EmailOpportunity({ kind, itemId, index, email, recipient, businessName, defaultSubject, label, project, onSent }: {
+  onSent?: (subject: string) => void;
   kind: "permit" | "bid";
   itemId: string;
   index: number;
@@ -23,6 +24,7 @@ export function EmailOpportunity({ kind, itemId, index, email, recipient, busine
 }) {
   return (
     <EmailComposer
+      onSent={onSent}
       ai={{ kind, id: itemId, index }}
       address={email}
       label={label}

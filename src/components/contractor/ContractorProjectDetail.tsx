@@ -10,6 +10,7 @@ import {
 } from "@/lib/projects";
 import { getSupabaseBrowser } from "@/lib/supabase";
 import { useContractor } from "./context";
+import { EmailCustomer } from "./EmailCustomer";
 import { useChildRows } from "./useProjects";
 import { ago } from "./useMyLeads";
 
@@ -91,6 +92,7 @@ function Overview({ p, onSaved, tasks, expenses }: { p: Project; onSaved: () => 
 
 function Client({ p, onSaved }: { p: Project; onSaved: () => void }) {
   const { save, busy, msg } = useSave(p, onSaved);
+  const { listing } = useContractor();
   function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
@@ -107,7 +109,11 @@ function Client({ p, onSaved }: { p: Project; onSaved: () => void }) {
       <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
         <Button type="submit" disabled={busy} className="!rounded-full !px-5 !py-2 text-sm">{busy && <Loader2 className="size-4 animate-spin" aria-hidden />} Save</Button>
         {p.client_phone && <a href={`tel:${p.client_phone}`} className="text-sm font-semibold text-primary hover:underline">Call</a>}
-        {p.client_email && <a href={`mailto:${p.client_email}`} className="text-sm font-semibold text-primary hover:underline">Email</a>}
+        {p.client_email && p.lead_kind === "lead" && p.lead_item_id && listing
+          ? <EmailCustomer leadId={p.lead_item_id} listingId={listing.id} businessName={listing.business_name} customerName={(p.client_name ?? "").split(" ")[0] || "there"} issue={p.name} email={p.client_email} label="Email client" />
+          : p.client_email && p.lead_kind
+            ? <Link to="/contractor/my-leads" className="text-sm font-semibold text-primary hover:underline">Email from My Leads</Link>
+            : p.client_email && <a href={`mailto:${p.client_email}`} className="text-sm font-semibold text-primary hover:underline">Email</a>}
         {p.lead_kind === "lead" && <Link to={`/contractor/messages?lead=${p.lead_item_id}`} className="text-sm font-semibold text-primary hover:underline">Messages</Link>}
         <span role="status" className="text-sm text-slate-600">{msg}</span>
       </div>
