@@ -48,6 +48,7 @@ const ContractorLeadHub = lazy(() => import("@/components/contractor/ContractorL
 const ContractorMyLeads = lazy(() => import("@/components/contractor/ContractorMyLeads"));
 const ContractorProjects = lazy(() => import("@/components/contractor/ContractorProjects"));
 const ContractorProjectDetail = lazy(() => import("@/components/contractor/ContractorProjectDetail"));
+const ContractorBidDetail = lazy(() => import("@/components/contractor/ContractorBidDetail"));
 const ContractorBidPreparation = lazy(() => import("@/components/contractor/ContractorBidPreparation"));
 const ContractorAnalytics = lazy(() => import("@/components/contractor/ContractorAnalytics"));
 const ContractorBusiness = lazy(() => import("@/components/contractor/ContractorBusiness"));
@@ -100,6 +101,7 @@ export default function App() {
             <Route path="projects" element={<ContractorProjects />} />
             <Route path="projects/:id" element={<ContractorProjectDetail />} />
             <Route path="bid-preparation" element={<ContractorBidPreparation />} />
+            <Route path="bid-preparation/:id" element={<ContractorBidDetail />} />
             <Route path="analytics" element={<ContractorAnalytics />} />
             <Route path="messages" element={<ContractorMessages />} />
             <Route path="opportunities" element={<Navigate to="/contractor/leads" replace />} />
