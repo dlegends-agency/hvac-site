@@ -10,11 +10,14 @@ import {
 } from "@/lib/projects";
 import { getSupabaseBrowser } from "@/lib/supabase";
 import { useContractor } from "./context";
+import { BookingCalendar } from "./BookingCalendar";
 import { EmailCustomer } from "./EmailCustomer";
+import { useBookings } from "./useBookings";
+import { BOOKING_TYPE_LABEL, dateLabel, timeLabel } from "@/lib/bookings";
 import { useChildRows } from "./useProjects";
 import { ago } from "./useMyLeads";
 
-const TABS = ["Overview", "Client Information", "Scope of Work", "Tasks & Schedule", "Documents", "Quotations & Contracts", "Expenses", "Activity Timeline"] as const;
+const TABS = ["Overview", "Client Information", "Scope of Work", "Tasks & Schedule", "Bookings", "Documents", "Quotations & Contracts", "Expenses", "Activity Timeline"] as const;
 type Tab = (typeof TABS)[number];
 const ACTIVITY_LABEL: Record<string, string> = { created: "Created", status: "Status", note: "Note", call: "Call", email: "Email", follow_up: "Follow-up", unlock: "Unlocked", converted: "Converted", task: "Task", document: "Document", team: "Team", expense: "Expense", quotation: "Quotation" };
 const STATUS_ORDER: Record<Quotation["status"], string> = { draft: "Draft", sent: "Sent", accepted: "Accepted", declined: "Declined" };
@@ -45,6 +48,11 @@ function Overview({ p, onSaved, tasks, expenses }: { p: Project; onSaved: () => 
   const done = tasks.filter((t) => t.done).length;
   const pct = tasks.length ? Math.round((done / tasks.length) * 100) : 0;
   const spent = expenses.reduce((s, e) => s + Number(e.amount_usd), 0);
+  const bookings = useBookings(true);
+  const [nowMs] = useState(() => Date.now());
+  const upcoming = bookings.rows === null ? null : bookings.rows
+    .filter((b) => b.status === "scheduled" && Date.parse(b.ends_at) >= nowMs && (b.project_id === p.id || (p.lead_kind !== null && b.lead_kind === p.lead_kind && b.lead_item_id === p.lead_item_id)))
+    .slice(0, 3);
   function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
@@ -78,6 +86,13 @@ function Overview({ p, onSaved, tasks, expenses }: { p: Project; onSaved: () => 
             <div className="flex justify-between"><dt className="text-slate-500">Expenses so far</dt><dd className="font-semibold text-navy">{usd(spent)}</dd></div>
             {p.contract_value !== null && <div className="flex justify-between border-t border-slate-100 pt-1"><dt className="text-slate-500">Left after expenses</dt><dd className="font-semibold text-navy">{usd(Number(p.contract_value) - spent)}</dd></div>}
           </dl>
+        </Panel>
+        <Panel title="Upcoming bookings">
+          {upcoming === null ? <p className="text-sm text-slate-500">Loading…</p> : upcoming.length === 0 ? <p className="text-sm text-slate-700">Nothing booked. Open the Bookings tab to schedule a visit or the work.</p> : (
+            <ul className="space-y-2 text-sm">
+              {upcoming.map((b) => <li key={b.id}><strong className="text-navy">{b.title}</strong><br /><span className="text-xs text-slate-600">{BOOKING_TYPE_LABEL[b.type]} · {dateLabel(b.starts_at)}, {timeLabel(b.starts_at)}</span></li>)}
+            </ul>
+          )}
         </Panel>
         {p.lead_kind && (
           <Panel title="Original lead">
@@ -413,6 +428,10 @@ export default function ContractorProjectDetail() {
       {tab === "Client Information" && <Client p={project} onSaved={() => void load()} />}
       {tab === "Scope of Work" && <Scope p={project} onSaved={() => void load()} />}
       {tab === "Tasks & Schedule" && <Tasks tasks={tasks} team={team} />}
+      {tab === "Bookings" && listing && (
+        <BookingCalendar listingId={listing.id} projectId={project.id} link={project.lead_kind && project.lead_item_id ? { kind: project.lead_kind, itemId: project.lead_item_id } : undefined}
+          defaults={{ title: project.name, customer: project.client_name, location: project.location }} />
+      )}
       {tab === "Documents" && <Documents docs={docs} />}
       {tab === "Quotations & Contracts" && <Quotes p={project} quotes={quotes} onSaved={() => setTick((t) => t + 1)} />}
       {tab === "Expenses" && <Expenses p={project} exp={expenses} />}
