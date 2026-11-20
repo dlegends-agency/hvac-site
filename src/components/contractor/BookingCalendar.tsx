@@ -11,6 +11,9 @@ import { useBookings } from "./useBookings";
 
 export interface BookingLink { kind: "lead" | "permit" | "bid"; itemId: string }
 
+/** A project or lead name can list many problems and be longer than a booking title may be, so the title uses the first part. */
+const short = (s: string, n = 80) => (s.length > n ? `${s.slice(0, n).replace(/[\s,;-]+\S*$/, "")}…` : s);
+
 const DURATIONS = [30, 60, 90, 120, 180, 240, 480];
 const durationLabel = (m: number) => (m < 60 ? `${m} min` : `${m / 60} hr`);
 
@@ -26,7 +29,7 @@ export function BookingCalendar({ listingId, link, projectId, defaults }: {
   const [cursor, setCursor] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
   const [picked, setPicked] = useState(dayKey(today));
   const [type, setType] = useState<BookingType>("site_visit");
-  const [title, setTitle] = useState(`Site visit: ${defaults.title}`);
+  const [title, setTitle] = useState(`Site visit: ${short(defaults.title)}`);
   const [time, setTime] = useState("09:00");
   const [minutes, setMinutes] = useState(60);
   const [location, setLocation] = useState(defaults.location ?? "");
@@ -56,7 +59,7 @@ export function BookingCalendar({ listingId, link, projectId, defaults }: {
     setMsg(null);
     const { error: err } = await getSupabaseBrowser().from("bookings").insert({
       listing_id: listingId, project_id: projectId ?? null, lead_kind: link?.kind ?? null, lead_item_id: link?.itemId ?? null,
-      type, title: title.trim(), starts_at: startIso, ends_at: endIso, customer_name: defaults.customer ?? null, location: location.trim() || null, notes: notes.trim() || null,
+      type, title: title.trim().slice(0, 200), starts_at: startIso, ends_at: endIso, customer_name: defaults.customer ?? null, location: location.trim() || null, notes: notes.trim() || null,
     });
     setBusy(false);
     if (err) return setMsg(err.message.includes("row-level") ? "That booking could not be saved for this lead." : err.message);
@@ -123,7 +126,7 @@ export function BookingCalendar({ listingId, link, projectId, defaults }: {
           <p className="flex items-center gap-1.5 text-sm font-bold text-navy"><CalendarPlus className="size-4 text-primary" aria-hidden /> Book {dateLabel(`${picked}T12:00`)}</p>
           <div className="mt-2 grid grid-cols-2 gap-2">
             <label className="text-xs font-semibold text-slate-600">Type
-              <select value={type} onChange={(e) => { const t = e.target.value as BookingType; setType(t); setTitle(`${BOOKING_TYPE_LABEL[t]}: ${defaults.title}`); }} className={`${inputClass} mt-1 !py-1.5`}>
+              <select value={type} onChange={(e) => { const t = e.target.value as BookingType; setType(t); setTitle(`${BOOKING_TYPE_LABEL[t]}: ${short(defaults.title)}`); }} className={`${inputClass} mt-1 !py-1.5`}>
                 {BOOKING_TYPES.map((t) => <option key={t} value={t}>{BOOKING_TYPE_LABEL[t]}</option>)}
               </select>
             </label>
