@@ -75,8 +75,8 @@ function Dashboard({ listing }: { listing: Listing }) {
 
   const savedKeys = useMemo(() => new Set(pipeline.map((r) => `${r.kind}:${r.item_id}`)), [pipeline]);
   const byKey = useMemo(() => new Map(items.map((i) => [i.key, i])), [items]);
-  const saved = pipeline.filter((r) => r.stage === "saved");
-  const active = pipeline.filter((r) => !["saved", "won", "lost"].includes(r.stage));
+  const saved = pipeline.filter((r) => r.stage === "saved" || r.stage === "new");
+  const active = pipeline.filter((r) => !["saved", "new", "won", "converted", "lost"].includes(r.stage));
   const won = pipeline.filter((r) => r.stage === "won").length;
   const unlockedMine = pipeline.filter((r) => byKey.get(`${r.kind}:${r.item_id}`)?.unlocked).length;
   const fresh = items.filter((i) => i.when && now - new Date(i.when.length === 10 ? `${i.when}T12:00:00Z` : i.when).getTime() < 7 * DAY).length;

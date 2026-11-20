@@ -21,19 +21,27 @@ export const KIND_STYLE: Record<LeadKind, string> = {
   bid: "bg-violet-50 text-violet-800 ring-violet-200",
 };
 
-/** The steps a saved lead moves through. Bids add "submitted". */
-export const STAGES = ["saved", "contacted", "quoted", "submitted", "won", "lost"] as const;
+/** The steps a lead moves through. Bids add "submitted". "saved" and "new" are the same first step; "converted" is set when the lead becomes a project. */
+export const STAGES = ["saved", "new", "contacted", "follow_up", "interested", "quoted", "submitted", "won", "converted", "lost"] as const;
 export type Stage = (typeof STAGES)[number];
-export const STAGE_LABEL: Record<Stage, string> = { saved: "Saved", contacted: "Contacted", quoted: "Quoted", submitted: "Bid submitted", won: "Won", lost: "Lost" };
+export const STAGE_LABEL: Record<Stage, string> = {
+  saved: "New", new: "New", contacted: "Contacted", follow_up: "Follow-up", interested: "Interested", quoted: "Quote sent",
+  submitted: "Bid submitted", won: "Accepted", converted: "Converted", lost: "Lost",
+};
 export const STAGE_STYLE: Record<Stage, string> = {
   saved: "bg-slate-100 text-slate-700",
+  new: "bg-slate-100 text-slate-700",
   contacted: "bg-amber-100 text-amber-900",
+  follow_up: "bg-orange-100 text-orange-900",
+  interested: "bg-sky-100 text-sky-900",
   quoted: "bg-blue-100 text-blue-900",
   submitted: "bg-violet-100 text-violet-900",
   won: "bg-green-100 text-green-900",
+  converted: "bg-emerald-100 text-emerald-900",
   lost: "bg-slate-200 text-slate-600",
 };
-export const stagesFor = (kind: LeadKind): Stage[] => STAGES.filter((s) => kind === "bid" || s !== "submitted");
+/** The stages a person can pick by hand. "Converted" is set only by converting the lead to a project. */
+export const stagesFor = (kind: LeadKind): Stage[] => STAGES.filter((s) => s !== "new" && s !== "converted" && (kind === "bid" || s !== "submitted"));
 
 export interface PipelineRow {
   listing_id: string;
@@ -45,6 +53,7 @@ export interface PipelineRow {
   note: string | null;
   amount_usd: number | null;
   due_on: string | null;
+  follow_up_on: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -182,7 +191,7 @@ export function useLeadHub(listing: Listing | null) {
     void save(missing);
   }, [listing, pipelineLoaded, pipelineError, plan, mine.leads, opps.loading, items, pipeline, save]);
 
-  const update = useCallback(async (row: Pick<PipelineRow, "kind" | "item_id">, patch: Partial<Pick<PipelineRow, "stage" | "note" | "amount_usd" | "due_on">>) => {
+  const update = useCallback(async (row: Pick<PipelineRow, "kind" | "item_id">, patch: Partial<Pick<PipelineRow, "stage" | "note" | "amount_usd" | "due_on" | "follow_up_on">>) => {
     if (!listing) return false;
     const { error } = await getSupabaseBrowser().from("lead_pipeline").update({ ...patch, updated_at: new Date().toISOString() })
       .eq("listing_id", listing.id).eq("kind", row.kind).eq("item_id", row.item_id);

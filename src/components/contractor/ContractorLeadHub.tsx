@@ -17,7 +17,7 @@ import { KIND_LABEL, KIND_PLURAL, KIND_STYLE, type HubItem, type LeadKind, useLe
 import { ago } from "./useMyLeads";
 
 type Type = "all" | LeadKind;
-type Show = "all" | "new";
+type Show = "all" | "new" | "saved";
 type Sort = "best" | "newest";
 type Worth = "any" | "10000" | "100000" | "1000000";
 type Age = "any" | "7" | "30";
@@ -43,7 +43,7 @@ export default function ContractorLeadHub() {
   const [params, setParams] = useSearchParams();
   const [q, setQ] = useState("");
   const [city, setCity] = useState("all");
-  const [show, setShow] = useState<Show>("all");
+  const [show, setShow] = useState<Show>(params.get("show") === "saved" ? "saved" : "all");
   const [now] = useState(() => Date.now());
   const [worth, setWorth] = useState<Worth>("any");
   const [age, setAge] = useState<Age>("any");
@@ -94,7 +94,7 @@ export default function ContractorLeadHub() {
     return items
       .filter((i) => (type === "all" || i.kind === type)
         && (city === "all" || i.city === city)
-        && (show === "all" || !savedKeys.has(i.key))
+        && (show === "all" || (show === "new" ? !savedKeys.has(i.key) : savedKeys.has(i.key)))
         && (trade === "all" || i.trade === trade)
         && (industry === "all" || i.industry === industry)
         && (worth === "any" || (i.value !== null && i.value >= Number(worth)))
@@ -152,7 +152,8 @@ export default function ContractorLeadHub() {
     setNote({ ok: true, text: `${chosen.length === 1 ? "Saved" : `${chosen.length} leads saved`}.` });
   }
 
-  const open = openKey ? items.find((i) => i.key === openKey) ?? null : null;
+  // Opening one can also be a lead that is already unlocked (a link from My Leads), which the Discover list itself hides.
+  const open = openKey ? hub.items.find((i) => i.key === openKey) ?? null : null;
   const paidTier = plan === "free" ? "free" : "paid";
 
   return (
@@ -196,6 +197,7 @@ export default function ContractorLeadHub() {
           <select value={show} onChange={(e) => setShow(e.target.value as Show)} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 font-normal">
             <option value="all">Everything</option>
             <option value="new">Not saved yet</option>
+            <option value="saved">Saved</option>
           </select>
         </label>
         <label className="flex items-center gap-2 font-medium text-slate-700">Industry
@@ -243,7 +245,7 @@ export default function ContractorLeadHub() {
           <button type="button" onClick={() => setPicked(new Set())} className="text-sm font-medium text-slate-600 underline">Clear</button>
         </div>
       )}
-      <div role="status">{note && <p className={`mb-3 text-sm font-medium ${note.ok ? "text-green-700" : "text-red-700"}`}>{note.ok ? <>{note.text} <Link to="/contractor/my-leads" className="underline">See saved leads</Link></> : note.text}</p>}</div>
+      <div role="status">{note && <p className={`mb-3 text-sm font-medium ${note.ok ? "text-green-700" : "text-red-700"}`}>{note.ok ? <>{note.text} Find saved ones again with Show &rarr; Saved. Once unlocked, a lead moves to <Link to="/contractor/my-leads" className="underline">My Leads</Link>.</> : note.text}</p>}</div>
 
       {hub.error && items.length === 0 ? (
         <p className="rounded-xl border border-orange-200 bg-orange-50 p-4 text-sm text-orange-900">Leads couldn&apos;t be loaded. Run <code>supabase/schema-revamp.sql</code> (and the permits and bids SQL files) in the Supabase SQL Editor.</p>
