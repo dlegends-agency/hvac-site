@@ -1,154 +1,139 @@
-import { useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
-import { ArrowRight, Loader2, MapPin } from "lucide-react";
+import { useMemo, useState, type FormEvent } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { ArrowRight, CalendarDays, Loader2, MapPin, Plus, UserRound } from "lucide-react";
 import { PageTitle, Panel } from "@/components/admin/widgets";
 import { Button } from "@/components/ui/Button";
 import { inputClass } from "@/components/ui/Field";
+import { PROJECT_STATUSES, PROJECT_STATUS_LABEL, PROJECT_STATUS_STYLE, shortDate, usd, type Project, type ProjectStatus } from "@/lib/projects";
+import { getSupabaseBrowser } from "@/lib/supabase";
 import { useContractor } from "./context";
-import { KIND_LABEL, KIND_STYLE, STAGE_LABEL, STAGE_STYLE, stagesFor, type PipelineRow, useLeadHub } from "./useLeadHub";
+import { useProjects } from "./useProjects";
 
-const money = (n: number | null) => (n === null ? "" : `$${Number(n).toLocaleString("en-US")}`);
+type TabId = "all" | ProjectStatus;
+const TABS: { id: TabId; label: string }[] = [{ id: "all", label: "All Projects" }, ...PROJECT_STATUSES.map((s) => ({ id: s as TabId, label: PROJECT_STATUS_LABEL[s] }))];
 
-/** One project or bid: where it stands, what you quoted, when it is due and your notes. Changes save with the button. */
-function Editor({ row, onSave, onRemove }: { row: PipelineRow; onSave: (patch: Partial<Pick<PipelineRow, "stage" | "note" | "amount_usd" | "due_on">>) => Promise<boolean>; onRemove: () => Promise<boolean> }) {
-  const [stage, setStage] = useState(row.stage);
-  const [amount, setAmount] = useState(row.amount_usd === null ? "" : String(row.amount_usd));
-  const [due, setDue] = useState(row.due_on ?? "");
-  const [note, setNote] = useState(row.note ?? "");
+function NewProject({ listingId, onDone }: { listingId: string; onDone: (id: string) => void }) {
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  const id = `${row.kind}-${row.item_id}`;
-  const dirty = stage !== row.stage || amount !== (row.amount_usd === null ? "" : String(row.amount_usd)) || due !== (row.due_on ?? "") || note !== (row.note ?? "");
-
-  async function save() {
-    const n = amount.trim() === "" ? null : Number(amount.replace(/[$,\s]/g, ""));
-    if (n !== null && (!Number.isFinite(n) || n < 0)) return setMsg({ ok: false, text: "Enter the amount as a number, for example 4500." });
+  const [error, setError] = useState<string | null>(null);
+  async function submit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const f = new FormData(e.currentTarget);
+    const name = String(f.get("name") ?? "").trim();
+    if (!name) return;
     setBusy(true);
-    setMsg(null);
-    const ok = await onSave({ stage, amount_usd: n, due_on: due || null, note: note.trim() || null });
+    setError(null);
+    const value = String(f.get("value") ?? "").trim();
+    const { data, error: err } = await getSupabaseBrowser().from("projects").insert({
+      listing_id: listingId, name, client_name: String(f.get("client") ?? "").trim() || null, location: String(f.get("location") ?? "").trim() || null,
+      contract_value: value ? Number(value) : null, status: String(f.get("status")),
+    }).select("id").single();
     setBusy(false);
-    setMsg(ok ? { ok: true, text: "Saved." } : { ok: false, text: "Could not save. Please try again." });
+    if (err || !data) return setError("The project could not be created. Has supabase/schema-projects.sql been run?");
+    onDone((data as { id: string }).id);
   }
-
   return (
-    <div className="mt-3 border-t border-slate-100 pt-3">
-      <p className="text-sm font-semibold text-navy" id={`stage-${id}`}>Status</p>
-      <div role="group" aria-labelledby={`stage-${id}`} className="mt-2 flex flex-wrap gap-1.5">
-        {stagesFor(row.kind).filter((s) => s !== "saved").map((s) => (
-          <button key={s} type="button" aria-pressed={stage === s} onClick={() => setStage(s)}
-            className={`rounded-full border px-3.5 py-1 text-sm font-semibold ${stage === s ? "border-primary bg-primary text-white" : "border-slate-300 bg-white text-navy hover:bg-slate-50"}`}>{STAGE_LABEL[s]}</button>
-        ))}
+    <form onSubmit={(e) => void submit(e)} className="mb-5 grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-2">
+      <label className="text-sm font-medium text-slate-700">Project name<input id="np-name" name="name" required maxLength={300} className={`${inputClass} mt-1`} placeholder="Riverside Elementary roof units" /></label>
+      <label className="text-sm font-medium text-slate-700">Client (optional)<input id="np-client" name="client" maxLength={200} className={`${inputClass} mt-1`} /></label>
+      <label className="text-sm font-medium text-slate-700">Location (optional)<input id="np-location" name="location" maxLength={300} className={`${inputClass} mt-1`} /></label>
+      <label className="text-sm font-medium text-slate-700">Contract value ($) (optional)<input id="np-value" name="value" type="number" min="0" step="0.01" className={`${inputClass} mt-1`} /></label>
+      <label className="text-sm font-medium text-slate-700">Status
+        <select name="status" defaultValue="evaluating" className={`${inputClass} mt-1`}>{PROJECT_STATUSES.map((s) => <option key={s} value={s}>{PROJECT_STATUS_LABEL[s]}</option>)}</select>
+      </label>
+      <div className="flex items-end gap-3">
+        <Button type="submit" disabled={busy} className="!rounded-full !px-5 !py-2 text-sm">{busy && <Loader2 className="size-4 animate-spin" aria-hidden />} Create project</Button>
+        {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
       </div>
-      <div className="mt-3 grid gap-3 sm:grid-cols-2">
-        <div>
-          <label htmlFor={`amt-${id}`} className="mb-1 block text-sm font-semibold text-navy">{row.kind === "bid" ? "Bid amount (US$)" : "Quote (US$)"}</label>
-          <input id={`amt-${id}`} inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="For example 4500" className={inputClass} />
-        </div>
-        <div>
-          <label htmlFor={`due-${id}`} className="mb-1 block text-sm font-semibold text-navy">{row.kind === "bid" ? "Response due" : "Follow up by"}</label>
-          <input id={`due-${id}`} type="date" value={due} onChange={(e) => setDue(e.target.value)} className={inputClass} />
-        </div>
-      </div>
-      <label htmlFor={`note-${id}`} className="mt-3 mb-1 block text-sm font-semibold text-navy">Notes <span className="font-normal text-slate-500">(only you can see these)</span></label>
-      <textarea id={`note-${id}`} rows={2} maxLength={2000} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Who you spoke to, what was agreed, next step…" className={inputClass} />
-      <div className="mt-3 flex flex-wrap items-center gap-3">
-        <Button onClick={() => void save()} disabled={busy || !dirty} className="!rounded-full !px-5 !py-2 text-sm">{busy && <Loader2 className="size-4 animate-spin" aria-hidden />} Save changes</Button>
-        <button type="button" onClick={() => void onRemove()} className="text-sm font-medium text-slate-500 hover:text-red-700">Remove from my list</button>
-        <span role="status" className={`text-sm ${msg?.ok ? "text-green-700" : "text-red-700"}`}>{msg?.text}</span>
-      </div>
-    </div>
+    </form>
   );
 }
 
-function Card({ row, title, place, onSave, onRemove }: { row: PipelineRow; title: string; place: string | null; onSave: Parameters<typeof Editor>[0]["onSave"]; onRemove: () => Promise<boolean> }) {
-  const [open, setOpen] = useState(false);
+function Card({ p, progress }: { p: Project; progress?: { done: number; total: number } }) {
+  const pct = progress && progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : null;
   return (
     <li className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="flex w-full flex-wrap items-start justify-between gap-3 text-left">
-        <span className="min-w-0">
-          <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ring-1 ring-inset ${KIND_STYLE[row.kind]}`}>{KIND_LABEL[row.kind]}</span>
-          <span className="mt-1.5 block font-semibold text-navy">{title}</span>
-          <span className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
-            {place && <span className="inline-flex items-center gap-1"><MapPin className="size-3.5" aria-hidden /> {place}</span>}
-            {row.amount_usd !== null && <span className="font-semibold text-slate-700">{row.kind === "bid" ? "Bid" : "Quote"} {money(row.amount_usd)}</span>}
-            {row.due_on && <span>{row.kind === "bid" ? "Due" : "Follow up"} {new Date(`${row.due_on}T12:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>}
-          </span>
-        </span>
-        <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-bold ${STAGE_STYLE[row.stage]}`}>{STAGE_LABEL[row.stage]}</span>
-      </button>
-      {open && (
-        <>
-          <Editor row={row} onSave={onSave} onRemove={onRemove} />
-          <Link to={`/contractor/leads?open=${row.kind}:${row.item_id}`} className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline">View the lead details <ArrowRight className="size-4" aria-hidden /></Link>
-        </>
-      )}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${PROJECT_STATUS_STYLE[p.status]}`}>{PROJECT_STATUS_LABEL[p.status]}</span>
+          <h2 className="mt-1.5 text-base font-bold text-navy"><Link to={`/contractor/projects/${p.id}`} className="hover:text-primary">{p.name}</Link></h2>
+          <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
+            {(p.client_company || p.client_name) && <span className="inline-flex items-center gap-1"><UserRound className="size-3.5" aria-hidden /> {[p.client_name, p.client_company].filter(Boolean).join(" · ")}</span>}
+            {p.location && <span className="inline-flex items-center gap-1"><MapPin className="size-3.5" aria-hidden /> {p.location}</span>}
+            {(p.start_on || p.expected_end_on) && <span className="inline-flex items-center gap-1"><CalendarDays className="size-3.5" aria-hidden /> {shortDate(p.start_on)} to {shortDate(p.expected_end_on)}</span>}
+            {p.lead_kind && <span>From a lead</span>}
+          </p>
+        </div>
+        <div className="text-right">
+          <p className="text-[11px] font-semibold tracking-wide text-slate-500 uppercase">Contract value</p>
+          <p className="text-base font-bold text-navy">{usd(p.contract_value)}</p>
+        </div>
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-3">
+        {pct !== null ? (
+          <div className="flex min-w-40 flex-1 items-center gap-2 text-xs text-slate-600">
+            <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Tasks done"><div className="h-full bg-primary" style={{ width: `${pct}%` }} /></div>
+            {progress?.done}/{progress?.total} tasks
+          </div>
+        ) : <span className="flex-1 text-xs text-slate-500">No tasks yet</span>}
+        <Link to={`/contractor/projects/${p.id}`} className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white hover:opacity-90">View Project <ArrowRight className="size-4" aria-hidden /></Link>
+      </div>
     </li>
   );
 }
 
-/**
- * Projects and Bids: everything the business started working on from My Leads, with its status, the quote or bid amount, a date and notes.
- * "Projects" holds customer requests and permits, "Bids" the government bids.
- */
+/** My Projects: the jobs and contracts you have actually won. A lead becomes a project only when you convert an accepted one in My Leads. */
 export default function ContractorProjects() {
   const { listing } = useContractor();
-  const hub = useLeadHub(listing);
-  const [params, setParams] = useSearchParams();
-  const tab = params.get("tab") === "bids" ? "bids" : "projects";
-  const mine = hub.pipeline.filter((r) => r.stage !== "saved" && r.stage !== "new");
-  const projects = mine.filter((r) => r.kind !== "bid");
-  const bids = mine.filter((r) => r.kind === "bid");
-  const list = tab === "bids" ? bids : projects;
-  const [stageFilter, setStageFilter] = useState<"all" | PipelineRow["stage"]>("all");
-  const shown = list.filter((r) => stageFilter === "all" || r.stage === stageFilter);
-  const count = (rows: PipelineRow[], s: PipelineRow["stage"]) => rows.filter((r) => r.stage === s).length;
+  const navigate = useNavigate();
+  const { projects, progress, loaded, error } = useProjects(Boolean(listing));
+  const [tab, setTab] = useState<TabId>("all");
+  const [adding, setAdding] = useState(false);
+
+  const counts = useMemo(() => {
+    const c = Object.fromEntries(TABS.map((t) => [t.id, 0])) as Record<TabId, number>;
+    c.all = projects.length;
+    for (const p of projects) c[p.status]++;
+    return c;
+  }, [projects]);
+  const shown = projects.filter((p) => tab === "all" || p.status === tab);
 
   if (!listing) {
     return (
       <>
-        <PageTitle title="Projects & bids" />
+        <PageTitle title="My Projects" />
         <Panel title="Not connected yet"><p className="text-sm text-slate-700">Connect your business on the <Link to="/contractor" className="font-semibold text-primary underline">dashboard</Link> first.</p></Panel>
       </>
     );
   }
 
-  const byKey = new Map(hub.items.map((i) => [i.key, i]));
-  const stages = tab === "bids" ? stagesFor("bid") : stagesFor("lead");
-
   return (
     <>
-      <PageTitle title="Leads" description="What you are working on, with its status, amount, date and notes." />
+      <PageTitle title="My Projects" description="Jobs and contracts you have won. Convert an accepted lead in My Leads and its details move here, so nothing is typed twice.">
+        <Button onClick={() => setAdding((a) => !a)} variant="secondary" className="!rounded-full text-sm"><Plus className="size-4" aria-hidden /> New project</Button>
+      </PageTitle>
+      {adding && <NewProject listingId={listing.id} onDone={(id) => navigate(`/contractor/projects/${id}`)} />}
 
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <div role="tablist" aria-label="Projects or bids" className="flex gap-1.5">
-          {([["projects", `Projects (${projects.length})`], ["bids", `Bids (${bids.length})`]] as const).map(([id, label]) => (
-            <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => { setStageFilter("all"); setParams(id === "bids" ? { tab: "bids" } : {}, { replace: true }); }}
-              className={`rounded-full border px-4 py-1.5 text-sm font-semibold ${tab === id ? "border-primary bg-primary text-white" : "border-slate-300 bg-white text-navy hover:bg-slate-50"}`}>{label}</button>
-          ))}
-        </div>
-        <label className="ml-auto flex items-center gap-2 text-sm font-medium text-slate-700">Status
-          <select value={stageFilter} onChange={(e) => setStageFilter(e.target.value as typeof stageFilter)} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 font-normal">
-            <option value="all">All</option>
-            {stages.filter((s) => s !== "saved").map((s) => <option key={s} value={s}>{STAGE_LABEL[s]} ({count(list, s)})</option>)}
-          </select>
-        </label>
+      <div role="tablist" aria-label="Project status" className="mb-4 flex flex-wrap gap-x-5 gap-y-1 border-b border-slate-200">
+        {TABS.map((t) => (
+          <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)}
+            className={`-mb-px border-b-2 py-2.5 text-sm font-semibold ${tab === t.id ? "border-primary text-primary" : "border-transparent text-slate-600 hover:text-navy"}`}>
+            {t.label} <span className={`ml-0.5 rounded-full px-1.5 py-0.5 text-xs ${tab === t.id ? "bg-blue-100 text-primary" : "bg-slate-100 text-slate-600"}`}>{loaded ? counts[t.id] : "…"}</span>
+          </button>
+        ))}
       </div>
 
-      {hub.pipelineError ? (
-        <p className="rounded-xl border border-orange-200 bg-orange-50 p-4 text-sm text-orange-900">Projects could not be loaded. Run <code>supabase/schema-revamp.sql</code> in the Supabase SQL Editor.</p>
+      {error ? (
+        <p className="rounded-xl border border-orange-200 bg-orange-50 p-4 text-sm text-orange-900">Projects could not be loaded. Run <code>supabase/schema-projects.sql</code> in the Supabase SQL Editor.</p>
+      ) : !loaded ? (
+        <p className="text-slate-600">Loading…</p>
       ) : shown.length === 0 ? (
         <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center">
-          <p className="text-lg font-semibold text-navy">{list.length === 0 ? (tab === "bids" ? "No bids yet" : "No projects yet") : "Nothing with that status"}</p>
-          <p className="mt-2 text-sm text-slate-600">Save a lead, unlock it, then choose <strong>Start project</strong>.</p>
-          <Link to="/contractor/my-leads" className="mt-4 inline-flex items-center gap-1.5 font-semibold text-primary hover:underline">Open saved leads <ArrowRight className="size-4" aria-hidden /></Link>
+          <p className="text-lg font-semibold text-navy">{projects.length === 0 ? "No projects yet" : "Nothing in this tab"}</p>
+          <p className="mt-2 text-sm text-slate-600">{projects.length === 0 ? "When a customer accepts your offer, open the lead in My Leads and choose Convert to Project." : "Change a project's status and it moves between tabs."}</p>
+          {projects.length === 0 && <Link to="/contractor/my-leads" className="mt-4 inline-flex items-center gap-1.5 font-semibold text-primary hover:underline">Go to My Leads <ArrowRight className="size-4" aria-hidden /></Link>}
         </div>
       ) : (
-        <ul className="grid gap-3">
-          {shown.map((r) => {
-            const item = byKey.get(`${r.kind}:${r.item_id}`);
-            return <Card key={`${r.kind}:${r.item_id}`} row={r} title={item?.title ?? r.title} place={item?.place ?? r.place} onSave={(p) => hub.update(r, p)} onRemove={() => hub.remove(r)} />;
-          })}
-        </ul>
+        <ul className="grid gap-4">{shown.map((p) => <Card key={p.id} p={p} progress={progress[p.id]} />)}</ul>
       )}
     </>
   );

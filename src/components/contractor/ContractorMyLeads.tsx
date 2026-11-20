@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowRight, BellRing, CalendarClock, Check, ChevronDown, FileText, Loader2, Mail, MapPin, MessageSquarePlus, Phone, Receipt, ArrowRightCircle } from "lucide-react";
 import { PageTitle, Panel } from "@/components/admin/widgets";
 import { Button } from "@/components/ui/Button";
@@ -36,11 +36,14 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
   return <div className="flex gap-2 text-sm"><dt className="w-24 shrink-0 text-slate-500">{label}</dt><dd className="min-w-0 flex-1 break-words text-slate-800">{children}</dd></div>;
 }
 
-function LeadCard({ r, item, contact, description, receipt, plan, onChanged, update }: {
-  r: PipelineRow; item: HubItem; contact: Contact; description: string; receipt: Receipt | null; plan: string;
+function LeadCard({ r, item, contact, description, receipt, plan, projectId, onChanged, update }: {
+  r: PipelineRow; item: HubItem; contact: Contact; description: string; receipt: Receipt | null; plan: string; projectId: string | null;
   onChanged: () => void; update: (patch: Partial<Pick<PipelineRow, "stage" | "follow_up_on">>) => Promise<boolean>;
 }) {
-  const [panel, setPanel] = useState<null | "follow" | "note" | "details">(null);
+  const navigate = useNavigate();
+  const [panel, setPanel] = useState<null | "follow" | "note" | "details" | "convert">(null);
+  const [value, setValue] = useState(r.amount_usd ? String(r.amount_usd) : "");
+  const [quoteNote, setQuoteNote] = useState("");
   const [date, setDate] = useState(r.follow_up_on ?? "");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
@@ -76,7 +79,23 @@ function LeadCard({ r, item, contact, description, receipt, plan, onChanged, upd
 
   const paid = receipt && (receipt.unlock_cents ?? 0) > 0;
   const price = receipt?.unlock_cents ? `$${(receipt.unlock_cents / 100).toFixed(2)}` : null;
-  const toggle = (p: "follow" | "note" | "details") => setPanel(panel === p ? null : p);
+  const toggle = (p: "follow" | "note" | "details" | "convert") => setPanel(panel === p ? null : p);
+
+  /** The conversion happens in the database, which checks the lead is accepted and unlocked and never makes a second project. */
+  async function convert() {
+    setBusy(true);
+    setMsg(null);
+    const { data, error } = await getSupabaseBrowser().rpc("convert_lead_to_project", {
+      p_kind: r.kind, p_item: r.item_id, p_industry: item.industry, p_trade: item.trade, p_contract_value: Number(value), p_quote_note: quoteNote.trim() || null,
+    });
+    setBusy(false);
+    if (error || typeof data !== "string") {
+      setMsg(error?.message.includes("schema") || error?.code === "PGRST202" ? "Projects are not set up yet. Run supabase/schema-projects.sql." : (error?.message ?? "The project could not be created."));
+      return;
+    }
+    onChanged();
+    navigate(`/contractor/projects/${data}`);
+  }
 
   return (
     <li className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -142,9 +161,31 @@ function LeadCard({ r, item, contact, description, receipt, plan, onChanged, upd
         <button type="button" onClick={() => toggle("note")} aria-expanded={panel === "note"} className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-navy hover:bg-slate-50"><MessageSquarePlus className="size-4" aria-hidden /> Add Notes</button>
         <button type="button" onClick={() => toggle("details")} aria-expanded={panel === "details"} className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-navy hover:bg-slate-50"><FileText className="size-4" aria-hidden /> View Full Details <ChevronDown className={`size-4 transition-transform ${panel === "details" ? "rotate-180" : ""}`} aria-hidden /></button>
         {r.stage === "won" && (
-          <button type="button" disabled title="Converting an accepted lead into a project arrives in the next update" className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-4 py-2 text-sm font-bold text-white opacity-60"><ArrowRightCircle className="size-4" aria-hidden /> Convert to Project</button>
+          <button type="button" onClick={() => toggle("convert")} aria-expanded={panel === "convert"} className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-5 py-2 text-sm font-bold text-white shadow-sm hover:bg-emerald-700"><ArrowRightCircle className="size-4" aria-hidden /> Convert to Project</button>
+        )}
+        {r.stage === "converted" && projectId && (
+          <Link to={`/contractor/projects/${projectId}`} className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-5 py-2 text-sm font-bold text-white shadow-sm hover:bg-emerald-700"><ArrowRightCircle className="size-4" aria-hidden /> View Project</Link>
         )}
       </div>
+      {r.stage !== "won" && r.stage !== "converted" && r.stage !== "lost" && (
+        <p className="mt-2 text-xs text-slate-500">When the customer accepts your offer, set the status to <strong>Accepted</strong> to convert this lead into a project.</p>
+      )}
+
+      {panel === "convert" && (
+        <form className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-4" onSubmit={(e) => { e.preventDefault(); void convert(); }}>
+          <p className="text-sm font-semibold text-navy">Create a project from this accepted lead</p>
+          <p className="mt-1 text-sm text-slate-700">These move across automatically, so you do not type them again: the customer&apos;s name, company, phone and email, the original opportunity, description and location, the industry and trade, your notes and the whole activity history. The lead stays here, marked Converted.</p>
+          <div className="mt-3 flex flex-wrap items-end gap-3">
+            <label className="text-sm font-medium text-slate-700">Accepted contract value ($)
+              <input type="number" min="1" step="0.01" required value={value} onChange={(e) => setValue(e.target.value)} className={`${inputClass} mt-1 !py-2`} />
+            </label>
+            <label className="min-w-52 flex-1 text-sm font-medium text-slate-700">What was accepted <span className="font-normal text-slate-500">(optional)</span>
+              <input value={quoteNote} onChange={(e) => setQuoteNote(e.target.value)} maxLength={500} placeholder="Quote #, scope, payment terms…" className={`${inputClass} mt-1 !py-2`} />
+            </label>
+            <Button type="submit" disabled={busy || !value} className="!rounded-full !px-6 !py-2 text-sm">{busy && <Loader2 className="size-4 animate-spin" aria-hidden />} Convert to Project</Button>
+          </div>
+        </form>
+      )}
 
       {panel === "follow" && (
         <form className="mt-3 flex flex-wrap items-end gap-3" onSubmit={(e) => { e.preventDefault(); if (date) void run(() => update({ follow_up_on: date, ...(terminal ? {} : { stage: "follow_up" as Stage }) }), "Follow-up scheduled.").then((ok) => ok && setPanel(null)); }}>
@@ -205,10 +246,13 @@ export default function ContractorMyLeads() {
   const [params] = useSearchParams();
   const [tab, setTab] = useState<TabId>("all");
   const [receipts, setReceipts] = useState<Receipt[]>([]);
+  const [projectOf, setProjectOf] = useState<Map<string, string>>(new Map());
 
   const loadReceipts = useCallback(async () => {
-    const { data } = await getSupabaseBrowser().rpc("my_unlock_receipts");
-    setReceipts((data as Receipt[] | null) ?? []);
+    const sb = getSupabaseBrowser();
+    const [r, c] = await Promise.all([sb.rpc("my_unlock_receipts"), sb.from("lead_conversions").select("kind, item_id, project_id")]);
+    setReceipts((r.data as Receipt[] | null) ?? []);
+    setProjectOf(new Map(((c.data as { kind: string; item_id: string; project_id: string }[] | null) ?? []).map((x) => [`${x.kind}:${x.item_id}`, x.project_id])));
   }, []);
   useEffect(() => {
     if (!listing) return;
@@ -313,7 +357,7 @@ export default function ContractorMyLeads() {
           {shown.map(({ r, item }) => {
             const d = detailsOf(item);
             return (
-              <LeadCard key={`${r.kind}:${r.item_id}`} r={r} item={item} contact={d.contact} description={d.description} receipt={receiptOf.get(`${r.kind}:${r.item_id}`) ?? null} plan={plan}
+              <LeadCard key={`${r.kind}:${r.item_id}`} r={r} item={item} contact={d.contact} description={d.description} receipt={receiptOf.get(`${r.kind}:${r.item_id}`) ?? null} plan={plan} projectId={projectOf.get(`${r.kind}:${r.item_id}`) ?? null}
                 onChanged={reloadAll} update={(patch) => hub.update(r, patch)} />
             );
           })}
