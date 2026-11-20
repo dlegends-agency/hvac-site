@@ -95,7 +95,7 @@ export default function ContractorProjects() {
   const hub = useLeadHub(listing);
   const [params, setParams] = useSearchParams();
   const tab = params.get("tab") === "bids" ? "bids" : "projects";
-  const mine = hub.pipeline.filter((r) => r.stage !== "saved");
+  const mine = hub.pipeline.filter((r) => r.stage !== "saved" && r.stage !== "new");
   const projects = mine.filter((r) => r.kind !== "bid");
   const bids = mine.filter((r) => r.kind === "bid");
   const list = tab === "bids" ? bids : projects;
