@@ -23,9 +23,11 @@ assert.ok(secretsMatch("abc123", "abc123") && !secretsMatch("abc123", "abc124") 
 const env = { NOTIFY_SECRET: "s3cret", RESEND_API_KEY: "re_test", NOTIFY_FROM_EMAIL: "HVACHelp <leads@site.test>", SUPABASE_SERVICE_ROLE_KEY: "svc", VITE_SUPABASE_URL: "https://x.supabase.co", VITE_SITE_URL: "https://site.test" };
 const call = (e, secret) => onRequestPost({ env: e, request: new Request("https://site.test/api/notify/send", { method: "POST", headers: secret ? { "X-Notify-Secret": secret } : {} }) });
 
-let pending, resendCalls, finishArgs, failTo;
+let pending, resendCalls, finishArgs, failTo, statusPending = [], statusFinish = null;
 globalThis.fetch = async (url, init) => {
   url = String(url);
+  if (url.endsWith("/rpc/claim_status_alerts")) return new Response(JSON.stringify(statusPending), { status: 200 });
+  if (url.endsWith("/rpc/finish_status_alerts")) { statusFinish = JSON.parse(init.body); return new Response("null", { status: 200 }); }
   if (url.endsWith("/rpc/claim_lead_notifications")) return new Response(JSON.stringify(pending), { status: 200 });
   if (url.endsWith("/rpc/finish_lead_notifications")) { finishArgs = JSON.parse(init.body); return new Response("null", { status: 200 }); }
   if (url === "https://api.resend.com/emails") {
@@ -35,7 +37,7 @@ globalThis.fetch = async (url, init) => {
   throw new Error("unexpected request " + url);
 };
 const rows = (n) => Array.from({ length: n }, (_, i) => ({ id: `id${i}`, email: `c${i}@x.com`, ...alert }));
-const reset = (p) => { pending = p; resendCalls = []; finishArgs = null; failTo = null; };
+const reset = (p) => { statusPending = []; statusFinish = null; pending = p; resendCalls = []; finishArgs = null; failTo = null; };
 
 reset(rows(1));
 assert.equal((await call(env, null)).status, 403, "no secret");
@@ -45,7 +47,7 @@ assert.equal((await call({ ...env, RESEND_API_KEY: undefined }, "s3cret")).statu
 
 reset(rows(3));
 let res = await call(env, "s3cret");
-assert.deepEqual(await res.json(), { sent: 3, failed: 0, more: false });
+assert.deepEqual(await res.json(), { sent: 3, status_sent: 0, failed: 0, more: false });
 assert.equal(resendCalls.length, 3);
 assert.equal(resendCalls[0].auth, "Bearer re_test");
 assert.equal(resendCalls[0].body.from, "HVACHelp <leads@site.test>");
@@ -55,13 +57,13 @@ assert.ok(!resendCalls[0].body.html.includes("@x.com"), "contractor/customer add
 
 reset(rows(3)); failTo = "c1@x.com";
 res = await call(env, "s3cret");
-assert.deepEqual(await res.json(), { sent: 2, failed: 1, more: false });
+assert.deepEqual(await res.json(), { sent: 2, status_sent: 0, failed: 1, more: false });
 assert.deepEqual(finishArgs.p_sent, ["id0", "id2"]);
 assert.deepEqual(finishArgs.p_failed, { id1: "Resend 403: Domain not verified" }, "failure reason recorded for retry");
 
 reset([]);
 res = await call(env, "s3cret");
-assert.deepEqual(await res.json(), { sent: 0, failed: 0, more: false });
+assert.deepEqual(await res.json(), { sent: 0, status_sent: 0, failed: 0, more: false });
 assert.equal(finishArgs, null, "nothing to record");
 
 reset(rows(25));
@@ -101,5 +103,15 @@ assert.deepEqual(await res.json(), { sent: 1, failed: 1, more: false });
 assert.deepEqual(finishArgs.p_failed, { d0: "Resend 403: Domain not verified" });
 reset(drows(25));
 assert.equal((await (await callDigest(env, "s3cret")).json()).more, true, "tells the caller there may be more");
+
+// status change emails ride along on the same call
+reset(rows(0));
+statusPending = [{ id: "s1", email: "owner@x.com", business_name: "Cool Air", title: "AC Not Cooling", kind: "lead", from_label: "New", to_label: "Contacted", reason: "you had a successful call" }, { id: "s2", email: "owner@x.com", business_name: "Cool Air", title: "Furnace", kind: "lead", from_label: "Contacted", to_label: "Quote sent", reason: null }];
+res = await call(env, "s3cret");
+assert.equal((await res.json()).status_sent, 2);
+assert.deepEqual(statusFinish.p_sent, ["s1", "s2"]);
+assert.equal(resendCalls[0].body.subject, "Contacted: AC Not Cooling");
+assert.ok(resendCalls[0].body.text.includes("because you had a successful call") && resendCalls[1].body.text.includes("You changed the status"), "it says who or what changed it");
+assert.ok(!/phone|@x\.com/i.test(resendCalls[0].body.html.replace("owner@x.com", "")), "no contact details in a status email");
 
 console.log("notify: all checks passed");

@@ -25,6 +25,47 @@ export function secretsMatch(a: string | null | undefined, b: string | null | un
 /** Single-line, length-limited text from user-supplied fields (used in the subject line). */
 const oneLine = (s: string, max: number) => s.replace(/[\r\n\t]+/g, " ").trim().slice(0, max);
 
+export interface StatusAlert {
+  business_name: string;
+  title: string | null;
+  kind: string;
+  from_label: string | null;
+  to_label: string;
+  /** Why the system moved it by itself, for example "you had a successful call". Empty when the contractor changed it. */
+  reason: string | null;
+}
+
+/** "Lead status changed" email to the business owner. No customer contact details: the title of the lead and the two statuses only. */
+export function renderStatusEmail(a: StatusAlert, siteUrl: string): { subject: string; html: string; text: string } {
+  const title = oneLine(a.title ?? "", 160) || (a.kind === "bid" ? "Government bid" : a.kind === "permit" ? "Building permit" : "Customer request");
+  const subject = `${a.to_label}: ${title}`.slice(0, 150);
+  const why = a.reason ? `Changed automatically because ${oneLine(a.reason, 200)}.` : "You changed the status.";
+  const link = `${siteUrl}/contractor/my-leads`;
+  const text = [
+    `Hi ${oneLine(a.business_name, 120)},`,
+    "",
+    `A lead in My Leads changed status: ${title}`,
+    `${a.from_label ?? "New"} -> ${a.to_label}`,
+    why,
+    "",
+    `Open My Leads: ${link}`,
+    "",
+    `You can turn these emails off in your dashboard: ${siteUrl}/contractor`,
+  ].join("\n");
+  const html = `<!doctype html><html><body style="margin:0;background:#f4f7fb;font-family:Arial,Helvetica,sans-serif;color:#14213d">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:24px 12px">
+<table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:16px;padding:28px">
+<tr><td>
+<p style="margin:0 0 4px;font-size:13px;color:#2563eb;font-weight:bold">LEAD STATUS CHANGED</p>
+<h1 style="margin:0 0 12px;font-size:20px">${escapeHtml(title)}</h1>
+<p style="margin:0 0 8px;font-size:16px"><span style="color:#64748b">${escapeHtml(a.from_label ?? "New")}</span> &rarr; <strong>${escapeHtml(a.to_label)}</strong></p>
+<p style="margin:0 0 20px;font-size:14px;color:#475569">${escapeHtml(why)}</p>
+<a href="${escapeHtml(link)}" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;font-weight:bold;padding:12px 22px;border-radius:999px">Open My Leads</a>
+<p style="margin:24px 0 0;font-size:12px;line-height:1.5;color:#64748b">You get this because status emails are on for ${escapeHtml(oneLine(a.business_name, 120))}. <a href="${escapeHtml(siteUrl)}/contractor" style="color:#2563eb">Turn them off in your dashboard</a>.</p>
+</td></tr></table></td></tr></table></body></html>`;
+  return { subject, html, text };
+}
+
 export function renderLeadEmail(a: LeadAlert, siteUrl: string): { subject: string; html: string; text: string } {
   const urgent = a.urgency === "Immediately";
   const issue = oneLine(a.issue, 200);

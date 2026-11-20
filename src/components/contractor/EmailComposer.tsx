@@ -71,12 +71,15 @@ export function EmailComposer({ address, label, to, fromName, defaultSubject, pl
     if (!body || !subject.trim() || busy) return;
     setBusy(true);
     setError(null);
-    const result = await onSend(subject.trim(), body);
+    // A proposal or agreement drafted with the AI is named as one in the subject, so the lead moves to "Quote sent" when it is sent.
+    let subj = subject.trim();
+    if ((purpose === "proposal" || purpose === "contract") && !/\b(proposal|quotation|quote|estimate|agreement|contract|bid)\b/i.test(subj)) subj = `${purpose === "proposal" ? "Proposal" : "Agreement"}: ${subj}`.slice(0, MAX_SUBJECT);
+    const result = await onSend(subj, body);
     setBusy(false);
     if (!result.ok) return setError(result.error);
     setText("");
     setDone(result.message);
-    onSent?.(subject.trim());
+    onSent?.(subj);
   }
 
   const row = "flex items-baseline gap-3 border-b border-slate-200 py-2 text-sm";
