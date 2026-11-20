@@ -57,10 +57,17 @@ export function LeadsList() {
               {shown.map((l) => (
                 <li key={l.id}>
                   <Link to={`/admin/leads/${l.id}`} className="flex items-center gap-4 px-5 py-4 hover:bg-slate-50">
-                    <span className="min-w-0 flex-1">
-                      <span className="flex items-center gap-2 truncate font-semibold text-navy">{l.status === "new" && <span className="size-2 shrink-0 rounded-full bg-primary" aria-label="New" />}{l.first_name} {l.last_name}</span>
-                      <span className="block truncate text-sm text-slate-600">{l.issue} · {l.urgency}</span>
-                      <span className="block truncate text-sm text-slate-500">{l.city}, {l.state} · {l.phone}</span>
+                    <span className="grid min-w-0 flex-1 gap-x-6 gap-y-2 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+                      <span className="min-w-0">
+                        <span className="flex items-center gap-2 truncate font-semibold text-navy">{l.status === "new" && <span className="size-2 shrink-0 rounded-full bg-primary" aria-label="New" />}{l.first_name} {l.last_name}</span>
+                        <span className="block truncate text-sm text-slate-500">{l.phone}</span>
+                        <span className="block truncate text-sm text-slate-500">{l.city}, {l.state}</span>
+                      </span>
+                      <span className="min-w-0 md:border-l md:border-slate-100 md:pl-6">
+                        <span className="block text-[11px] font-bold tracking-wide text-slate-500 uppercase">Concern</span>
+                        <span className="block text-sm text-slate-800 md:line-clamp-2">{l.issue}</span>
+                        <span className="mt-1 inline-block rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">{l.urgency}</span>
+                      </span>
                     </span>
                     <span className="hidden text-sm text-slate-500 sm:block">{new Date(l.created_at).toLocaleDateString()}</span>
                     <StatusBadge status={l.status} />
