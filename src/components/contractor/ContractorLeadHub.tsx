@@ -13,19 +13,20 @@ import { scorePermit, TIERS } from "@/lib/permit-score";
 import { callApi } from "./api";
 import { LeadPanel } from "./ContractorLeads";
 import { useContractor } from "./context";
-import { LeadsTabs } from "./LeadsTabs";
 import { KIND_LABEL, KIND_PLURAL, KIND_STYLE, type HubItem, type LeadKind, useLeadHub } from "./useLeadHub";
 import { ago } from "./useMyLeads";
 
 type Type = "all" | LeadKind;
-type Show = "all" | "locked" | "unlocked" | "new";
+type Show = "all" | "new";
 type Sort = "best" | "newest";
+type Worth = "any" | "10000" | "100000" | "1000000";
+type Age = "any" | "7" | "30";
 const PAGE = 50;
 const TYPES: { id: Type; label: string }[] = [
-  { id: "all", label: "All leads" },
-  { id: "lead", label: KIND_PLURAL.lead },
-  { id: "bid", label: KIND_PLURAL.bid },
+  { id: "all", label: "All opportunities" },
+  { id: "lead", label: "Local business leads" },
   { id: "permit", label: KIND_PLURAL.permit },
+  { id: "bid", label: "Government contracts" },
 ];
 
 /** The unlock fee for this plan as a short phrase, for the banner and the headers. */
@@ -38,11 +39,16 @@ const feeLine = (plan: "free" | "paid") => `customer request $${unlockPrice.lead
 export default function ContractorLeadHub() {
   const { listing } = useContractor();
   const hub = useLeadHub(listing);
-  const { items, plan, pipeline, reloadAll } = hub;
+  const { plan, pipeline, reloadAll } = hub;
   const [params, setParams] = useSearchParams();
   const [q, setQ] = useState("");
   const [city, setCity] = useState("all");
   const [show, setShow] = useState<Show>("all");
+  const [now] = useState(() => Date.now());
+  const [worth, setWorth] = useState<Worth>("any");
+  const [age, setAge] = useState<Age>("any");
+  const [trade, setTrade] = useState("all");
+  const [industry, setIndustry] = useState("all");
   const [sort, setSort] = useState<Sort>("best");
   const [visible, setVisible] = useState(PAGE);
   const [picked, setPicked] = useState<Set<string>>(new Set());
@@ -72,6 +78,10 @@ export default function ContractorLeadHub() {
   }, [justPaid, sessionId, reloadAll]);
 
   const savedKeys = useMemo(() => new Set(pipeline.map((r) => `${r.kind}:${r.item_id}`)), [pipeline]);
+  // Discover shows what you have not unlocked. Unlocked ones live in My Leads. (Premium unlocks everything, so there a lead leaves Discover once it is saved.)
+  const items = useMemo(() => hub.items.filter((i) => !i.unlocked || (plan === "premium" && !savedKeys.has(i.key))), [hub.items, plan, savedKeys]);
+  const trades = useMemo(() => [...new Set(items.map((i) => i.trade).filter(Boolean))].sort(), [items]);
+  const industries = useMemo(() => [...new Set(items.map((i) => i.industry).filter(Boolean))].sort(), [items]);
   const cities = useMemo(() => [...new Set(items.map((i) => i.city).filter((c): c is string => Boolean(c)))].sort(), [items]);
   const counts = useMemo(() => {
     const c: Record<Type, number> = { all: items.length, lead: 0, bid: 0, permit: 0 };
@@ -84,15 +94,19 @@ export default function ContractorLeadHub() {
     return items
       .filter((i) => (type === "all" || i.kind === type)
         && (city === "all" || i.city === city)
-        && (show === "all" || (show === "locked" ? !i.unlocked : show === "unlocked" ? i.unlocked : !savedKeys.has(i.key)))
-        && (!term || `${i.title} ${i.place}`.toLowerCase().includes(term)))
+        && (show === "all" || !savedKeys.has(i.key))
+        && (trade === "all" || i.trade === trade)
+        && (industry === "all" || i.industry === industry)
+        && (worth === "any" || (i.value !== null && i.value >= Number(worth)))
+        && (age === "any" || (i.when !== null && now - Date.parse(i.when) <= Number(age) * 86_400_000))
+        && (!term || `${i.title} ${i.subject} ${i.blurb} ${i.place} ${i.trade}`.toLowerCase().includes(term)))
       .sort((a, b) => (sort === "best" ? b.score - a.score : 0) || (b.when ?? "").localeCompare(a.when ?? ""));
-  }, [items, type, city, show, sort, q, savedKeys]);
+  }, [items, type, city, show, sort, q, savedKeys, trade, industry, worth, age, now]);
 
   if (!listing) {
     return (
       <>
-        <PageTitle title="Leads" />
+        <PageTitle title="Discover Opportunities" />
         <Panel title="Not connected yet"><p className="text-sm text-slate-700">Connect your business on the <Link to="/contractor" className="font-semibold text-primary underline">dashboard</Link> first.</p></Panel>
       </>
     );
@@ -140,13 +154,10 @@ export default function ContractorLeadHub() {
 
   const open = openKey ? items.find((i) => i.key === openKey) ?? null : null;
   const paidTier = plan === "free" ? "free" : "paid";
-  const savedCount = pipeline.filter((r) => r.stage === "saved").length;
-  const projectCount = pipeline.length - savedCount;
 
   return (
     <>
-      <PageTitle title="Leads" description="Customer requests, government bids and building permits near you, in one list." />
-      <LeadsTabs saved={savedCount} projects={projectCount} />
+      <PageTitle title="Discover Opportunities" description="Local business leads, building permits and government contracts near you. Unlock one to see the contact details; it then moves to My Leads." />
 
       {plan === "premium" ? (
         <p className="mb-5 flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 p-3 text-sm text-violet-900"><Sparkles className="size-4 shrink-0" aria-hidden /> Premium: every lead is fully unlocked for you.</p>
@@ -171,7 +182,7 @@ export default function ContractorLeadHub() {
         <div className="relative ml-auto w-full sm:w-64">
           <Search className="pointer-events-none absolute top-3.5 left-3 size-4 text-slate-400" aria-hidden />
           <label htmlFor="hub-q" className="sr-only">Search leads</label>
-          <input id="hub-q" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search title or place…" className={`${inputClass} !py-2.5 !pl-9`} />
+          <input id="hub-q" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search keyword, place or trade…" className={`${inputClass} !py-2.5 !pl-9`} />
         </div>
       </div>
       <div className="mb-4 flex flex-wrap items-center gap-3 text-sm">
@@ -185,14 +196,39 @@ export default function ContractorLeadHub() {
           <select value={show} onChange={(e) => setShow(e.target.value as Show)} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 font-normal">
             <option value="all">Everything</option>
             <option value="new">Not saved yet</option>
-            <option value="locked">Locked</option>
-            <option value="unlocked">Unlocked</option>
+          </select>
+        </label>
+        <label className="flex items-center gap-2 font-medium text-slate-700">Industry
+          <select value={industry} onChange={(e) => setIndustry(e.target.value)} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 font-normal">
+            <option value="all">All industries</option>
+            {industries.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </label>
+        <label className="flex items-center gap-2 font-medium text-slate-700">Trade
+          <select value={trade} onChange={(e) => setTrade(e.target.value)} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 font-normal">
+            <option value="all">All trades</option>
+            {trades.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </label>
+        <label className="flex items-center gap-2 font-medium text-slate-700">Value
+          <select value={worth} onChange={(e) => setWorth(e.target.value as Worth)} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 font-normal">
+            <option value="any">Any value</option>
+            <option value="10000">$10,000 or more</option>
+            <option value="100000">$100,000 or more</option>
+            <option value="1000000">$1,000,000 or more</option>
+          </select>
+        </label>
+        <label className="flex items-center gap-2 font-medium text-slate-700">Found
+          <select value={age} onChange={(e) => setAge(e.target.value as Age)} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 font-normal">
+            <option value="any">Any time</option>
+            <option value="7">Last 7 days</option>
+            <option value="30">Last 30 days</option>
           </select>
         </label>
         <label className="flex items-center gap-2 font-medium text-slate-700">Sort
           <select value={sort} onChange={(e) => setSort(e.target.value as Sort)} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 font-normal">
-            <option value="best">Best match first</option>
-            <option value="newest">Newest first</option>
+            <option value="best">Relevance</option>
+            <option value="newest">Latest first</option>
           </select>
         </label>
         <span className="text-xs text-slate-500">{shown.length} {shown.length === 1 ? "lead" : "leads"}</span>
@@ -214,7 +250,7 @@ export default function ContractorLeadHub() {
       ) : hub.loading ? (
         <p className="text-slate-600">Loading…</p>
       ) : shown.length === 0 ? (
-        <p className="rounded-xl bg-slate-50 p-6 text-center text-sm text-slate-600">{items.length === 0 ? "No leads within reach of your business yet. New ones are added every morning. Check that your ZIP code and travel distance are set under My business." : "No leads match these filters."}</p>
+        <p className="rounded-xl bg-slate-50 p-6 text-center text-sm text-slate-600">{items.length === 0 ? "No leads within reach of your business yet. New ones are added every morning. Check that your ZIP code and travel distance are set under My business." : "No opportunities match these filters."}</p>
       ) : (
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="flex items-center gap-3 border-b border-slate-200 bg-slate-50 px-4 py-2 text-xs font-semibold text-slate-600">
@@ -235,17 +271,22 @@ export default function ContractorLeadHub() {
                       {i.urgent && i.kind === "bid" && <span className="rounded-full bg-emergency-soft px-2 py-0.5 text-xs font-semibold text-emergency">Closing soon</span>}
                       {i.urgent && i.kind === "lead" && <span className="rounded-full bg-emergency-soft px-2 py-0.5 text-xs font-semibold text-emergency">Needs help now</span>}
                     </span>
-                    <span className="mt-1 block font-semibold text-navy">{i.title}</span>
+                    <span className="mt-1 block font-semibold text-navy">{i.subject}</span>
+                    {i.blurb && <span className="mt-0.5 line-clamp-2 block text-sm text-slate-600">{i.blurb}</span>}
                     <span className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
                       {i.place && <span className="inline-flex items-center gap-1"><MapPin className="size-3.5" aria-hidden /> {i.place}</span>}
-                      {i.when && <span className="inline-flex items-center gap-1"><Clock className="size-3.5" aria-hidden /> {ago(i.when.length === 10 ? `${i.when}T12:00:00Z` : i.when)}</span>}
-                      {i.fact && <span className="font-semibold text-slate-700">{i.fact}</span>}
+                      <span>{i.industry} · {i.trade}</span>
+                      {i.when && <span className="inline-flex items-center gap-1"><Clock className="size-3.5" aria-hidden /> Found {ago(i.when.length === 10 ? `${i.when}T12:00:00Z` : i.when)}</span>}
+                    </span>
+                    <span className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
+                      <span>Source: {i.source}</span>
+                      <span className="font-semibold text-slate-700">{i.value !== null ? `Est. value $${Math.round(i.value).toLocaleString("en-US")}` : i.fact ?? "Value not listed"}</span>
                     </span>
                   </button>
                   <div className="flex shrink-0 flex-col items-end gap-1.5">
                     {i.unlocked
                       ? <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-1 text-xs font-bold text-green-800"><Check className="size-3.5" aria-hidden /> {plan === "premium" ? "Unlocked (Premium)" : "Paid & unlocked"}</span>
-                      : <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-900"><Lock className="size-3.5" aria-hidden /> Locked · ${i.price} to unlock</span>}
+                      : <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-900"><Lock className="size-3.5" aria-hidden /> Contact locked · ${i.price} to unlock</span>}
                     {saved
                       ? <span className="inline-flex items-center gap-1 text-xs font-semibold text-primary"><BookmarkCheck className="size-4" aria-hidden /> Saved</span>
                       : <button type="button" onClick={() => void saveChosen([i])} disabled={saving} className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline disabled:opacity-60"><BookmarkPlus className="size-4" aria-hidden /> Save</button>}

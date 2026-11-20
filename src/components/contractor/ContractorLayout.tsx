@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { CreditCard, ExternalLink, LayoutDashboard, Loader2, LogOut, MessageSquare, Settings, Sparkles, ThumbsUp, UserCog, Users } from "lucide-react";
+import { BarChart3, BookmarkCheck, ChevronDown, ClipboardList, CreditCard, ExternalLink, FileCheck2, LayoutDashboard, Loader2, LogOut, MessageSquare, Search, Settings, Sparkles, ThumbsUp, UserCog, Users } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { planName } from "@/config/pricing";
 import { activePlan } from "@/lib/plans";
@@ -12,14 +12,16 @@ import { usePageMeta } from "@/lib/use-page-meta";
 import { AssistantBubble } from "./AssistantBubble";
 import { ContractorContext, type ContractorState } from "./context";
 
-type BadgeKey = "newLeads" | "newOpportunities" | "messages";
-interface NavItem {
+type BadgeKey = "newUnlocked" | "newOpportunities" | "messages";
+interface NavLeaf {
   href: string;
   label: string;
   icon: typeof Users;
   badge?: BadgeKey;
-  /** Also the active item for these paths (the other tabs of the same area). */
-  also?: string[];
+}
+/** A menu item, or a dropdown of items when it has children. */
+interface NavItem extends NavLeaf {
+  children?: NavLeaf[];
 }
 
 /** The menu, grouped by what you do there. A number on an item is something waiting for you. */
@@ -28,19 +30,28 @@ const groups: { title: string; items: NavItem[] }[] = [
     title: "Work",
     items: [
       { href: "/contractor", label: "Dashboard", icon: LayoutDashboard },
-      { href: "/contractor/leads", label: "Leads", icon: Users, badge: "newLeads", also: ["/contractor/my-leads", "/contractor/projects"] },
-      { href: "/contractor/messages", label: "Messages", icon: MessageSquare, badge: "messages" },
+      {
+        href: "/contractor/leads", label: "Opportunities", icon: Users, badge: "newUnlocked",
+        children: [
+          { href: "/contractor/leads", label: "Discover Opportunities", icon: Search },
+          { href: "/contractor/my-leads", label: "My Leads", icon: BookmarkCheck, badge: "newUnlocked" },
+        ],
+      },
+      { href: "/contractor/projects", label: "My Projects", icon: ClipboardList },
+      { href: "/contractor/bid-preparation", label: "Bid Preparation", icon: FileCheck2 },
+      { href: "/contractor/messages", label: "My Messages", icon: MessageSquare, badge: "messages" },
+      { href: "/contractor/analytics", label: "Analytics", icon: BarChart3 },
     ],
   },
   {
     title: "My business",
     items: [
-      { href: "/contractor/business", label: "Business profile", icon: UserCog },
+      { href: "/contractor/business", label: "Company Profile", icon: UserCog },
       { href: "/contractor/recommendations", label: "Recommendations", icon: ThumbsUp },
-      { href: "/contractor/billing", label: "Plan & billing", icon: CreditCard },
+      { href: "/contractor/billing", label: "Subscription & Billing", icon: CreditCard },
     ],
   },
-  { title: "Account", items: [{ href: "/contractor/account", label: "Account settings", icon: Settings }] },
+  { title: "Account", items: [{ href: "/contractor/account", label: "Account Settings", icon: Settings }] },
 ];
 
 type Loaded = Omit<ContractorState, "reload">;
@@ -53,6 +64,7 @@ export default function ContractorLayout() {
   const [state, setState] = useState<Loaded | null>(null);
   const unread = useUnreadMessages().business;
   const counts = useContractorCounts(Boolean(state?.listing));
+  const [oppOpen, setOppOpen] = useState<boolean | null>(null);
 
   const load = useCallback(async () => {
     const supabase = getSupabaseBrowser();
@@ -123,15 +135,41 @@ export default function ContractorLayout() {
             {groups.map((g) => (
               <div key={g.title} className="flex shrink-0 gap-1 lg:flex-col">
                 <p className="hidden px-3 pb-1 text-[11px] font-semibold tracking-wider text-slate-400 uppercase lg:block">{g.title}</p>
-                {g.items.map(({ href, label, icon: Icon, badge, also }) => {
-                  const active = href === "/contractor" ? pathname === href : [href, ...(also ?? [])].some((p) => pathname.startsWith(p));
-                  const n = badge === "messages" ? unread : badge ? counts[badge] : 0;
+                {g.items.map((item) => {
+                  const badgeCount = (b?: BadgeKey) => (b === "messages" ? unread : b ? counts[b] : 0);
+                  const linkClass = (active: boolean, extra = "") => `flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${extra} ${active ? "bg-blue-50 text-primary" : "text-slate-700 hover:bg-slate-50"}`;
+                  const pill = (n: number) => n > 0 && <span className="ml-auto rounded-full bg-emergency px-1.5 py-0.5 text-[11px] leading-none font-bold text-white tabular-nums" aria-label={`${n} waiting`}>{n > 99 ? "99+" : n}</span>;
+                  const isActive = (href: string) => (href === "/contractor" ? pathname === href : pathname.startsWith(href));
+                  if (!item.children) {
+                    const active = isActive(item.href);
+                    return (
+                      <Link key={item.href} to={item.href} aria-current={active ? "page" : undefined} className={linkClass(active)}>
+                        <item.icon className="size-4" aria-hidden /> {item.label}{pill(badgeCount(item.badge))}
+                      </Link>
+                    );
+                  }
+                  const inside = item.children.some((c) => isActive(c.href));
+                  const expanded = oppOpen ?? inside;
                   return (
-                    <Link key={href} to={href} aria-current={active ? "page" : undefined}
-                      className={`flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${active ? "bg-blue-50 text-primary" : "text-slate-700 hover:bg-slate-50"}`}>
-                      <Icon className="size-4" aria-hidden /> {label}
-                      {n > 0 && <span className="ml-auto rounded-full bg-emergency px-1.5 py-0.5 text-[11px] leading-none font-bold text-white tabular-nums" aria-label={`${n} waiting`}>{n > 99 ? "99+" : n}</span>}
-                    </Link>
+                    <div key={item.label} className="flex shrink-0 gap-1 lg:flex-col">
+                      {/* Small screens: the two pages sit side by side. Large screens: a dropdown that opens and closes. */}
+                      <button type="button" onClick={() => setOppOpen(!expanded)} aria-expanded={expanded} aria-controls="menu-opportunities"
+                        className={`${linkClass(inside && !expanded)} hidden w-full text-left lg:flex`}>
+                        <item.icon className="size-4" aria-hidden /> {item.label}
+                        {!expanded && pill(badgeCount(item.badge))}
+                        <ChevronDown className={`ml-auto size-4 transition-transform ${expanded ? "rotate-180" : ""}`} aria-hidden />
+                      </button>
+                      <div id="menu-opportunities" className={`flex gap-1 lg:flex-col lg:border-l lg:border-slate-200 lg:pl-2 lg:ml-5 ${expanded ? "" : "lg:hidden"}`}>
+                        {item.children.map((c) => {
+                          const active = c.href === "/contractor/leads" ? pathname.startsWith("/contractor/leads") : isActive(c.href);
+                          return (
+                            <Link key={c.href} to={c.href} aria-current={active ? "page" : undefined} className={linkClass(active)}>
+                              <c.icon className="size-4" aria-hidden /> {c.label}{pill(badgeCount(c.badge))}
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    </div>
                   );
                 })}
               </div>

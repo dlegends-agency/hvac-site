@@ -68,6 +68,16 @@ export interface HubItem {
   score: number;
   urgent: boolean;
   city: string | null;
+  /** The person, project or agency the opportunity is about. */
+  subject: string;
+  /** What the work is, in a sentence or two. */
+  blurb: string;
+  industry: string;
+  trade: string;
+  /** Estimated project value in dollars, when the source states one. */
+  value: number | null;
+  /** Where we found it. */
+  source: string;
 }
 
 const money = (n: number | null) => (n === null || !Number.isFinite(Number(n)) ? null : `$${Math.round(Number(n)).toLocaleString("en-US")} project`);
@@ -82,6 +92,7 @@ export function leadItem(l: ContractorLead, plan: PlanId): HubItem {
     when: l.assigned_at,
     fact: l.urgency ? (urgent ? "Needs help now" : l.urgency) : null,
     unlocked: l.unlocked, price: l.unlocked ? 0 : unlockCost(plan, "lead"), tier: urgent ? "hot" : null, score: urgent ? 95 : 55, urgent, city: l.city,
+    subject: [l.first_name, l.last_name].filter(Boolean).join(" ") || "Customer request", blurb: l.issue, industry: "Residential and light commercial HVAC", trade: "HVAC repair and installation", value: null, source: "HVACHelp customer request",
   };
 }
 
@@ -94,6 +105,9 @@ export function permitItem(p: PublicPermit, cover: Coverage, plan: PlanId): HubI
     when: p.issued_on ?? p.imported_at,
     fact: money(p.value_usd) ?? (p.property_class === "unknown" ? null : p.property_class),
     unlocked: p.unlocked !== false, price: p.unlocked === false ? unlockCost(plan, "permit") : 0, tier: s.tier, score: s.score, urgent: false, city: p.city,
+    subject: p.summary || "HVAC building permit", blurb: [p.permit_type, p.property_class === "unknown" ? null : `${p.property_class} property`].filter(Boolean).join(" · "),
+    industry: p.property_class === "unknown" ? "Construction" : p.property_class === "commercial" ? "Commercial construction" : "Residential construction", trade: p.trade || "HVAC",
+    value: p.value_usd !== null && Number.isFinite(Number(p.value_usd)) ? Number(p.value_usd) : null, source: "City building permit",
   };
 }
 
@@ -106,6 +120,7 @@ export function bidItem(b: GovBid, cover: Coverage, plan: PlanId): HubItem {
     when: b.posted_at,
     fact: b.response_due ? `Due ${shortDay(b.response_due)}` : null,
     unlocked: b.unlocked !== false, price: b.unlocked === false ? unlockCost(plan, "bid") : 0, tier: s.tier, score: s.score, urgent: s.daysLeft !== null && s.daysLeft >= 0 && s.daysLeft <= 6, city: b.city,
+    subject: bidTitle(b), blurb: b.summary || "", industry: "Government contract", trade: "HVAC", value: null, source: "Federal contract notice",
   };
 }
 
