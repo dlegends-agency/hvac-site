@@ -13,6 +13,8 @@ import { ClaimListing } from "./ClaimListing";
 import { useContractor } from "./context";
 import { type HubItem, KIND_LABEL, KIND_PLURAL, KIND_STYLE, type LeadKind, useLeadHub } from "./useLeadHub";
 import { ago } from "./useMyLeads";
+import { isActiveProject } from "@/lib/projects";
+import { useProjects } from "./useProjects";
 
 type Tab = "all" | LeadKind;
 const SHOWN = 8;
@@ -61,6 +63,7 @@ function Ring({ percent }: { percent: number }) {
 /** The dashboard of a connected business: what to do next, the numbers, the best leads to look at, and the profile and assistant on the side. */
 function Dashboard({ listing }: { listing: Listing }) {
   const hub = useLeadHub(listing);
+  const projects = useProjects(true);
   const recs = useLiveQuery<{ status: string }[]>([], () => getSupabaseBrowser().rpc("my_recommendations"), { key: "home-recommendations", intervalMs: 120_000 });
   const now = useNow(60_000);
   const [tab, setTab] = useState<Tab>("all");
@@ -76,8 +79,9 @@ function Dashboard({ listing }: { listing: Listing }) {
   const savedKeys = useMemo(() => new Set(pipeline.map((r) => `${r.kind}:${r.item_id}`)), [pipeline]);
   const byKey = useMemo(() => new Map(items.map((i) => [i.key, i])), [items]);
   const saved = pipeline.filter((r) => r.stage === "saved" || r.stage === "new");
-  const active = pipeline.filter((r) => !["saved", "new", "won", "converted", "lost"].includes(r.stage));
-  const won = pipeline.filter((r) => r.stage === "won").length;
+  const activeProjects = projects.projects.filter((p) => isActiveProject(p.status)).length;
+  const won = pipeline.filter((r) => r.stage === "won" || r.stage === "converted").length;
+  const toConvert = pipeline.filter((r) => r.stage === "won").length;
   const unlockedMine = pipeline.filter((r) => byKey.get(`${r.kind}:${r.item_id}`)?.unlocked).length;
   const fresh = items.filter((i) => i.when && now - new Date(i.when.length === 10 ? `${i.when}T12:00:00Z` : i.when).getTime() < 7 * DAY).length;
   const newRequests = (hub.leads ?? []).filter((l) => l.contractor_status === "new").length;
@@ -108,8 +112,10 @@ function Dashboard({ listing }: { listing: Listing }) {
     step = { title: `${newRequests} new customer ${newRequests === 1 ? "request is" : "requests are"} waiting`, body: "Reply fast: the first contractor to answer usually wins the job.", to: "/contractor/leads?type=lead", cta: "Open requests" };
   } else if (recsWaiting > 0) {
     step = { title: `${recsWaiting} customer ${recsWaiting === 1 ? "recommendation is" : "recommendations are"} waiting`, body: "Choose which ones to show on your listing.", to: "/contractor/recommendations", cta: "Review" };
+  } else if (toConvert > 0) {
+    step = { title: `${toConvert} accepted ${toConvert === 1 ? "offer is" : "offers are"} ready to become ${toConvert === 1 ? "a project" : "projects"}`, body: "Convert it and the customer details, notes and history move across for you.", to: "/contractor/my-leads", cta: "Convert to project" };
   } else if (readyToStart > 0) {
-    step = { title: `${readyToStart} saved ${readyToStart === 1 ? "lead is" : "leads are"} unlocked`, body: "Start a project to track the quote and follow-ups.", to: "/contractor/my-leads", cta: "Start a project" };
+    step = { title: `${readyToStart} unlocked ${readyToStart === 1 ? "lead is" : "leads are"} waiting for you`, body: "Contact the customer, then keep the status up to date.", to: "/contractor/my-leads", cta: "Open My Leads" };
   } else {
     step = { title: items.length > 0 ? `${items.length.toLocaleString()} leads near you` : "No leads in your area yet", body: items.length > 0 ? "Save the ones worth a look and unlock them when you decide." : "New permits and bids are added every morning. Check your ZIP code and travel distance.", to: items.length > 0 ? "/contractor/leads" : "/contractor/business", cta: items.length > 0 ? "Find leads" : "Check my service area" };
   }
@@ -155,8 +161,8 @@ function Dashboard({ listing }: { listing: Listing }) {
           <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-4">
             <Stat icon={Target} label="New this week" value={ready ? fresh : "…"} hint={newRequests > 0 ? `${newRequests} customer ${newRequests === 1 ? "request" : "requests"} to answer` : undefined} to="/contractor/leads" tone="bg-blue-50 text-primary" />
             <Stat icon={LockOpen} label="Unlocked leads" value={ready ? unlockedMine : "…"} hint={saved.length > 0 ? `${saved.length} saved` : undefined} to="/contractor/my-leads" tone="bg-green-50 text-green-700" />
-            <Stat icon={FileText} label="Active projects & bids" value={ready ? active.length : "…"} to="/contractor/projects" tone="bg-violet-50 text-violet-700" />
-            <Stat icon={Trophy} label="Won" value={ready ? won : "…"} hint="All time" to="/contractor/projects" tone="bg-amber-50 text-amber-700" />
+            <Stat icon={FileText} label="Active projects" value={ready && projects.loaded ? activeProjects : "…"} hint={toConvert > 0 ? `${toConvert} accepted ${toConvert === 1 ? "lead" : "leads"} to convert` : undefined} to="/contractor/projects" tone="bg-violet-50 text-violet-700" />
+            <Stat icon={Trophy} label="Won leads" value={ready ? won : "…"} hint="All time" to="/contractor/my-leads" tone="bg-amber-50 text-amber-700" />
           </div>
 
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm" aria-labelledby="best-leads">
