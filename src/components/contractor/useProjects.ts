@@ -31,15 +31,15 @@ export function useProjects(enabled: boolean) {
 }
 
 /** The rows of one child table of a project (tasks, documents, team, expenses, quotations), with add, change and remove. */
-export function useChildRows<T extends { id: string }>(table: string, projectId: string, order: { column: string; ascending: boolean }) {
+export function useChildRows<T extends { id: string }>(table: string, projectId: string, order: { column: string; ascending: boolean }, fk = "project_id") {
   const [rows, setRows] = useState<T[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
-    const { data, error: e } = await getSupabaseBrowser().from(table).select("*").eq("project_id", projectId).order(order.column, { ascending: order.ascending }).limit(500);
+    const { data, error: e } = await getSupabaseBrowser().from(table).select("*").eq(fk, projectId).order(order.column, { ascending: order.ascending }).limit(500);
     setError(e ? e.message : null);
     setRows((data as T[] | null) ?? []);
-  }, [table, projectId, order.column, order.ascending]);
+  }, [table, projectId, order.column, order.ascending, fk]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- initial data load
@@ -47,11 +47,11 @@ export function useChildRows<T extends { id: string }>(table: string, projectId:
   }, [reload]);
 
   const add = useCallback(async (values: Record<string, unknown>) => {
-    const { error: e } = await getSupabaseBrowser().from(table).insert({ ...values, project_id: projectId });
+    const { error: e } = await getSupabaseBrowser().from(table).insert({ ...values, [fk]: projectId });
     if (e) setError(e.message);
     else await reload();
     return !e;
-  }, [table, projectId, reload]);
+  }, [table, projectId, reload, fk]);
   const change = useCallback(async (id: string, values: Record<string, unknown>) => {
     const { error: e } = await getSupabaseBrowser().from(table).update(values).eq("id", id);
     if (e) setError(e.message);
