@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { BookmarkCheck, ClipboardList, CreditCard, ExternalLink, LayoutDashboard, Loader2, LogOut, MessageSquare, Settings, Sparkles, ThumbsUp, UserCog, Users } from "lucide-react";
+import { CreditCard, ExternalLink, LayoutDashboard, Loader2, LogOut, MessageSquare, Settings, Sparkles, ThumbsUp, UserCog, Users } from "lucide-react";
 import { Logo } from "@/components/Logo";
+import { planName } from "@/config/pricing";
 import { activePlan } from "@/lib/plans";
 import { useContractorCounts } from "@/lib/use-contractor-counts";
 import { useUnreadMessages } from "@/lib/use-unread-messages";
@@ -17,7 +18,8 @@ interface NavItem {
   label: string;
   icon: typeof Users;
   badge?: BadgeKey;
-  /** Also the active item for these paths (the page it replaced, and where payments return). */
+  /** Also the active item for these paths (the other tabs of the same area). */
+  also?: string[];
 }
 
 /** The menu, grouped by what you do there. A number on an item is something waiting for you. */
@@ -26,9 +28,7 @@ const groups: { title: string; items: NavItem[] }[] = [
     title: "Work",
     items: [
       { href: "/contractor", label: "Dashboard", icon: LayoutDashboard },
-      { href: "/contractor/leads", label: "Leads", icon: Users, badge: "newLeads" },
-      { href: "/contractor/my-leads", label: "My Leads", icon: BookmarkCheck },
-      { href: "/contractor/projects", label: "Projects & bids", icon: ClipboardList },
+      { href: "/contractor/leads", label: "Leads", icon: Users, badge: "newLeads", also: ["/contractor/my-leads", "/contractor/projects"] },
       { href: "/contractor/messages", label: "Messages", icon: MessageSquare, badge: "messages" },
     ],
   },
@@ -114,7 +114,7 @@ export default function ContractorLayout() {
               <p className="truncate text-sm font-bold text-navy">{value.listing.business_name}</p>
               <p className="truncate text-xs text-slate-500">{value.email}</p>
               <p className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px] font-semibold">
-                <span className={`rounded-full px-2 py-0.5 ${activePlan(value.listing) === "free" ? "bg-slate-200 text-slate-700" : "bg-amber-100 text-amber-900"}`}>{activePlan(value.listing) === "free" ? "Free plan" : "Featured"}</span>
+                <span className={`rounded-full px-2 py-0.5 ${activePlan(value.listing) === "free" ? "bg-slate-200 text-slate-700" : "bg-amber-100 text-amber-900"}`}>{planName(activePlan(value.listing))} plan</span>
                 <span className={`rounded-full px-2 py-0.5 ${value.listing.status === "published" ? "bg-green-100 text-green-800" : "bg-sky-100 text-sky-800"}`}>{value.listing.status === "published" ? "Live" : value.listing.status}</span>
               </p>
             </div>
@@ -123,8 +123,8 @@ export default function ContractorLayout() {
             {groups.map((g) => (
               <div key={g.title} className="flex shrink-0 gap-1 lg:flex-col">
                 <p className="hidden px-3 pb-1 text-[11px] font-semibold tracking-wider text-slate-400 uppercase lg:block">{g.title}</p>
-                {g.items.map(({ href, label, icon: Icon, badge }) => {
-                  const active = href === "/contractor" ? pathname === href : pathname.startsWith(href);
+                {g.items.map(({ href, label, icon: Icon, badge, also }) => {
+                  const active = href === "/contractor" ? pathname === href : [href, ...(also ?? [])].some((p) => pathname.startsWith(p));
                   const n = badge === "messages" ? unread : badge ? counts[badge] : 0;
                   return (
                     <Link key={href} to={href} aria-current={active ? "page" : undefined}
