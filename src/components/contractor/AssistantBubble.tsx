@@ -9,7 +9,7 @@ interface Draft { kind: "lead" | "permit" | "bid"; id: string; subject: string; 
 interface Turn { role: "user" | "assistant"; content: string; drafts?: Draft[]; emailed?: boolean; error?: boolean }
 
 const KIND_LABEL = { lead: "Reply to customer", permit: "Email for building permit", bid: "Email for government bid" } as const;
-const WHERE = { lead: "Customer requests", permit: "Opportunities > Building permits", bid: "Opportunities > Government bids" } as const;
+const WHERE = { lead: "Customer requests", permit: "Leads > Building permits", bid: "Leads > Government bids" } as const;
 const SUGGESTIONS = [
   "What is new today?",
   "Email me a report of my new leads",
@@ -57,6 +57,17 @@ export function AssistantBubble() {
   useEffect(() => {
     end.current?.scrollIntoView({ block: "end" });
   }, [turns.length, busy, open]);
+
+  // The dashboard's assistant card opens this chat, optionally with a question already typed in.
+  useEffect(() => {
+    const onOpen = (e: Event) => {
+      setOpen(true);
+      const t = (e as CustomEvent<{ text?: string }>).detail?.text;
+      if (t) setText(t);
+    };
+    window.addEventListener("open-assistant", onOpen);
+    return () => window.removeEventListener("open-assistant", onOpen);
+  }, []);
 
   if (!listing) return null;
 
