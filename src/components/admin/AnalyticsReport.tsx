@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { locations } from "@/config/locations";
 import { countBy, dailyCounts, useLeads, usePageViews } from "@/lib/admin-hooks";
 import { BarList, DailyChart, PageTitle, Panel, QueryState, StatCard } from "./widgets";
 
@@ -50,6 +51,15 @@ export function AnalyticsReport() {
           </Panel>
           <Panel title="Devices"><BarList rows={countBy(views.data, (v) => v.device)} /></Panel>
           <Panel title="Lead sources"><BarList rows={countBy(leads, (l) => l.source ?? "homepage")} /></Panel>
+        </div>
+
+        <div className="mt-6 grid gap-6 lg:grid-cols-2">
+          <Panel title="Most viewed cities">
+            <BarList rows={locations.map((loc): [string, number] => [loc.type === "city" ? `${loc.name}, ${loc.state}` : loc.name, views.data.filter((v) => (v.path.length > 1 ? v.path.replace(/\/+$/, "") : v.path) === loc.path).length]).filter((r) => r[1] > 0).sort((a, b) => b[1] - a[1]).slice(0, 10)} empty="No city page views yet." />
+          </Panel>
+          <Panel title="Top issues requested">
+            <BarList rows={countBy(leads.flatMap((l) => l.issue.split(", ").map((issue) => ({ issue }))), (l) => l.issue, 10)} empty="No leads yet." />
+          </Panel>
         </div>
 
         <div className="mt-6 grid gap-4 sm:grid-cols-3">
