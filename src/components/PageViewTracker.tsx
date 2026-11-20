@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { getSupabaseBrowser, isSupabaseConfigured } from "@/lib/supabase";
+import { noteRoute } from "@/lib/track-listing";
 
 let lastTracked = "";
 
@@ -25,6 +26,7 @@ export function PageViewTracker() {
   const { pathname } = useLocation();
 
   useEffect(() => {
+    noteRoute();
     if (!isSupabaseConfigured || pathname.startsWith("/admin") || pathname.startsWith("/contractor") || location.search.includes("seo_audit=1") || navigator.doNotTrack === "1") return;
     if (lastTracked === pathname) return;
     lastTracked = pathname;

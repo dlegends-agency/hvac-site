@@ -3,6 +3,7 @@ import { HoursSection } from "@/components/directory/Hours";
 import { telHref } from "@/components/directory/ListingCard";
 import { safeUrl } from "@/lib/directory";
 import type { Listing } from "@/lib/types";
+import { trackListing } from "@/lib/track-listing";
 
 /** What to search for on the map: the full address when there is one, otherwise the business name and town. */
 export function mapQuery(l: Pick<Listing, "business_name" | "address" | "city" | "state" | "postal_code">): string {
@@ -37,19 +38,19 @@ export function ListingSidebar({ listing: l }: { listing: Listing }) {
             <MapPin className={icon} aria-hidden />
             <span>
               {[l.address, `${l.city}, ${l.state}${l.postal_code ? ` ${l.postal_code}` : ""}`].filter(Boolean).join(", ")}
-              <a href={directionsUrl(query)} target="_blank" rel="noopener noreferrer" className="mt-1 flex items-center gap-1 font-semibold text-primary hover:underline">
+              <a href={directionsUrl(query)} onClick={() => trackListing(l.slug, "directions", "listing")} target="_blank" rel="noopener noreferrer" className="mt-1 flex items-center gap-1 font-semibold text-primary hover:underline">
                 <Navigation className="size-3.5" aria-hidden /> Get directions
               </a>
             </span>
           </li>
-          {l.phone && <li className={row}><Phone className={icon} aria-hidden /> <a href={telHref(l.phone)} className="font-medium text-navy hover:text-primary">{l.phone}</a></li>}
+          {l.phone && <li className={row}><Phone className={icon} aria-hidden /> <a href={telHref(l.phone)} onClick={() => trackListing(l.slug, "call", "listing")} className="font-medium text-navy hover:text-primary">{l.phone}</a></li>}
           {website && (
             <li className={row}>
               <Globe className={icon} aria-hidden />
-              <a href={website} target="_blank" rel="nofollow ugc noopener noreferrer" className="break-all font-medium text-navy hover:text-primary">{website.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")}</a>
+              <a href={website} onClick={() => trackListing(l.slug, "website", "listing")} target="_blank" rel="nofollow ugc noopener noreferrer" className="break-all font-medium text-navy hover:text-primary">{website.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")}</a>
             </li>
           )}
-          {l.email && <li className={row}><Mail className={icon} aria-hidden /> <a href={`mailto:${l.email}`} className="break-all font-medium text-navy hover:text-primary">{l.email}</a></li>}
+          {l.email && <li className={row}><Mail className={icon} aria-hidden /> <a href={`mailto:${l.email}`} onClick={() => trackListing(l.slug, "email", "listing")} className="break-all font-medium text-navy hover:text-primary">{l.email}</a></li>}
         </ul>
         <HoursSection listing={l} className="mt-5 border-t border-slate-100 pt-4" />
       </div>

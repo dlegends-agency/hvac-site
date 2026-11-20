@@ -3,14 +3,16 @@ import { MapPin, Phone, Siren } from "lucide-react";
 import { FeaturedBadge, GoogleReviews, LicenseBadge, VerifiedBadge } from "@/components/directory/Rating";
 import { imageUrl } from "@/lib/listing-images";
 import { isFeatured } from "@/lib/plans";
+import { trackListing, useImpression, type Placement } from "@/lib/track-listing";
 import type { Listing } from "@/lib/types";
 
 export const telHref = (phone: string) => `tel:${phone.replace(/[^\d+]/g, "")}`;
 
-export function ListingCard({ listing }: { listing: Listing }) {
+export function ListingCard({ listing, placement = "directory" }: { listing: Listing; placement?: Placement }) {
   const avatar = imageUrl(listing.avatar_path);
+  const seen = useImpression(listing.slug, placement);
   return (
-    <li className={`flex flex-col rounded-2xl border bg-white p-5 shadow-sm ${isFeatured(listing) ? "border-amber-300 ring-1 ring-amber-200" : "border-slate-200"}`}>
+    <li ref={seen} className={`flex flex-col rounded-2xl border bg-white p-5 shadow-sm ${isFeatured(listing) ? "border-amber-300 ring-1 ring-amber-200" : "border-slate-200"}`}>
       <div className="flex flex-wrap gap-1.5 empty:hidden">
         <FeaturedBadge listing={listing} />
         <VerifiedBadge listing={listing} />
@@ -43,7 +45,7 @@ export function ListingCard({ listing }: { listing: Listing }) {
       <div className="mt-4 flex flex-1 items-end justify-between gap-3">
         <Link to={`/directory/${listing.slug}`} className="text-sm font-semibold text-primary">View details →</Link>
         {listing.phone && (
-          <a href={telHref(listing.phone)} className="inline-flex items-center gap-1.5 text-sm font-medium text-navy">
+          <a href={telHref(listing.phone)} onClick={() => trackListing(listing.slug, "call", placement)} className="inline-flex items-center gap-1.5 text-sm font-medium text-navy">
             <Phone className="size-4" aria-hidden /> {listing.phone}
           </a>
         )}

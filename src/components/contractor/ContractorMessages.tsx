@@ -18,10 +18,7 @@ export default function ContractorMessages() {
   }
   return (
     <>
-      <PageTitle title="Messages" />
-      <p className="mb-5 max-w-3xl text-sm text-slate-700">
-        Write to customers who sent you a request, and read their replies. Messaging opens for a request once you have unlocked it. Until then it is locked.
-      </p>
+      <PageTitle title="Messages" description="Your conversations with customers. Messaging opens for a request once you have unlocked it, and the lead status updates itself as you write." />
       <MessageCenter role="business" startLead={params.get("lead")} startListing={listing.id} upgradeHref="/contractor/leads" />
     </>
   );

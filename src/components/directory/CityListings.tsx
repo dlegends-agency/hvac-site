@@ -26,7 +26,7 @@ export function CityListings({ location }: { location: ServiceLocation }) {
   return (
     <>
       <ul className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-        {shown.map((l) => <ListingCard key={l.id} listing={l} />)}
+        {shown.map((l) => <ListingCard key={l.id} listing={l} placement="city" />)}
       </ul>
       {matches.length > shown.length && (
         <p className="mt-6">
