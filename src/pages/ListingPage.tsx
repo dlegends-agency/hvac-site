@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, Globe, Mail, MapPin, Phone, Siren, ThumbsUp } from "lucide-react";
 import { Header } from "@/components/Header";
@@ -18,6 +18,7 @@ import { imageUrl } from "@/lib/listing-images";
 import { useListingRecommendations } from "@/lib/recommendations";
 import { useGooglePhoto } from "@/lib/use-google-photo";
 import { usePageMeta } from "@/lib/use-page-meta";
+import { trackListing } from "@/lib/track-listing";
 
 export default function ListingPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -51,6 +52,11 @@ export default function ListingPage() {
         }
       : { title: loading ? "Loading… | HVACHelp" : "Listing not found", noindex: !loading },
   );
+
+  const viewedSlug = l?.slug;
+  useEffect(() => {
+    if (viewedSlug) trackListing(viewedSlug, "view", "listing");
+  }, [viewedSlug]);
 
   const website = safeUrl(l?.website);
   const cover = imageUrl(l?.cover_image_path);
@@ -109,10 +115,10 @@ export default function ListingPage() {
               )}
 
               <div className="mt-5 flex flex-wrap gap-3">
-                {l.phone && <a href={telHref(l.phone)} className={buttonClass("primary")}><Phone className="size-4" aria-hidden /> {l.phone}</a>}
-                {l.email && <a href={`mailto:${l.email}`} className={buttonClass("secondary")}><Mail className="size-4" aria-hidden /> Email</a>}
+                {l.phone && <a href={telHref(l.phone)} onClick={() => trackListing(l.slug, "call", "listing")} className={buttonClass("primary")}><Phone className="size-4" aria-hidden /> {l.phone}</a>}
+                {l.email && <a href={`mailto:${l.email}`} onClick={() => trackListing(l.slug, "email", "listing")} className={buttonClass("secondary")}><Mail className="size-4" aria-hidden /> Email</a>}
                 {website && (
-                  <a href={website} target="_blank" rel="nofollow ugc noopener noreferrer" className={buttonClass("secondary")}>
+                  <a href={website} onClick={() => trackListing(l.slug, "website", "listing")} target="_blank" rel="nofollow ugc noopener noreferrer" className={buttonClass("secondary")}>
                     <Globe className="size-4" aria-hidden /> Website
                   </a>
                 )}
