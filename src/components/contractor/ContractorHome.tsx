@@ -2,11 +2,9 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Bookmark, BookmarkCheck, Briefcase, Building2, Check, Circle, Clock, FileText, HardHat, Inbox, Landmark, Lock, LockOpen, MapPin, Search, Sparkles, Target, Trophy } from "lucide-react";
 import { PageTitle, Panel } from "@/components/admin/widgets";
-import { TIER_STYLE } from "@/components/opportunities/shared";
 import { inputClass } from "@/components/ui/Field";
 import { planName } from "@/config/pricing";
 import { useLiveQuery, useNow } from "@/lib/admin-hooks";
-import { TIERS } from "@/lib/permit-score";
 import { activePlan } from "@/lib/plans";
 import { getSupabaseBrowser } from "@/lib/supabase";
 import type { Listing } from "@/lib/types";
@@ -196,7 +194,10 @@ function Dashboard({ listing }: { listing: Listing }) {
                 <ul className="grid gap-3">
                   {list.slice(0, SHOWN).map((i) => {
                     const Icon = KIND_ICON[i.kind];
-                    const tier = i.tier ? TIER_STYLE[i.tier] : null;
+                    // Customer requests are titled "Name: concern". Show them as two separate things.
+                    const cut = i.kind === "lead" ? i.title.indexOf(": ") : -1;
+                    const heading = cut > 0 ? i.title.slice(0, cut) : i.title;
+                    const concern = cut > 0 ? i.title.slice(cut + 2) : "";
                     const isSaved = savedKeys.has(i.key);
                     return (
                       <li key={i.key} className="flex flex-wrap items-stretch gap-4 rounded-xl border border-slate-200 p-3 transition-colors hover:border-primary/40 sm:flex-nowrap">
@@ -204,16 +205,16 @@ function Dashboard({ listing }: { listing: Listing }) {
                         <div className="min-w-0 flex-1">
                           <p className="flex flex-wrap items-center gap-2">
                             <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ring-1 ring-inset ${KIND_STYLE[i.kind]}`}>{KIND_LABEL[i.kind]}</span>
-                            {i.tier && tier && <span className={`text-xs font-bold ${tier.score}`}>{TIERS[i.tier].label}</span>}
-                            {i.urgent && <span className="rounded-full bg-emergency-soft px-2 py-0.5 text-xs font-semibold text-emergency">{i.kind === "bid" ? "Closing soon" : "Needs help now"}</span>}
+                            {i.urgent && i.kind !== "lead" && <span className="rounded-full bg-emergency-soft px-2 py-0.5 text-xs font-semibold text-emergency">{i.kind === "bid" ? "Closing soon" : "Needs help now"}</span>}
                           </p>
-                          <Link to={`/contractor/leads?open=${i.key}`} className="mt-1 line-clamp-2 block font-semibold text-navy hover:text-primary">{i.title}</Link>
-                          <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
+                          <Link to={`/contractor/leads?open=${i.key}`} className="mt-1 line-clamp-2 block font-semibold text-navy hover:text-primary">{heading}</Link>
+                          {concern && <p className="mt-1 line-clamp-2 text-sm text-slate-600"><span className="font-semibold text-slate-500">Concern: </span>{concern}</p>}
+                          <p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
                             {i.place && <span className="inline-flex items-center gap-1"><MapPin className="size-3.5" aria-hidden /> {i.place}</span>}
                             {i.when && <span className="inline-flex items-center gap-1"><Clock className="size-3.5" aria-hidden /> {ago(i.when.length === 10 ? `${i.when}T12:00:00Z` : i.when)}</span>}
                           </p>
                         </div>
-                        <div className="flex w-full shrink-0 flex-col items-stretch gap-2 sm:w-44 sm:items-end">
+                        <div className="flex w-full shrink-0 flex-col items-stretch gap-2 border-t border-slate-200 pt-3 sm:w-44 sm:items-end sm:border-t-0 sm:border-l sm:pt-0 sm:pl-4">
                           <div className="flex items-start justify-between gap-2 sm:w-full">
                             <div className="sm:text-right">
                               {i.fact && <p className="text-sm font-bold text-navy">{i.fact}</p>}
