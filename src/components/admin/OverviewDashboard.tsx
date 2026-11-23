@@ -1,16 +1,18 @@
 import { useMemo, useState } from "react";
 import { FlowHealth } from "./FlowHealth";
 import { Link } from "react-router-dom";
-import { ArrowDownRight, ArrowUpRight, Building2, Check, ExternalLink, EyeOff, HardHat, Inbox, Landmark, MessageSquare, Minus, RefreshCw, Users } from "lucide-react";
+import { AlertTriangle, ArrowDownRight, ArrowUpRight, Building2, Check, ExternalLink, EyeOff, HardHat, Inbox, Info, Landmark, Lightbulb, MessageSquare, Minus, RefreshCw, Users } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { plans } from "@/config/pricing";
 import { activePlan } from "@/lib/plans";
-import { useCountUp, useLiveQuery, useNow } from "@/lib/admin-hooks";
+import { countBy, useCountUp, useLiveQuery, useNow } from "@/lib/admin-hooks";
 import { getSupabaseBrowser } from "@/lib/supabase";
 import { useAdminCounts } from "@/lib/use-admin-counts";
 import { useScheduleText } from "@/lib/use-schedule";
 import type { Lead, Listing, ListingBilling, ListingPrivate, ListingStatus, PageView } from "@/lib/types";
-import { PageTitle, Panel, StatusBadge } from "./widgets";
+import { adviceFor, type Advice } from "@/lib/admin-advice";
+import { MultiLine, Stack } from "./OverviewCharts";
+import { BarList, PageTitle, Panel, StatusBadge } from "./widgets";
 
 const DAY = 86_400_000;
 const RANGES = [7, 30, 90] as const;
@@ -87,6 +89,11 @@ export function OverviewDashboard() {
     { key: "unlocks", intervalMs },
   );
 
+  const unmatchedQ = useLiveQuery<unknown[]>([], () => supabase.rpc("admin_unmatched_leads"), { key: "unmatched", intervalMs });
+  const listingStatsQ = useLiveQuery<{ totals: { impressions: number; views: number; actions: number }; top: { slug: string; name: string; featured: boolean; views: number }[] } | null>(
+    null, () => supabase.rpc("admin_listing_analytics", { p_days: days }), { key: `overview-listing-stats-${days}`, intervalMs },
+  );
+
   const [listingOverrides, setListingOverrides] = useState<Record<string, ListingStatus>>({});
   const listings = useMemo(() => listingsQ.data.map((l) => ({ ...l, status: listingOverrides[l.id] ?? l.status })), [listingsQ.data, listingOverrides]);
 
@@ -128,6 +135,41 @@ export function OverviewDashboard() {
     const recent = unlocksQ.data.filter((u) => new Date(u.unlocked_at).getTime() >= since);
     return { count: recent.length, cents: recent.reduce((sum, u) => sum + (u.unlock_cents ?? 0), 0) };
   }, [unlocksQ.data, unlocksQ.updatedAt]);
+
+  // One value per day for the chart: visitors (different browsers), customer requests and paid unlocks.
+  const trend = useMemo(() => {
+    const dates = Array.from({ length: days }, (_, i) => new Date(asOf - (days - 1 - i) * DAY).toISOString().slice(0, 10));
+    const index = new Map(dates.map((d, i) => [d, i]));
+    const visitors = dates.map(() => new Set<string>());
+    for (const v of viewsQ.data) { const i = index.get(v.created_at.slice(0, 10)); if (i !== undefined && v.session_id) visitors[i].add(v.session_id); }
+    const requests = dates.map(() => 0);
+    for (const l of leadsQ.data) { if (l.status === "spam") continue; const i = index.get(l.created_at.slice(0, 10)); if (i !== undefined) requests[i]++; }
+    const unlockCount = dates.map(() => 0);
+    for (const u of unlocksQ.data) { const i = index.get(u.unlocked_at.slice(0, 10)); if (i !== undefined) unlockCount[i]++; }
+    return { dates, visitors: visitors.map((x) => x.size), requests, unlocks: unlockCount };
+  }, [viewsQ.data, leadsQ.data, unlocksQ.data, days, asOf]);
+  const byStatus = useMemo(() => {
+    const c: Record<string, number> = {};
+    for (const l of stats.curLeads) c[l.status] = (c[l.status] ?? 0) + 1;
+    return c;
+  }, [stats.curLeads]);
+  const advice = useMemo<Advice[]>(() => adviceFor({
+    now: asOf,
+    newLeads: leadsQ.data.filter((l) => l.status === "new"),
+    newMessages: attention.newMessages,
+    pendingListings: attention.pendingListings,
+    pendingClaims: attention.pendingClaims,
+    permitsAt: attention.permitsAt,
+    bidsAt: attention.bidsAt,
+    visitors: stats.visitors,
+    prevVisitors: stats.prevVisitors,
+    requests: stats.curLeads.length,
+    paying: paying.rows.length,
+    publishedNoEmail: listings.filter((l) => l.status === "published" && !l.email).length,
+    topFree: (listingStatsQ.data?.top ?? []).filter((t) => !t.featured && t.views > 0).map((t) => ({ name: t.name, slug: t.slug, views: t.views }))[0] ?? null,
+    unmatched: unmatchedQ.error ? 0 : unmatchedQ.data.length,
+    days,
+  }), [asOf, leadsQ.data, attention, stats, paying.rows.length, listings, listingStatsQ.data, unmatchedQ.data, unmatchedQ.error, days]);
 
   async function setStatus(id: string, status: ListingStatus) {
     setBusyId(id);
@@ -182,6 +224,58 @@ export function OverviewDashboard() {
       )}
 
       <FlowHealth compact />
+
+      <section aria-labelledby="advice-title" className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 id="advice-title" className="mb-3 flex items-center gap-2 font-semibold text-navy"><Lightbulb className="size-4 text-amber-500" aria-hidden /> Recommended next steps</h2>
+        <ul className="grid gap-2.5 md:grid-cols-2">
+          {advice.slice(0, 6).map((a) => (
+            <li key={a.id} className={`flex items-start gap-3 rounded-xl border p-3.5 ${a.level === "urgent" ? "border-orange-200 bg-orange-50/70" : a.level === "suggest" ? "border-blue-100 bg-blue-50/50" : "border-green-200 bg-green-50/60"}`}>
+              <span className="mt-0.5 shrink-0" aria-hidden>{a.level === "urgent" ? <AlertTriangle className="size-4 text-emergency" /> : a.level === "suggest" ? <Lightbulb className="size-4 text-primary" /> : <Info className="size-4 text-green-700" />}</span>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-navy">{a.title}</p>
+                <p className="mt-0.5 text-xs text-slate-600">{a.detail}</p>
+                {a.to && <Link to={a.to} className="mt-1.5 inline-block text-sm font-semibold text-primary hover:underline">{a.cta ?? "Open"} →</Link>}
+              </div>
+            </li>
+          ))}
+        </ul>
+        {advice.length > 6 && <p className="mt-2 text-xs text-slate-500">{advice.length - 6} more suggestions appear when these are done.</p>}
+      </section>
+
+      <div className="mb-6 grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
+        <Panel title={`Visitors, requests and unlocks, last ${days} days`}>
+          <MultiLine dates={trend.dates} series={[
+            { key: "visitors", label: "Visitors", color: "#2563eb", values: trend.visitors },
+            { key: "requests", label: "Requests", color: "#059669", values: trend.requests },
+            { key: "unlocks", label: "Lead unlocks", color: "#f59e0b", values: trend.unlocks },
+          ]} />
+        </Panel>
+        <div className="space-y-6">
+          <Panel title="What happened to the requests">
+            <Stack parts={[
+              { label: "New", value: byStatus.new ?? 0, color: "#2563eb" },
+              { label: "Contacted", value: byStatus.contacted ?? 0, color: "#f59e0b" },
+              { label: "Won", value: byStatus.won ?? 0, color: "#059669" },
+              { label: "Closed", value: (byStatus.closed ?? 0) + (byStatus.lost ?? 0), color: "#94a3b8" },
+            ]} />
+          </Panel>
+          <Panel title="Company listings">
+            {listingStatsQ.data ? (
+              <dl className="grid grid-cols-3 gap-3 text-center">
+                <div><dd className="text-xl font-extrabold text-navy tabular-nums">{listingStatsQ.data.totals.impressions.toLocaleString()}</dd><dt className="text-xs text-slate-500">Shown</dt></div>
+                <div><dd className="text-xl font-extrabold text-navy tabular-nums">{listingStatsQ.data.totals.views.toLocaleString()}</dd><dt className="text-xs text-slate-500">Opened</dt></div>
+                <div><dd className="text-xl font-extrabold text-navy tabular-nums">{listingStatsQ.data.totals.actions.toLocaleString()}</dd><dt className="text-xs text-slate-500">Contacted</dt></div>
+              </dl>
+            ) : <p className="text-sm text-slate-500">Run <code>schema-analytics.sql</code> to count listing visitors.</p>}
+            <Link to="/admin/analytics" className="mt-3 inline-block text-sm font-semibold text-primary hover:underline">Most viewed listings →</Link>
+          </Panel>
+        </div>
+      </div>
+
+      <div className="mb-6 grid gap-6 md:grid-cols-2">
+        <Panel title="Where requests come from"><BarList rows={countBy(stats.curLeads, (l) => `${l.city}, ${l.state}`, 6)} empty="No requests in this period." /></Panel>
+        <Panel title="What customers ask for"><BarList rows={countBy(stats.curLeads.flatMap((l) => l.issue.split(", ").map((issue) => ({ issue }))), (l) => l.issue, 6)} empty="No requests in this period." /></Panel>
+      </div>
 
       <div className="mb-6 grid gap-6 lg:grid-cols-2">
         <Panel title="Needs your attention">
