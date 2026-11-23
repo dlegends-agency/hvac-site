@@ -2,5 +2,7 @@ User-agent: *
 Allow: /
 Disallow: /admin
 Disallow: /contractor
+Disallow: /account
+Disallow: /api/
 
-Sitemap: https://REPLACE-WITH-YOUR-DOMAIN/sitemap.xml
+Sitemap: https://hvac-site-4i7.pages.dev/sitemap.xml
