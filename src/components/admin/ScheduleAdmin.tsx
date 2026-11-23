@@ -270,6 +270,14 @@ export function ScheduleAdmin() {
   const supabase = getSupabaseBrowser();
   const q = useLiveQuery<ScrapeSchedule[]>([], () => supabase.from("scrape_schedules").select("*"), { key: "scrape-schedules", intervalMs: 60_000 });
   const bySource = (s: ScheduleSource) => q.data.find((r) => r.source === s) ?? DEFAULT_SCHEDULE[s];
+  const now = useNow(60_000);
+  const counts = useLiveQuery<{ permits: number; bids: number }>({ permits: 0, bids: 0 }, async () => {
+    const [p, b] = await Promise.all([
+      supabase.from("public_permits").select("id", { count: "exact", head: true }),
+      supabase.from("gov_bids").select("id", { count: "exact", head: true }),
+    ]);
+    return { data: { permits: p.count ?? 0, bids: b.count ?? 0 }, error: p.error ?? b.error };
+  }, { key: "source-counts", intervalMs: 120_000 });
 
   return (
     <>
@@ -279,6 +287,32 @@ export function ScheduleAdmin() {
           The schedule could not be loaded, so the old fixed times are in use (permits every day at 8:00 AM, bids every day at 8:30 AM). Run <code>supabase/schema-schedule.sql</code> in the Supabase SQL Editor to turn on scheduling from here.
         </p>
       )}
+      <div className="mb-6 grid gap-4 md:grid-cols-2">
+        {(["permits", "bids"] as const).map((src) => {
+          const sch = bySource(src);
+          const failed = sch.last_status === "failed";
+          const next = nextRunAt(sch, now);
+          return (
+            <section key={src} className={`rounded-2xl border bg-white p-4 shadow-sm ${failed ? "border-red-300" : "border-slate-200"}`} aria-label={`${SOURCE_LABEL[src]} at a glance`}>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-bold tracking-wide text-slate-500 uppercase">Lead source {src === "permits" ? "1" : "2"}</p>
+                  <h2 className="text-lg font-bold text-navy">{SOURCE_LABEL[src]}</h2>
+                </div>
+                <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${failed ? "bg-red-100 text-red-800" : sch.last_status === "success" ? "bg-green-100 text-green-800" : "bg-slate-100 text-slate-600"}`}>
+                  {failed ? "Last run failed" : sch.last_status === "success" ? "Working" : sch.last_status === "cancelled" ? "Last run cancelled" : "Not run yet"}
+                </span>
+              </div>
+              <dl className="mt-3 grid grid-cols-3 gap-3 text-sm">
+                <div><dt className="text-xs text-slate-500">Saved</dt><dd className="text-xl font-extrabold text-navy tabular-nums">{(src === "permits" ? counts.data.permits : counts.data.bids).toLocaleString()}</dd></div>
+                <div><dt className="text-xs text-slate-500">Last run</dt><dd className="font-semibold text-navy">{sch.last_run_at ? ago(sch.last_run_at, now) : "Never"}</dd></div>
+                <div><dt className="text-xs text-slate-500">Next run</dt><dd className="font-semibold text-navy">{sch.frequency === "off" ? "Off" : next ? whenText(next, now) : "Soon"}</dd></div>
+              </dl>
+              <p className="mt-2 text-xs text-slate-600">{describe(sch)}</p>
+            </section>
+          );
+        })}
+      </div>
       <div className="grid w-full items-start gap-6 xl:grid-cols-2">
         {(["permits", "bids"] as const).map((s) => (
           <ScheduleCard key={s} saved={bySource(s)} saveable={!q.error && !q.loading} onSaved={() => void q.reload()} />

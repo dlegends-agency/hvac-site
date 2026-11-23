@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { AlertTriangle, ArrowLeft, Building2, CalendarClock, Check, CheckCircle2, Circle, Copy, ExternalLink, FileWarning, Hash, Loader2, Mail, MapPin, Phone, ShieldCheck, Sparkles, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Building2, CalendarClock, Check, CheckCircle2, Circle, Copy, FileWarning, Hash, Loader2, Mail, MapPin, Phone, ShieldCheck, Sparkles, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { inputClass } from "@/components/ui/Field";
 import {
@@ -187,12 +187,6 @@ function Overview({ ws, notice, steps, blockers, changed, reload, go }: {
               )}
               {ws.notes && <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900"><strong>Your notes:</strong> {ws.notes}</p>}
             </div>
-          )}
-          {(n?.sam_url || n?.info_url) && (
-            <p className="mt-3 flex flex-wrap gap-2">
-              {n.sam_url && <a href={n.sam_url} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 px-3.5 py-1.5 text-sm font-semibold text-navy hover:bg-slate-50">Open on SAM.gov <ExternalLink className="size-3.5" aria-hidden /></a>}
-              {n.info_url && <a href={n.info_url} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 px-3.5 py-1.5 text-sm font-semibold text-navy hover:bg-slate-50">More information <ExternalLink className="size-3.5" aria-hidden /></a>}
-            </p>
           )}
         </Card>
 

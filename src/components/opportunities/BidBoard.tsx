@@ -4,7 +4,7 @@ import { scoreBid, type ScoredBid } from "@/lib/bid-score";
 import { bidTitle, dueText, type GovBid } from "@/lib/bids";
 import type { Coverage } from "@/lib/permit-score";
 import { EmailOpportunity } from "@/components/contractor/EmailOpportunity";
-import { Fact, LockedTag, ScoreBars, SidePanel, TIER_STYLE, TierColumns, UnlockBox, dayText, searchClass, selectClass, type ComposeInfo, type UnlockInfo } from "./shared";
+import { Expandable, Fact, Glance, LockedTag, ScoreDetails, Section, SidePanel, TIER_STYLE, TierColumns, UnlockBox, dayText, searchClass, selectClass, type ComposeInfo, type UnlockInfo } from "./shared";
 
 interface Row extends ScoredBid {
   b: GovBid;
@@ -49,54 +49,63 @@ export function BidDetail({ row, unlock, compose, onClose }: { row: Row; unlock?
   const place = [b.address, b.city, b.state, b.zip].filter(Boolean).join(", ");
   return (
     <SidePanel label="Bid details" tier={row.tier} score={row.score} title={bidTitle(b)} subtitle={[b.agency, b.city && `${b.city}, ${b.state}`].filter(Boolean).join(" · ")} onClose={onClose}>
-      <p className="mt-4 rounded-xl bg-slate-50 p-3 text-sm text-slate-800">{b.summary}</p>
-
-      <div className="mt-4 flex flex-wrap gap-2">
-        {b.sam_url && !compose && <a href={b.sam_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white hover:opacity-90">Open on SAM.gov <ExternalLink className="size-4" aria-hidden /></a>}
-        {proposalTo && compose && (
-          <EmailOpportunity kind="bid" itemId={b.id} index={proposalIndex} email={proposalTo.email as string} recipient={proposalTo.name ?? (proposalTo.email as string)} businessName={compose.businessName}
-            label="Send Project Email Proposal" project={bidTitle(b)} defaultSubject={`Proposal: ${bidTitle(b)}`.slice(0, 150)} />
-        )}
-        {b.info_url && !compose && <a href={b.info_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-navy hover:bg-slate-50">More information <ExternalLink className="size-4" aria-hidden /></a>}
+      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <Glance label="Response due" value={b.response_due ? dayText(b.response_due) : "No deadline"} hint={dueText(row.daysLeft)} tone={row.daysLeft !== null && row.daysLeft >= 0 && row.daysLeft <= 6 ? "border-red-200 bg-red-50" : ""} />
+        <Glance label="Posted" value={b.posted_at ? dayText(b.posted_at) : "Not listed"} hint={postedText(row.ageDays) || undefined} />
+        <Glance label="Notice type" value={shortType(b.notice_type)} />
+        <Glance label="Who can bid" value={b.set_aside ? "Set aside" : "Everyone"} hint={b.set_aside ?? "Open to every size of business"} tone={b.set_aside ? "border-green-200 bg-green-50" : ""} />
       </div>
 
-      <h3 className="mt-6 text-sm font-bold text-navy">Why this score</h3>
-      <ScoreBars parts={row.parts} />
-
-      <h3 className="mt-6 text-sm font-bold text-navy">Notice</h3>
-      <dl className="mt-2 grid gap-3 sm:grid-cols-2">
-        <Fact label="Notice type" value={b.notice_type} />
-        <Fact label="Solicitation number" value={b.solicitation_number} />
-        <Fact label="Posted" value={b.posted_at ? `${dayText(b.posted_at)} (${postedText(row.ageDays)})` : null} />
-        <Fact label="Response due" value={b.response_due ? `${dayText(b.response_due)} (${dueText(row.daysLeft)})` : "No deadline listed"} />
-        <Fact label="Set-aside" value={b.set_aside ?? "None: open to every size of business"} />
-        <Fact label="NAICS code" value={b.naics} />
-        <Fact label="Product or service code" value={b.psc} />
-        <Fact label="Agency" value={[b.department, b.agency, b.office].filter((v, i, a) => v && a.indexOf(v) === i).join(" › ") || null} />
-        <Fact label="Place of performance" value={place || null} />
-        <Fact label="Counted as HVAC because" value={b.relevance} />
-      </dl>
-
-      <h3 className="mt-6 text-sm font-bold text-navy">Contracting contacts</h3>
-      {locked && unlock && <UnlockBox kind="bid" itemId={b.id} price={unlock.price} what="bid" />}
-      {b.contacts.length === 0 ? (
-        <p className="mt-1 text-sm text-slate-500">No contact is listed for this bid.</p>
-      ) : (
-        <ul className="mt-2 grid gap-3 sm:grid-cols-2">
-          {b.contacts.map((c, i) => (
-            <li key={i} className="rounded-xl border border-slate-200 p-3 text-sm">
-              <p className="font-semibold text-navy">{c.name ?? "Contact"}</p>
-              {c.title && <p className="text-xs text-slate-500">{c.title}</p>}
-              <dl className="mt-2 space-y-1 text-slate-700">
-                <div className="flex items-start gap-2"><Mail className="mt-0.5 size-4 shrink-0 text-slate-400" aria-hidden /><dd>{locked ? <LockedTag /> : c.email ? <a href={`mailto:${c.email}`} className="break-all text-primary hover:underline">{c.email}</a> : <span className="text-slate-400">No email</span>}</dd></div>
-                <div className="flex items-start gap-2"><Phone className="mt-0.5 size-4 shrink-0 text-slate-400" aria-hidden /><dd>{locked ? <LockedTag /> : c.phone ? <a href={`tel:${c.phone.replace(/\D/g, "")}`} className="text-primary hover:underline">{c.phone}</a> : <span className="text-slate-400">No phone</span>}</dd></div>
-              </dl>
-            </li>
-          ))}
-        </ul>
+      {proposalTo && compose && (
+        <div className="mt-4">
+          <EmailOpportunity kind="bid" itemId={b.id} index={proposalIndex} email={proposalTo.email as string} recipient={proposalTo.name ?? (proposalTo.email as string)} businessName={compose.businessName}
+            label="Send Project Email Proposal" project={bidTitle(b)} defaultSubject={`Proposal: ${bidTitle(b)}`.slice(0, 150)} />
+        </div>
+      )}
+      {!compose && (b.sam_url || b.info_url) && (
+        <p className="mt-4 flex flex-wrap gap-2">
+          {b.sam_url && <a href={b.sam_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white hover:opacity-90">Open on SAM.gov <ExternalLink className="size-4" aria-hidden /></a>}
+          {b.info_url && <a href={b.info_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-navy hover:bg-slate-50">More information <ExternalLink className="size-4" aria-hidden /></a>}
+        </p>
       )}
 
-      {b.description && <><h3 className="mt-6 text-sm font-bold text-navy">Description</h3><p className="mt-1 text-sm whitespace-pre-line text-slate-700">{b.description}</p></>}
+      <Section title="About this job">
+        <p className="mb-2 text-sm font-semibold text-slate-900">{b.summary}</p>
+        {b.description ? <Expandable text={b.description} /> : <p className="text-sm text-slate-500">The notice has no description.</p>}
+      </Section>
+
+      <Section title="Details">
+        <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
+          <Fact label="Agency" value={[b.department, b.agency, b.office].filter((v, i, a) => v && a.indexOf(v) === i).join(" › ") || null} />
+          <Fact label="Solicitation number" value={b.solicitation_number} />
+          <Fact label="Place of performance" value={place || null} />
+          <Fact label="NAICS code" value={b.naics} />
+          <Fact label="Product or service code" value={b.psc} />
+          <Fact label="Counted as HVAC work because" value={b.relevance} />
+        </dl>
+      </Section>
+
+      <Section title="Contracting contacts" aside={`${b.contacts.length}`}>
+        {locked && unlock && <UnlockBox kind="bid" itemId={b.id} price={unlock.price} what="bid" />}
+        {b.contacts.length === 0 ? (
+          <p className="text-sm text-slate-500">No contact is listed for this bid.</p>
+        ) : (
+          <ul className="grid gap-3 sm:grid-cols-2">
+            {b.contacts.map((c, i) => (
+              <li key={i} className="rounded-xl border border-slate-200 p-3 text-sm">
+                <p className="font-semibold text-navy">{c.name ?? "Contact"}</p>
+                {c.title && <p className="text-xs text-slate-500">{c.title}</p>}
+                <dl className="mt-2 space-y-1 text-slate-700">
+                  <div className="flex items-start gap-2"><Mail className="mt-0.5 size-4 shrink-0 text-slate-400" aria-hidden /><dd>{locked ? <LockedTag /> : c.email ? <a href={`mailto:${c.email}`} className="break-all text-primary hover:underline">{c.email}</a> : <span className="text-slate-400">No email</span>}</dd></div>
+                  <div className="flex items-start gap-2"><Phone className="mt-0.5 size-4 shrink-0 text-slate-400" aria-hidden /><dd>{locked ? <LockedTag /> : c.phone ? <a href={`tel:${c.phone.replace(/\D/g, "")}`} className="text-primary hover:underline">{c.phone}</a> : <span className="text-slate-400">No phone</span>}</dd></div>
+                </dl>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Section>
+
+      <ScoreDetails parts={row.parts} />
       <p className="mt-4 text-xs text-slate-500">Federal notices come from the government&apos;s public contracting data. Deadlines and requirements can change, so confirm them with the contracting officer.</p>
     </SidePanel>
   );
@@ -139,7 +148,7 @@ export function BidBoard({ bids, error, cover, startCity = "all", unlock, compos
 
   return (
     <div className="w-full">
-      <p className="mb-5 text-sm text-slate-600">{intro}</p>
+      <details className="mb-4 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-600"><summary className="cursor-pointer font-semibold text-navy">How these are ranked</summary><p className="mt-2 leading-relaxed">{intro}</p></details>
       <div className="mb-5 flex flex-wrap items-center gap-3 text-sm">
         <label className="flex items-center gap-2 font-medium text-slate-700">City
           <select value={city} onChange={(e) => setCity(e.target.value)} className={selectClass}>
