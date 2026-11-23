@@ -1,3 +1,4 @@
+import { ShareListing } from "./ShareListing";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Bookmark, BookmarkCheck, Briefcase, Building2, Check, Circle, Clock, FileText, HardHat, Inbox, Landmark, Lock, LockOpen, MapPin, Search, Sparkles, Target, Trophy } from "lucide-react";
@@ -145,7 +146,9 @@ function Dashboard({ listing }: { listing: Listing }) {
 
   return (
     <>
-      <PageTitle title={`${greeting()}, ${listing.business_name}`} description="Find, unlock and win more HVAC requests, building permits and government bids." />
+      <PageTitle title={`${greeting()}, ${listing.business_name}`} description="Find, unlock and win more HVAC requests, building permits and government bids.">
+        {published && <ShareListing slug={listing.slug} name={listing.business_name} />}
+      </PageTitle>
 
       <div className="mb-6 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border border-primary/30 bg-blue-50/60 px-5 py-4">
         <span className="rounded-full bg-primary px-2.5 py-0.5 text-xs font-bold tracking-wide text-white uppercase">Next step</span>
