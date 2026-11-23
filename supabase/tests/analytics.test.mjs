@@ -118,4 +118,15 @@ assert.equal(a2.totals.views, 4, "and are not mixed into this period");
 assert.equal(a2.leads.received, 1);
 assert.equal((await stats(B.user)).leads.received, 0 + (await count("select count(*)::int n from public.lead_assignments where listing_id=$1 and assigned_at > now() - interval '30 days'", [B.id])));
 
+// ---- the platform view is for admins only
+await denied_admin();
+async function denied_admin() {
+  await assert.rejects(() => run(A.user, "select public.admin_listing_analytics(30)"), /Admins only|permission denied/, "a business cannot read the platform numbers");
+  const adminUser = await uid("admin@x.com");
+  await q("insert into public.admin_users (user_id) values ($1)", [adminUser]);
+  const r = (await run(adminUser, "select public.admin_listing_analytics(30) as a")).rows[0].a;
+  assert.equal(r.totals.views, 5, "admins see every business's views");
+  assert.ok(r.top[0].slug && r.top.length >= 1, "and the most viewed listings");
+}
+
 console.log("analytics tests passed");

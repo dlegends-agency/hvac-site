@@ -1,15 +1,24 @@
 import { useState } from "react";
 import { locations } from "@/config/locations";
-import { countBy, dailyCounts, useLeads, usePageViews } from "@/lib/admin-hooks";
+import { Link } from "react-router-dom";
+import { countBy, dailyCounts, useLeads, useLiveQuery, usePageViews } from "@/lib/admin-hooks";
+import { getSupabaseBrowser } from "@/lib/supabase";
 import { BarList, DailyChart, PageTitle, Panel, QueryState, StatCard } from "./widgets";
 
 const RANGES = [7, 30, 90] as const;
+
+interface ListingStats {
+  totals: { impressions: number; featured_impressions: number; views: number; featured_views: number; visitors: number; actions: number; featured_actions: number; listings_seen: number };
+  top: { slug: string; name: string; city: string; featured: boolean; impressions: number; views: number; actions: number }[];
+}
 
 export function AnalyticsReport() {
   const [days, setDays] = useState<(typeof RANGES)[number]>(30);
   const views = usePageViews(days);
   const leadsQ = useLeads();
   const [now] = useState(() => Date.now());
+  const lq = useLiveQuery<ListingStats | null>(null, () => getSupabaseBrowser().rpc("admin_listing_analytics", { p_days: days }), { key: `admin-listing-analytics-${days}`, intervalMs: 60_000 });
+  const ls = lq.data;
   const leads = leadsQ.data.filter((l) => now - new Date(l.created_at).getTime() < days * 86_400_000 && l.status !== "spam");
 
   const sessions = new Set(views.data.map((v) => v.session_id).filter(Boolean)).size;
@@ -67,6 +76,37 @@ export function AnalyticsReport() {
           <StatCard label="Blog views" value={blog.toLocaleString()} />
           <StatCard label="Views per visitor" value={sessions ? (views.data.length / sessions).toFixed(1) : "0.0"} />
         </div>
+
+        <h2 className="mt-8 mb-3 text-lg font-bold text-navy">Company listings</h2>
+        {lq.error && !ls ? (
+          <p className="rounded-xl border border-orange-200 bg-orange-50 p-4 text-sm text-orange-900">Listing analytics are not set up yet. Run <code>supabase/schema-analytics.sql</code> in the Supabase SQL Editor.</p>
+        ) : !ls ? <p className="text-slate-600">Loading…</p> : (
+          <>
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <StatCard label="Shown in lists" value={ls.totals.impressions.toLocaleString()} hint={`${ls.totals.featured_impressions.toLocaleString()} as featured`} />
+              <StatCard label="Listing views" value={ls.totals.views.toLocaleString()} hint={`${ls.totals.featured_views.toLocaleString()} on featured listings`} />
+              <StatCard label="Contact actions" value={ls.totals.actions.toLocaleString()} hint="Calls, emails, website, directions" />
+              <StatCard label="Listings seen" value={ls.totals.listings_seen.toLocaleString()} hint={`${ls.totals.visitors.toLocaleString()} visitors opened one`} />
+            </div>
+            <Panel title="Most viewed listings" className="mt-4">
+              {ls.top.length === 0 ? <p className="text-sm text-slate-600">No listing activity yet.</p> : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead className="text-xs text-slate-500 uppercase"><tr><th className="py-2 pr-3">Business</th><th className="px-3 text-right">Shown</th><th className="px-3 text-right">Views</th><th className="pl-3 text-right">Contact actions</th></tr></thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {ls.top.map((t) => (
+                        <tr key={t.slug}>
+                          <td className="py-2 pr-3"><Link to={`/directory/${t.slug}`} className="font-semibold text-navy hover:text-primary">{t.name}</Link>{t.featured && <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-900">Featured</span>}<span className="block text-xs text-slate-500">{t.city}</span></td>
+                          <td className="px-3 text-right tabular-nums">{t.impressions}</td><td className="px-3 text-right font-semibold tabular-nums">{t.views}</td><td className="pl-3 text-right tabular-nums">{t.actions}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </Panel>
+          </>
+        )}
 
         <p className="mt-6 text-xs text-slate-500">
           Counts come from a lightweight built-in tracker (no cookies, no IP addresses). Visitors using Do Not Track are not counted, and a

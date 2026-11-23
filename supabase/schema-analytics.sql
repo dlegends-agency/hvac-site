@@ -114,3 +114,39 @@ revoke all on function public.track_listing_event(text, text, text, text, text, 
 revoke all on function public.my_listing_analytics(int) from public, anon;
 grant execute on function public.track_listing_event(text, text, text, text, text, text) to anon, authenticated;
 grant execute on function public.my_listing_analytics(int) to authenticated;
+
+-- Platform view for admins: how all listings are doing over the last p_days days (totals, featured against free, and the most viewed listings).
+create or replace function public.admin_listing_analytics(p_days int default 30)
+returns jsonb
+language plpgsql
+security definer
+stable
+set search_path = public
+as $$
+declare
+  v_days int := least(greatest(coalesce(p_days, 30), 7), 365);
+  v_start timestamptz := date_trunc('day', now()) - make_interval(days => least(greatest(coalesce(p_days, 30), 7), 365) - 1);
+  v_totals jsonb; v_top jsonb;
+begin
+  if not public.is_admin() then raise exception 'Admins only' using errcode = '42501'; end if;
+  select jsonb_build_object(
+           'impressions', count(*) filter (where event = 'impression'),
+           'featured_impressions', count(*) filter (where event = 'impression' and featured),
+           'views', count(*) filter (where event = 'view'),
+           'featured_views', count(*) filter (where event = 'view' and featured),
+           'visitors', count(distinct session_id) filter (where event = 'view'),
+           'actions', count(*) filter (where event in ('call', 'email', 'website', 'directions')),
+           'featured_actions', count(*) filter (where event in ('call', 'email', 'website', 'directions') and featured),
+           'listings_seen', count(distinct listing_id))
+    into v_totals from public.listing_events where created_at >= v_start;
+  select coalesce(jsonb_agg(t order by (t->>'views')::int desc), '[]'::jsonb) into v_top
+    from (select jsonb_build_object('slug', l.slug, 'name', l.business_name, 'city', l.city, 'featured', public.listing_is_paid(l.id),
+                 'impressions', count(*) filter (where e.event = 'impression'), 'views', count(*) filter (where e.event = 'view'),
+                 'actions', count(*) filter (where e.event in ('call', 'email', 'website', 'directions'))) t
+            from public.listing_events e join public.listings l on l.id = e.listing_id
+           where e.created_at >= v_start group by l.id order by count(*) filter (where e.event = 'view') desc, count(*) desc limit 10) x;
+  return jsonb_build_object('days', v_days, 'totals', v_totals, 'top', v_top);
+end;
+$$;
+revoke all on function public.admin_listing_analytics(int) from public, anon;
+grant execute on function public.admin_listing_analytics(int) to authenticated;
