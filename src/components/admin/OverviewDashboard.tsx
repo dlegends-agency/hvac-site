@@ -225,23 +225,6 @@ export function OverviewDashboard() {
 
       <FlowHealth compact />
 
-      <section aria-labelledby="advice-title" className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 id="advice-title" className="mb-3 flex items-center gap-2 font-semibold text-navy"><Lightbulb className="size-4 text-amber-500" aria-hidden /> Recommended next steps</h2>
-        <ul className="grid gap-2.5 md:grid-cols-2">
-          {advice.slice(0, 6).map((a) => (
-            <li key={a.id} className={`flex items-start gap-3 rounded-xl border p-3.5 ${a.level === "urgent" ? "border-orange-200 bg-orange-50/70" : a.level === "suggest" ? "border-blue-100 bg-blue-50/50" : "border-green-200 bg-green-50/60"}`}>
-              <span className="mt-0.5 shrink-0" aria-hidden>{a.level === "urgent" ? <AlertTriangle className="size-4 text-emergency" /> : a.level === "suggest" ? <Lightbulb className="size-4 text-primary" /> : <Info className="size-4 text-green-700" />}</span>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-navy">{a.title}</p>
-                <p className="mt-0.5 text-xs text-slate-600">{a.detail}</p>
-                {a.to && <Link to={a.to} className="mt-1.5 inline-block text-sm font-semibold text-primary hover:underline">{a.cta ?? "Open"} →</Link>}
-              </div>
-            </li>
-          ))}
-        </ul>
-        {advice.length > 6 && <p className="mt-2 text-xs text-slate-500">{advice.length - 6} more suggestions appear when these are done.</p>}
-      </section>
-
       <div className="mb-6 grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <Panel title={`Visitors, requests and unlocks, last ${days} days`}>
           <MultiLine dates={trend.dates} series={[
@@ -271,6 +254,23 @@ export function OverviewDashboard() {
           </Panel>
         </div>
       </div>
+
+      <section aria-labelledby="advice-title" className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 id="advice-title" className="mb-3 flex items-center gap-2 font-semibold text-navy"><Lightbulb className="size-4 text-amber-500" aria-hidden /> Recommended next steps</h2>
+        <ul className="grid gap-2.5 md:grid-cols-2">
+          {advice.slice(0, 6).map((a) => (
+            <li key={a.id} className={`flex items-start gap-3 rounded-xl border p-3.5 ${a.level === "urgent" ? "border-orange-200 bg-orange-50/70" : a.level === "suggest" ? "border-blue-100 bg-blue-50/50" : "border-green-200 bg-green-50/60"}`}>
+              <span className="mt-0.5 shrink-0" aria-hidden>{a.level === "urgent" ? <AlertTriangle className="size-4 text-emergency" /> : a.level === "suggest" ? <Lightbulb className="size-4 text-primary" /> : <Info className="size-4 text-green-700" />}</span>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-navy">{a.title}</p>
+                <p className="mt-0.5 text-xs text-slate-600">{a.detail}</p>
+                {a.to && <Link to={a.to} className="mt-1.5 inline-block text-sm font-semibold text-primary hover:underline">{a.cta ?? "Open"} →</Link>}
+              </div>
+            </li>
+          ))}
+        </ul>
+        {advice.length > 6 && <p className="mt-2 text-xs text-slate-500">{advice.length - 6} more suggestions appear when these are done.</p>}
+      </section>
 
       <div className="mb-6 grid gap-6 md:grid-cols-2">
         <Panel title="Where requests come from"><BarList rows={countBy(stats.curLeads, (l) => `${l.city}, ${l.state}`, 6)} empty="No requests in this period." /></Panel>
