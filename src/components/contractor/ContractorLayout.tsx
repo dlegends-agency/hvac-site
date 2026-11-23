@@ -1,3 +1,4 @@
+import { ShareListing } from "./ShareListing";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { BarChart3, BookmarkCheck, ChevronDown, ClipboardList, CreditCard, ExternalLink, FileCheck2, LayoutDashboard, Loader2, LogOut, MessageSquare, Search, Settings, Sparkles, ThumbsUp, UserCog, Users } from "lucide-react";
@@ -186,6 +187,9 @@ export default function ContractorLayout() {
               <Link to={`/directory/${value.listing.slug}`} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
                 <ExternalLink className="size-4" aria-hidden /> View my listing
               </Link>
+            )}
+            {value.listing?.status === "published" && (
+              <ShareListing slug={value.listing.slug} name={value.listing.business_name} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium text-slate-700 hover:bg-slate-50" />
             )}
             <button onClick={signOut} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
               <LogOut className="size-4" aria-hidden /> Sign out
