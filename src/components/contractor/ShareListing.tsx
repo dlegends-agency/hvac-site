@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
-import { Check, Copy, Facebook, Linkedin, Mail, MessageCircle, Share2, X } from "lucide-react";
+import { Check, Copy, Mail, MessageCircle, Share2, X } from "lucide-react";
 
 /** The address of a business's public listing, on the site the contractor is using now. */
 export const listingUrl = (slug: string) => `${window.location.origin}/directory/${slug}`;
 
 const LINKS = (url: string, text: string) => [
-  { label: "Facebook", href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, color: "bg-[#1877f2]", icon: <Facebook className="size-4" aria-hidden /> },
+  { label: "Facebook", href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, color: "bg-[#1877f2]", icon: <span className="text-sm font-black" aria-hidden>f</span> },
   { label: "X", href: `https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`, color: "bg-black", icon: <span className="text-sm font-black" aria-hidden>X</span> },
-  { label: "LinkedIn", href: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`, color: "bg-[#0a66c2]", icon: <Linkedin className="size-4" aria-hidden /> },
+  { label: "LinkedIn", href: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`, color: "bg-[#0a66c2]", icon: <span className="text-sm font-black" aria-hidden>in</span> },
   { label: "WhatsApp", href: `https://wa.me/?text=${encodeURIComponent(`${text} ${url}`)}`, color: "bg-[#25d366]", icon: <MessageCircle className="size-4" aria-hidden /> },
   { label: "Email", href: `mailto:?subject=${encodeURIComponent(text)}&body=${encodeURIComponent(`${text}\n\n${url}`)}`, color: "bg-slate-700", icon: <Mail className="size-4" aria-hidden /> },
 ];
