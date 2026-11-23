@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Lock, X } from "lucide-react";
 import { UnlockButtons } from "@/components/contractor/UnlockButtons";
 import { TIERS, type Tier } from "@/lib/permit-score";
@@ -115,3 +115,46 @@ export function UnlockBox({ kind, itemId, price, what }: { kind: "permit" | "bid
 export const LockedTag = ({ text = "Locked" }: { text?: string }) => (
   <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600"><Lock className="size-3" aria-hidden /> {text}</span>
 );
+
+/** A titled block in a detail panel, so a long record reads as a few clear parts. */
+export function Section({ title, aside, children }: { title: string; aside?: ReactNode; children: ReactNode }) {
+  return (
+    <section className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+      <div className="mb-2.5 flex items-center justify-between gap-2"><h3 className="text-sm font-bold text-navy">{title}</h3>{aside && <span className="text-xs text-slate-500">{aside}</span>}</div>
+      {children}
+    </section>
+  );
+}
+
+/** A small number-and-label tile for the facts that matter first (when it is due, how big it is). */
+export function Glance({ label, value, hint, tone = "" }: { label: string; value: ReactNode; hint?: string; tone?: string }) {
+  return (
+    <div className={`rounded-xl border px-3 py-2 ${tone || "border-slate-200 bg-slate-50"}`}>
+      <p className="text-[11px] font-semibold tracking-wide text-slate-500 uppercase">{label}</p>
+      <p className="text-sm font-bold text-navy">{value}</p>
+      {hint && <p className="text-xs text-slate-500">{hint}</p>}
+    </div>
+  );
+}
+
+/** Long text, cut to a few lines with a button to read all of it. Paragraph breaks are kept. */
+export function Expandable({ text, lines = 6 }: { text: string; lines?: number }) {
+  const [open, setOpen] = useState(false);
+  const long = text.length > 420 || text.split("\n").length > lines;
+  return (
+    <div>
+      <p className={`text-sm leading-relaxed whitespace-pre-line text-slate-700 ${open || !long ? "" : "line-clamp-6"}`}>{text}</p>
+      {long && <button type="button" onClick={() => setOpen(!open)} className="mt-1 text-sm font-semibold text-primary hover:underline">{open ? "Show less" : "Read all"}</button>}
+    </div>
+  );
+}
+
+/** The score and its parts, folded away until asked for. */
+export function ScoreDetails({ parts }: { parts: { label: string; points: number; max: number; reason: string }[] }) {
+  return (
+    <details className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+      <summary className="cursor-pointer text-sm font-bold text-navy">Why this score</summary>
+      <ScoreBars parts={parts} />
+    </details>
+  );
+}

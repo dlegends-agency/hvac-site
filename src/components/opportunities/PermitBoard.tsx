@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { ageText, scorePermit, type Coverage, type Scored } from "@/lib/permit-score";
 import { PERMIT_CLASS_STYLE, matchDirectory, permitTitle, permitValue, type DirectoryBusiness, type PermitPerson, type PublicPermit } from "@/lib/permits";
 import { EmailOpportunity } from "@/components/contractor/EmailOpportunity";
-import { Fact, LockedTag, ScoreBars, SidePanel, TIER_STYLE, TierColumns, UnlockBox, dayText, searchClass, selectClass, type ComposeInfo, type UnlockInfo } from "./shared";
+import { Expandable, Fact, Glance, LockedTag, ScoreDetails, Section, SidePanel, TIER_STYLE, TierColumns, UnlockBox, dayText, searchClass, selectClass, type ComposeInfo, type UnlockInfo } from "./shared";
 
 interface Row extends Scored {
   p: PublicPermit;
@@ -67,7 +67,12 @@ export function PermitDetail({ row, directory, adminLinks, unlock, compose, onCl
   const proposalTo = p.unlocked === true && proposalIndex >= 0 ? p.people[proposalIndex] : null;
   return (
     <SidePanel label="Permit details" tier={row.tier} score={row.score} title={permitTitle(p)} subtitle={`${p.address ? `${p.address}, ` : ""}${p.city}${p.zip ? ` ${p.zip}` : ""}`} onClose={onClose}>
-      <p className="mt-4 rounded-xl bg-slate-50 p-3 text-sm text-slate-800">{p.summary}</p>
+      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <Glance label="Project value" value={permitValue(p.value_usd)} />
+        <Glance label="Issued" value={dayText(p.issued_on)} hint={ageText(row.ageDays)} />
+        <Glance label="Property" value={p.property_class[0].toUpperCase() + p.property_class.slice(1)} />
+        <Glance label="City" value={p.city} hint={p.source === "austin" ? "Austin open data" : p.source === "dallas" ? "Dallas open data" : p.source} />
+      </div>
 
       {proposalTo && compose && (
         <div className="mt-4 flex flex-wrap gap-2">
@@ -76,21 +81,19 @@ export function PermitDetail({ row, directory, adminLinks, unlock, compose, onCl
         </div>
       )}
 
-      <h3 className="mt-6 text-sm font-bold text-navy">Why this score</h3>
-      <ScoreBars parts={row.parts} />
+      <Section title="About this job">
+        <p className="mb-2 text-sm font-semibold text-slate-900">{p.summary}</p>
+        {p.description ? <Expandable text={p.description} /> : <p className="text-sm text-slate-500">No description of the work was published.</p>}
+        <dl className="mt-3 grid gap-x-6 gap-y-3 border-t border-slate-100 pt-3 sm:grid-cols-2">
+          <Fact label="Permit number" value={p.source_id} />
+          <Fact label="Permit type" value={p.permit_type} />
+          <Fact label="Address" value={[p.address, p.city, p.zip].filter(Boolean).join(", ") || null} />
+        </dl>
+      </Section>
 
-      <h3 className="mt-6 text-sm font-bold text-navy">Permit</h3>
-      <dl className="mt-2 grid gap-3 sm:grid-cols-2">
-        <Fact label="Permit number" value={p.source_id} />
-        <Fact label="Permit type" value={p.permit_type} />
-        <Fact label="Issued" value={`${dayText(p.issued_on)} (${ageText(row.ageDays)})`} />
-        <Fact label="Project value" value={permitValue(p.value_usd)} />
-        <Fact label="Property" value={p.property_class[0].toUpperCase() + p.property_class.slice(1)} />
-        <Fact label="Source" value={p.source === "austin" ? "City of Austin open data" : p.source === "dallas" ? "City of Dallas open data" : p.source} />
-      </dl>
-      {p.description && <><h3 className="mt-6 text-sm font-bold text-navy">Work described</h3><p className="mt-1 text-sm whitespace-pre-line text-slate-700">{p.description}</p></>}
+      <ScoreDetails parts={row.parts} />
 
-      <h3 className="mt-6 text-sm font-bold text-navy">People details</h3>
+      <h3 className="mt-6 text-sm font-bold text-navy">Who is on the permit</h3>
       {locked && unlock && <UnlockBox kind="permit" itemId={p.id} price={unlock.price} what="permit" />}
       {p.people.length === 0 ? (
         <p className="mt-1 text-sm text-slate-500">{p.contractor_name ? `Contractor: ${p.contractor_name}. ` : ""}No other details were published for this permit. They are scraped again each morning.</p>
@@ -101,7 +104,7 @@ export function PermitDetail({ row, directory, adminLinks, unlock, compose, onCl
       )}
       <p className="mt-3 text-xs text-slate-500">
         The city&apos;s open data lists the contractor&apos;s company, contact, phone and a shortened address. The email comes from the contractor&apos;s own website (found by the daily scrape). The general contractor is only on the city&apos;s own People Details page
-        {p.source_url && !locked ? <>, open it with <a href={p.source_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-medium text-primary hover:underline">City record <ExternalLink className="size-3" aria-hidden /></a>.</> : "."}
+        {p.source_url && adminLinks ? <>, open it with <a href={p.source_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-medium text-primary hover:underline">City record <ExternalLink className="size-3" aria-hidden /></a>.</> : "."}
         {" "}A website only counts when it shows the contractor&apos;s phone number. Some contractors publish no email, or block automated visits.
       </p>
     </SidePanel>
@@ -150,7 +153,7 @@ export function PermitBoard({ permits, error, cover, directory = [], adminLinks 
 
   return (
     <div className="w-full">
-      <p className="mb-5 text-sm text-slate-600">{intro}</p>
+      <details className="mb-4 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-600"><summary className="cursor-pointer font-semibold text-navy">How these are ranked</summary><p className="mt-2 leading-relaxed">{intro}</p></details>
       <div className="mb-5 flex flex-wrap items-center gap-3 text-sm">
         <label className="flex items-center gap-2 font-medium text-slate-700">City
           <select value={city} onChange={(e) => setCity(e.target.value)} className={selectClass}>
