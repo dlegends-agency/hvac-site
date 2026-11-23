@@ -2,6 +2,7 @@ import { useEffect, useMemo } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, Globe, Mail, MapPin, Phone, Siren, ThumbsUp } from "lucide-react";
 import { Header } from "@/components/Header";
+import { ShareListing } from "@/components/contractor/ShareListing";
 import { Footer } from "@/components/Footer";
 import { FeaturedRecommendation } from "@/components/directory/FeaturedRecommendation";
 import { OpenNow } from "@/components/directory/Hours";
@@ -123,6 +124,7 @@ export default function ListingPage() {
                   </a>
                 )}
                 <a href="#recommendations" className={buttonClass("secondary")}><ThumbsUp className="size-4" aria-hidden /> Recommend</a>
+                <ShareListing slug={l.slug} name={l.business_name} label="Share" visitor className={buttonClass("secondary")} />
               </div>
 
               <FeaturedRecommendation listing={l} items={recommendations} />
