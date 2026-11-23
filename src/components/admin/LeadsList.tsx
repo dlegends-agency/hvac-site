@@ -13,6 +13,11 @@ export function LeadsList() {
   const [filter, setFilter] = useState<LeadStatus | "all">("all");
   const [q, setQ] = useState("");
 
+  const [now] = useState(() => Date.now());
+  const today = leads.filter((l) => now - Date.parse(l.created_at) < 86_400_000).length;
+  const week = leads.filter((l) => now - Date.parse(l.created_at) < 7 * 86_400_000).length;
+  const fresh = leads.filter((l) => l.status === "new").length;
+  const urgent = leads.filter((l) => l.status === "new" && l.urgency === "Immediately").length;
   const term = q.trim().toLowerCase();
   const shown = leads.filter(
     (l) =>
@@ -30,6 +35,17 @@ export function LeadsList() {
           <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} aria-hidden /> Refresh
         </Button>
       </PageTitle>
+
+      <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {[
+          { label: "New, not handled", value: fresh, hint: "Status New", tone: fresh ? "border-blue-200 bg-blue-50/60" : "border-slate-200 bg-white" },
+          { label: "Urgent and new", value: urgent, hint: "Needs help immediately", tone: urgent ? "border-red-200 bg-red-50/60" : "border-slate-200 bg-white" },
+          { label: "Received today", value: today, hint: "Last 24 hours", tone: "border-slate-200 bg-white" },
+          { label: "Last 7 days", value: week, hint: `${leads.length} in total`, tone: "border-slate-200 bg-white" },
+        ].map((t) => (
+          <div key={t.label} className={`rounded-2xl border p-3.5 ${t.tone}`}><p className="text-xs font-semibold text-slate-600">{t.label}</p><p className="mt-0.5 text-2xl font-extrabold text-navy">{loading ? "…" : t.value}</p><p className="text-xs text-slate-600">{t.hint}</p></div>
+        ))}
+      </div>
 
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative w-full sm:w-72">
