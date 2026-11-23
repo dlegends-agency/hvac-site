@@ -20,5 +20,6 @@
 ## Known limits (not blockers)
 - If `TURNSTILE_SECRET_KEY` is missing the CAPTCHA is skipped by design.
 - `/api/google/rating` and `/photo` are public and spend Google quota: set a daily quota on the key.
+- Two simultaneous one-click saved-card payments for the same lead could both charge before the first unlock is recorded. The buttons disable while a payment runs, so this needs a deliberate double request; add a Stripe idempotency key per lead after launch.
 - A recommendation confirmation link can be used up by an email scanner that opens links.
 - Nothing has been checked with real payments or real email from a browser: do one test purchase and one test email.
