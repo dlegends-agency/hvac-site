@@ -28,7 +28,7 @@ export function ListingAssigned({ listingId, claimed }: { listingId: string; cla
     <Panel title="Leads, permits and bids for this business">
       {!d ? <p className="text-sm text-slate-500">Loading...</p> : (
         <div className="space-y-4 text-sm">
-          {!claimed && <p className="rounded-xl bg-amber-50 p-3 text-xs text-amber-900">Not claimed yet: these are in this business&apos;s area, but nothing is delivered or emailed until an owner claim is approved.</p>}
+          {!claimed && <p className="rounded-xl bg-amber-50 p-3 text-xs text-amber-900">Not claimed yet: these are matched and held for this business. Nothing is emailed or shown to customers until an owner claim is approved; then they appear in the owner&apos;s dashboard.</p>}
           <section>
             <h3 className="mb-1 font-bold text-navy">Customer leads ({d.leads.length})</h3>
             {d.leads.length === 0 ? <p className="text-xs text-slate-500">No customer leads routed to this business.</p> : (
