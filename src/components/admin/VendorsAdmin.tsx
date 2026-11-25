@@ -1,11 +1,11 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { BadgeCheck, ExternalLink, Info, X } from "lucide-react";
+import { BadgeCheck, CheckCheck, ExternalLink, Info, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { inputClass } from "@/components/ui/Field";
 import { useLiveQuery } from "@/lib/admin-hooks";
 import { getSupabaseBrowser } from "@/lib/supabase";
-import type { GovVendor, VendorMatch, VendorSyncRun } from "@/lib/types";
+import type { GovVendor, VendorMatch, VendorMatchDetail, VendorSyncRun } from "@/lib/types";
 import { DirectoryTabs } from "./DirectoryTabs";
 import { PageTitle, Panel, StatCard } from "./widgets";
 
@@ -19,6 +19,21 @@ export function VendorsAdmin() {
   const supabase = getSupabaseBrowser();
   const vendors = useLiveQuery<GovVendor[]>([], () => supabase.from("gov_vendors").select("*").order("last_changed_at", { ascending: false }).limit(2000), { key: "vendors", intervalMs: 60_000 });
   const matches = useLiveQuery<VendorMatch[]>([], () => supabase.from("vendor_matches").select("id,created_at,score,reasons,gov_vendors(name,city),gov_bids(title,city),public_permits(summary,city)").order("created_at", { ascending: false }).limit(25), { key: "vendor-matches", intervalMs: 60_000 });
+  // Every match, read in pages (the API returns at most 1000 rows per request), grouped per vendor below.
+  const allMatches = useLiveQuery<VendorMatchDetail[]>([], async () => {
+    const out: VendorMatchDetail[] = [];
+    for (let from = 0; from < 20000; from += 1000) {
+      const { data, error } = await supabase
+        .from("vendor_matches")
+        .select("id,vendor_id,score,reasons,gov_bids(title,agency,city,state,response_due),public_permits(summary,city,address,issued_on,contractor_name)")
+        .order("score", { ascending: false })
+        .range(from, from + 999);
+      if (error) return { data: null, error };
+      out.push(...(data as unknown as VendorMatchDetail[]));
+      if (data.length < 1000) break;
+    }
+    return { data: out, error: null };
+  }, { key: "vendor-all-matches", intervalMs: 120_000 });
   const runs = useLiveQuery<VendorSyncRun[]>([], () => supabase.from("vendor_sync_runs").select("*").order("started_at", { ascending: false }).limit(12), { key: "vendor-runs", intervalMs: 30_000 });
   const counts = useLiveQuery<{ matches: number; unclaimed: number }>({ matches: 0, unclaimed: 0 }, async () => {
     const [m, u] = await Promise.all([
@@ -34,6 +49,14 @@ export function VendorsAdmin() {
   const [visible, setVisible] = useState(PAGE);
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const byVendor = useMemo(() => {
+    const m = new Map<string, VendorMatchDetail[]>();
+    for (const x of allMatches.data) m.set(x.vendor_id, [...(m.get(x.vendor_id) ?? []), x]);
+    return m;
+  }, [allMatches.data]);
+  const [open, setOpen] = useState<Set<string>>(new Set());
+  const toggle = (id: string) => setOpen((o) => { const n = new Set(o); if (n.has(id)) n.delete(id); else n.add(id); return n; });
 
   const notSetUp = vendors.error && !vendors.loading;
   const rows = useMemo(() => {
@@ -53,6 +76,31 @@ export function VendorsAdmin() {
     setMsg(error ? { ok: false, text: "That did not save. Try again." } : { ok: true, text: what === "publish" ? "Published as an unclaimed listing." : what === "verify" ? "Marked as verified." : "Rejected: it will not be imported again." });
     void vendors.reload();
   }
+
+  /** Accept every vendor that is not rejected: mark it verified and publish its unclaimed listing. Nothing here creates a login or plan. */
+  async function acceptAll() {
+    const todo = vendors.data.filter((v) => v.status !== "rejected");
+    const toVerify = todo.filter((v) => !v.verified_at).map((v) => v.id);
+    const toPublish = todo.filter((v) => v.status === "imported" && v.listing_id).map((v) => v.listing_id as string);
+    if (!window.confirm(`Accept ${todo.length} vendors? This marks ${toVerify.length} as verified and publishes ${toPublish.length} unclaimed listings. Rejected vendors are left alone.`)) return;
+    setBusy("all");
+    setMsg(null);
+    let failed = false;
+    const now = new Date().toISOString();
+    for (let i = 0; i < toVerify.length; i += 100) {
+      const { error } = await supabase.from("gov_vendors").update({ verified_at: now }).in("id", toVerify.slice(i, i + 100));
+      if (error) failed = true;
+    }
+    for (let i = 0; i < toPublish.length; i += 100) {
+      const { error } = await supabase.from("listings").update({ status: "published" }).in("id", toPublish.slice(i, i + 100)).eq("unclaimed", true);
+      if (error) failed = true;
+    }
+    setBusy(null);
+    setMsg(failed ? { ok: false, text: "Some vendors did not save. Run it again to finish the rest." } : { ok: true, text: `Accepted ${todo.length} vendors: ${toVerify.length} verified, ${toPublish.length} listings published.` });
+    void vendors.reload();
+  }
+
+  const unlisted = vendors.data.filter((v) => v.status === "new" || v.status === "matched").length;
 
   return (
     <>
@@ -113,6 +161,10 @@ export function VendorsAdmin() {
 
       <div className="mt-6">
         <Panel title={`Vendors (${rows.length.toLocaleString()})`}>
+          <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-700">
+            <Button onClick={acceptAll} disabled={busy === "all" || vendors.data.length === 0} className="!rounded-full !px-4 !py-1.5 text-sm"><CheckCheck className="mr-1.5 inline size-4" aria-hidden />{busy === "all" ? "Accepting..." : `Accept all ${vendors.data.filter((v) => v.status !== "rejected").length} vendors`}</Button>
+            <span>Verifies every vendor and publishes the unclaimed listings.{unlisted > 0 && <> {unlisted} have no listing yet: run the <strong>Vendor sync</strong> workflow with <em>importAll</em> = true to create them.</>}</span>
+          </div>
           <div className="mb-4 flex flex-wrap gap-2">
             <input aria-label="Search vendors" placeholder="Search name, city, phone, email" value={search} onChange={(e) => { setSearch(e.target.value); setVisible(PAGE); }} className={`${inputClass} !w-64`} />
             <select aria-label="Status" value={status} onChange={(e) => { setStatus(e.target.value); setVisible(PAGE); }} className={`${inputClass} !w-auto`}>
@@ -150,6 +202,33 @@ export function VendorsAdmin() {
                       {v.status !== "rejected" && v.status !== "imported" && <button type="button" onClick={() => act(v, "reject")} disabled={busy === v.id} className="inline-flex items-center gap-1 rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"><X className="size-4" aria-hidden /> Reject</button>}
                     </div>
                   </div>
+                  {(() => {
+                    const ms = byVendor.get(v.id) ?? [];
+                    const bids = ms.filter((m) => m.gov_bids);
+                    const permits = ms.filter((m) => m.public_permits);
+                    return (
+                      <div className="mt-3 border-t border-slate-100 pt-3 text-sm">
+                        <button type="button" onClick={() => toggle(v.id)} aria-expanded={open.has(v.id)} className="font-semibold text-primary hover:underline">
+                          {ms.length === 0 ? "Not matched to any bid or permit yet" : `Assigned to ${bids.length} bid${bids.length === 1 ? "" : "s"} and ${permits.length} permit${permits.length === 1 ? "" : "s"} ${open.has(v.id) ? "(hide)" : "(show)"}`}
+                        </button>
+                        {open.has(v.id) && ms.length > 0 && (
+                          <ul className="mt-2 space-y-2">
+                            {ms.map((m) => (
+                              <li key={m.id} className="rounded-lg bg-slate-50 p-2.5 text-xs">
+                                <p className="text-slate-800">
+                                  <span className="mr-2 rounded-full bg-primary/10 px-2 py-0.5 font-bold text-primary tabular-nums">{m.score}</span>
+                                  {m.gov_bids
+                                    ? <><strong>Bid:</strong> {m.gov_bids.title} · {[m.gov_bids.agency, m.gov_bids.city, m.gov_bids.state].filter(Boolean).join(", ")}{m.gov_bids.response_due && <> · due {new Date(m.gov_bids.response_due).toLocaleDateString()}</>}</>
+                                    : <><strong>Permit:</strong> {m.public_permits?.summary} · {[m.public_permits?.address, m.public_permits?.city].filter(Boolean).join(", ")}{m.public_permits?.issued_on && <> · issued {m.public_permits.issued_on}</>}{m.public_permits?.contractor_name && <> · contractor {m.public_permits.contractor_name}</>}</>}
+                                </p>
+                                <p className="mt-0.5 text-slate-500">{m.reasons.join(" · ")}</p>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </li>
               ))}
             </ul>

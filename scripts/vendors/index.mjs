@@ -5,6 +5,7 @@
 //   node scripts/vendors/index.mjs                                    sync, match and import (needs SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY)
 //   node scripts/vendors/index.mjs --source cmbl,sba,sam              choose sources (default cmbl; sba needs --sba-file; sam needs SAM_API_KEY)
 //   node scripts/vendors/index.mjs --sba-file sba-export.csv          import an SBA Small Business Search export you saved
+//   node scripts/vendors/index.mjs --import-all                       also create listings for vendors with no bid/permit match yet
 //   node scripts/vendors/index.mjs --no-import                        sync and match only; do not create listings
 //   VENDOR_AUTO_PUBLISH=1                                             import straight to "published" instead of "pending"
 import { randomUUID } from "node:crypto";
@@ -23,6 +24,7 @@ const arg = (n) => {
 };
 const dryRun = process.argv.includes("--dry-run");
 const noImport = process.argv.includes("--no-import");
+const importAll = process.argv.includes("--import-all"); // list every listable vendor, not only the ones matched to a bid or permit
 const sources = (arg("source") ?? (arg("sba-file") ? "cmbl,sba" : "cmbl")).split(",").map((s) => s.trim());
 const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SAM_API_KEY, VENDOR_AUTO_PUBLISH } = process.env;
 const sb = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } }) : null;
@@ -171,7 +173,7 @@ if (!noImport) await stage("import", async (say, stats) => {
       }
       continue;
     }
-    if (!v._matched) continue;
+    if (!v._matched && !importAll) continue;
     const dup = index.find(v);
     if (dup) {
       if (writing) must(await sb.from("gov_vendors").update({ listing_id: dup.id, status: "merged" }).eq("id", v.id), "link duplicate");
