@@ -6,6 +6,7 @@ import { listable, refreshFields, vendorToListing } from "./listing.mjs";
 import { matchVendors, scoreVendor } from "./match.mjs";
 import { DEFAULT_MAP, MIN_VENDOR_SCORE, hvacScore, servicesFor, targetsFor } from "./nigp.mjs";
 import { importCsv, mapSamEntity, fetchSam } from "./sba.mjs";
+import { enrichPermitContacts, linkBusinessesToVendors, matchBusinesses, scoreBusiness } from "./crossmatch.mjs";
 
 let passed = 0;
 const test = async (name, fn) => {
@@ -169,6 +170,36 @@ await test("claim evidence: exact email is strong, company domain and phone are 
   assert.deepEqual(claimEvidence("sam@coolbreeze.com", "512-555-0100", v), { exactEmail: false, domain: true, phone: true });
   assert.deepEqual(claimEvidence("someone@gmail.com", null, { ...v, email: "boss@gmail.com", website: null }), { exactEmail: false, domain: false, phone: false });
   assert.deepEqual(claimEvidence("a@b.com", null, null), { exactEmail: false, domain: false, phone: false });
+});
+
+await test("cross-matching: permit contractor emails come from the same company in the Google and vendor lists", () => {
+  const google = [{ name: "Cool Breeze Heating & Air", phone: "(512) 555-0100", email: "pat@coolbreeze.com", city: "Austin", state: "Texas" }];
+  const vend = [{ name: "Duct Pros LLC", phone: "(214) 555-0122", email: "dee@ductpros.com", city: "Dallas", state: "Texas" }];
+  const permits = [
+    { city: "Austin", people: [{ company: "COOL BREEZE HEATING & AIR, LLC", phone: "512-555-0100" }] },
+    { city: "Dallas", people: [{ company: "Duct Pros", phone: "(214) 555-0122" }] },
+    { city: "Waco", people: [{ company: "Nobody Inc", phone: "(254) 555-0000" }] },
+  ];
+  const r = enrichPermitContacts(permits, [{ label: "Google business", records: google }, { label: "state vendor", records: vend }]);
+  assert.equal(r.filled, 2);
+  assert.equal(r.permits[0].people[0].email, "pat@coolbreeze.com");
+  assert.equal(r.permits[0].people[0].email_source, "matched Google business");
+  assert.equal(r.permits[1].people[0].email_source, "matched state vendor");
+  assert.equal(r.permits[2].people[0].email, undefined);
+});
+
+await test("cross-matching: businesses match by city, link to vendors, and the permit's own contractor scores 100", () => {
+  const biz = [
+    { name: "Cool Breeze Heating & Air", phone: "(512) 555-0100", city: "Austin", state: "Texas", postal_code: "78701" },
+    { name: "Dallas Cooling", phone: "(214) 555-0001", city: "Dallas", state: "Texas", postal_code: "75201" },
+  ];
+  const links = linkBusinessesToVendors(biz, [{ ...austin, name: "Cool Breeze Heating and Air LLC", phone: "512-555-0100" }]);
+  assert.equal(links.size, 1);
+  const m = matchBusinesses(biz, { kind: "bid", naics: "238220", state: "Texas", city: "Austin" }, { links });
+  assert.equal(m.length, 1, "only the Austin business is in the city");
+  assert.ok(m[0].reasons.some((r) => /registered Texas state vendor/.test(r)));
+  assert.equal(scoreBusiness(biz[0], { state: "Texas", city: "Austin", contractorName: "COOL BREEZE HEATING & AIR LLC" }).score, 100);
+  assert.equal(scoreBusiness(biz[0], { state: "Oklahoma", city: "Tulsa" }), null);
 });
 
 console.log(`${passed} vendor tests passed`);
