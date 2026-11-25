@@ -158,3 +158,48 @@ export async function fetchCollin({ limit = 200, days = 30, now = new Date() } =
 }
 
 SOURCES.collin = { label: "Collin County (Plano, Frisco, McKinney and more)", fetch: fetchCollin };
+
+// ---------------------------------------------------------------- Fort Worth: "Development Permits" (City of Fort Worth open data, ArcGIS feature service)
+// The city's feed lists the property owner, which is never requested here (outFields names only the job columns). It has no contractor, so
+// these permits are job leads without contractor contacts.
+const FORT_WORTH_URL = "https://services5.arcgis.com/3ddLCBXe1bRt7mzj/arcgis/rest/services/CFW_Open_Data_Development_Permits_View/FeatureServer/0/query";
+const FORT_WORTH_FIELDS = "Permit_No,Permit_Type,Permit_SubType,Permit_Category,B1_WORK_DESC,Addr_No,Direction,Street_Name,Street_Suffix,Street_Suffix_Dir,Full_Street_Address,Zip_Code,File_Date,JobValue,Use_Type,Specific_Use";
+
+/** The city fills the street parts (number, direction, name, suffix) even when Full_Street_Address is empty, which it usually is. */
+export const fortWorthAddress = (r) => [r.Full_Street_Address, [r.Addr_No, r.Direction, r.Street_Name, r.Street_Suffix, r.Street_Suffix_Dir].filter((x) => x !== null && x !== undefined && String(x).trim() !== "").join(" ")]
+  .map((x) => String(x ?? "").trim()).find((x) => x && x !== "Full_Street_Address") ?? null;
+
+export function mapFortWorth(r) {
+  const clean = (v) => { const t = String(v ?? "").trim(); return t && t !== "B1_WORK_DESC" ? t : null; }; // newest rows echo the column name when empty
+  return buildPermit({
+    source: "fortworth",
+    sourceId: r.Permit_No,
+    city: "Fort Worth",
+    type: r.Permit_Type,
+    workClass: r.Permit_SubType,
+    description: clean(r.B1_WORK_DESC),
+    label: r.Use_Type || r.Permit_Category,
+    landUse: r.Specific_Use,
+    issuedOn: r.File_Date ? new Date(r.File_Date).toISOString().slice(0, 10) : null,
+    valueUsd: num(r.JobValue),
+    address: fortWorthAddress(r),
+    zip: r.Zip_Code,
+    contractor: null,
+    url: null,
+    people: [],
+  });
+}
+
+/** Only heating, cooling and ventilation permits with an address, filed in the last `days` days, newest first. */
+export async function fetchFortWorth({ limit = 200, days = 30, now = new Date() } = {}) {
+  const since = isoDaysAgo(days, now);
+  const where = `File_Date >= DATE '${since}' AND Street_Name IS NOT NULL AND (UPPER(Permit_Type) LIKE '%MECH%' OR ${likeAny("B1_WORK_DESC")})`;
+  const params = new URLSearchParams({ where, outFields: FORT_WORTH_FIELDS, orderByFields: "File_Date DESC", resultRecordCount: String(Math.min(limit * 4, 2000)), f: "json" });
+  const res = await fetch(`${FORT_WORTH_URL}?${params}`, { headers: { "User-Agent": UA, Accept: "application/json" }, signal: AbortSignal.timeout(60_000) });
+  if (!res.ok) throw new Error(`Fort Worth answered ${res.status}`);
+  const body = await res.json();
+  if (body.error) throw new Error(`Fort Worth: ${body.error.message}`);
+  return dedupe((body.features ?? []).map((f) => mapFortWorth(f.attributes)).filter((p) => p.trade === "HVAC" && p.address)).slice(0, limit * 4);
+}
+
+SOURCES.fortworth = { label: "Fort Worth", fetch: fetchFortWorth };
