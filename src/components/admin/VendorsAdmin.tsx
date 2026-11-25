@@ -34,6 +34,18 @@ export function VendorsAdmin() {
     }
     return { data: out, error: null };
   }, { key: "vendor-all-matches", intervalMs: 120_000 });
+  // Which of the vendors' listings are already published (gov_vendors.status stays "imported" after publishing).
+  const listingStatus = useLiveQuery<Record<string, string>>({}, async () => {
+    const out: Record<string, string> = {};
+    for (let from = 0; from < 20000; from += 1000) {
+      const { data, error } = await supabase.from("listings").select("id,status").eq("source", "vendor").range(from, from + 999);
+      if (error) return { data: null, error };
+      for (const l of data as { id: string; status: string }[]) out[l.id] = l.status;
+      if (data.length < 1000) break;
+    }
+    return { data: out, error: null };
+  }, { key: "vendor-listing-status", intervalMs: 60_000 });
+  const isLive = (v: GovVendor) => Boolean(v.listing_id && listingStatus.data[v.listing_id] === "published");
   const runs = useLiveQuery<VendorSyncRun[]>([], () => supabase.from("vendor_sync_runs").select("*").order("started_at", { ascending: false }).limit(12), { key: "vendor-runs", intervalMs: 30_000 });
   const counts = useLiveQuery<{ matches: number; unclaimed: number }>({ matches: 0, unclaimed: 0 }, async () => {
     const [m, u] = await Promise.all([
@@ -75,13 +87,14 @@ export function VendorsAdmin() {
     setBusy(null);
     setMsg(error ? { ok: false, text: "That did not save. Try again." } : { ok: true, text: what === "publish" ? "Published as an unclaimed listing." : what === "verify" ? "Marked as verified." : "Rejected: it will not be imported again." });
     void vendors.reload();
+    void listingStatus.reload();
   }
 
   /** Accept every vendor that is not rejected: mark it verified and publish its unclaimed listing. Nothing here creates a login or plan. */
   async function acceptAll() {
     const todo = vendors.data.filter((v) => v.status !== "rejected");
     const toVerify = todo.filter((v) => !v.verified_at).map((v) => v.id);
-    const toPublish = todo.filter((v) => v.status === "imported" && v.listing_id).map((v) => v.listing_id as string);
+    const toPublish = todo.filter((v) => v.status === "imported" && v.listing_id && !isLive(v)).map((v) => v.listing_id as string);
     if (!window.confirm(`Accept ${todo.length} vendors? This marks ${toVerify.length} as verified and publishes ${toPublish.length} unclaimed listings. Rejected vendors are left alone.`)) return;
     setBusy("all");
     setMsg(null);
@@ -93,10 +106,11 @@ export function VendorsAdmin() {
     }
     for (let i = 0; i < toPublish.length; i += 100) {
       const { error } = await supabase.from("listings").update({ status: "published" }).in("id", toPublish.slice(i, i + 100)).eq("unclaimed", true);
-      if (error) failed = true;
+      if (error) { failed = true; setMsg({ ok: false, text: `Publishing failed: ${(error as { message?: string }).message ?? "unknown error"}` }); }
     }
     setBusy(null);
-    setMsg(failed ? { ok: false, text: "Some vendors did not save. Run it again to finish the rest." } : { ok: true, text: `Accepted ${todo.length} vendors: ${toVerify.length} verified, ${toPublish.length} listings published.` });
+    void listingStatus.reload();
+    if (!failed) setMsg( { ok: true, text: toVerify.length + toPublish.length === 0 ? "Nothing to do: every vendor is already verified and every listing is published." : `Accepted ${todo.length} vendors: ${toVerify.length} verified, ${toPublish.length} listings published.` });
     void vendors.reload();
   }
 
@@ -163,6 +177,7 @@ export function VendorsAdmin() {
         <Panel title={`Vendors (${rows.length.toLocaleString()})`}>
           <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-700">
             <Button onClick={acceptAll} disabled={busy === "all" || vendors.data.length === 0} className="!rounded-full !px-4 !py-1.5 text-sm"><CheckCheck className="mr-1.5 inline size-4" aria-hidden />{busy === "all" ? "Accepting..." : `Accept all ${vendors.data.filter((v) => v.status !== "rejected").length} vendors`}</Button>
+            {msg && <span role="status" className={`w-full font-semibold ${msg.ok ? "text-green-700" : "text-red-700"}`}>{msg.text}</span>}
             <span>Verifies every vendor and publishes the unclaimed listings.{unlisted > 0 && <> {unlisted} have no listing yet: run the <strong>Vendor sync</strong> workflow with <em>importAll</em> = true to create them.</>}</span>
           </div>
           <div className="mb-4 flex flex-wrap gap-2">
@@ -184,7 +199,7 @@ export function VendorsAdmin() {
                     <div className="min-w-0">
                       <p className="font-semibold text-navy">
                         {v.name} {v.verified_at && <BadgeCheck className="inline size-4 text-green-600" aria-label="Verified by an admin" />}
-                        <span className="ml-2 text-xs font-normal text-slate-500">{SOURCE[v.source]} · {STATUS[v.status]}{!v.active && " · no longer in source file"}</span>
+                        <span className="ml-2 text-xs font-normal text-slate-500">{SOURCE[v.source]} · {v.status === "imported" && isLive(v) ? "Published (unclaimed)" : STATUS[v.status]}{!v.active && " · no longer in source file"}</span>
                       </p>
                       <p className="text-sm text-slate-700">{[v.address, v.city, v.state, v.postal_code].filter(Boolean).join(", ")}</p>
                       <p className="text-sm text-slate-700">{[v.phone, v.email, v.website].filter(Boolean).join(" · ") || "No contact details"}</p>
@@ -197,7 +212,8 @@ export function VendorsAdmin() {
                     </div>
                     <div className="flex shrink-0 flex-wrap gap-2">
                       {v.listing_id && <Link to={`/admin/listings/${v.listing_id}`} className="inline-flex items-center gap-1 rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold text-navy hover:bg-slate-50">Listing <ExternalLink className="size-3.5" aria-hidden /></Link>}
-                      {v.status === "imported" && <Button onClick={() => act(v, "publish")} disabled={busy === v.id} className="!rounded-full !px-4 !py-1.5 text-sm">Publish</Button>}
+                      {v.status === "imported" && isLive(v) && <span className="inline-flex items-center rounded-full bg-green-50 px-3 py-1.5 text-sm font-semibold text-green-700">Published</span>}
+                      {v.status === "imported" && !isLive(v) && <Button onClick={() => act(v, "publish")} disabled={busy === v.id} className="!rounded-full !px-4 !py-1.5 text-sm">Publish</Button>}
                       {!v.verified_at && <Button onClick={() => act(v, "verify")} disabled={busy === v.id} className="!rounded-full !px-4 !py-1.5 text-sm">Mark verified</Button>}
                       {v.status !== "rejected" && v.status !== "imported" && <button type="button" onClick={() => act(v, "reject")} disabled={busy === v.id} className="inline-flex items-center gap-1 rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"><X className="size-4" aria-hidden /> Reject</button>}
                     </div>
