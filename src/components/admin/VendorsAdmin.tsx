@@ -6,6 +6,7 @@ import { inputClass } from "@/components/ui/Field";
 import { useLiveQuery } from "@/lib/admin-hooks";
 import { getSupabaseBrowser } from "@/lib/supabase";
 import type { GovVendor, VendorMatch, VendorMatchDetail, VendorSyncRun } from "@/lib/types";
+import { CodeMapping } from "./CodeMapping";
 import { DirectoryTabs } from "./DirectoryTabs";
 import { PageTitle, Panel, StatCard } from "./widgets";
 
@@ -70,6 +71,19 @@ export function VendorsAdmin() {
   const [open, setOpen] = useState<Set<string>>(new Set());
   const toggle = (id: string) => setOpen((o) => { const n = new Set(o); if (n.has(id)) n.delete(id); else n.add(id); return n; });
 
+  const [now] = useState(() => Date.now());
+  /** Self-monitoring: the latest run of every stage must have worked, and something must have run in the last 36 hours. */
+  const health = useMemo(() => {
+    if (runs.data.length === 0) return null;
+    const latest = new Map<string, VendorSyncRun>();
+    for (const r of runs.data) if (!latest.has(r.source)) latest.set(r.source, r);
+    const failed = [...latest.values()].filter((r) => r.status && r.status !== "ok");
+    if (failed.length) return { bad: true, text: `Failed: ${failed.map((r) => `${STAGE[r.source] ?? r.source} (${r.status})`).join("; ")}. The next run retries it; see Sync activity for the log.` };
+    const hours = (now - new Date(runs.data[0].started_at).getTime()) / 3_600_000;
+    if (hours > 36) return { bad: false, text: `No sync has run for ${Math.round(hours)} hours. It should run nightly: check GitHub Actions > Vendor sync.` };
+    return null;
+  }, [runs.data, now]);
+
   const notSetUp = vendors.error && !vendors.loading;
   const rows = useMemo(() => {
     const t = search.trim().toLowerCase();
@@ -127,6 +141,7 @@ export function VendorsAdmin() {
           No login, plan or lead routing is created for them. A business becomes the owner only through <Link to="/admin/listings/claims" className="font-semibold underline">a claim you approve</Link>.
         </p>
       </div>
+      {health && <p role="alert" className={`mb-5 rounded-xl border p-3 text-sm ${health.bad ? "border-red-200 bg-red-50 text-red-800" : "border-amber-200 bg-amber-50 text-amber-900"}`}>{health.text}</p>}
       {notSetUp && <p role="alert" className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Run <code>supabase/schema-vendors.sql</code> in the Supabase SQL Editor to turn this page on.</p>}
       {msg && <p role="status" className={`mb-4 rounded-xl border p-3 text-sm ${msg.ok ? "border-green-200 bg-green-50 text-green-900" : "border-red-200 bg-red-50 text-red-800"}`}>{msg.text}</p>}
 
@@ -172,6 +187,8 @@ export function VendorsAdmin() {
           )}
         </Panel>
       </div>
+
+      <div className="mt-6"><CodeMapping /></div>
 
       <div className="mt-6">
         <Panel title={`Vendors (${rows.length.toLocaleString()})`}>

@@ -45,7 +45,7 @@ export function ListingTimeline({ listingId, listing }: { listingId: string; lis
     if (!d) return [];
     const list: { ok: boolean; text: string; fix?: string }[] = [];
     list.push({ ok: listing.status === "published", text: listing.status === "published" ? "Published" : `Status is "${listing.status}"`, fix: "Only published listings are sent leads." });
-    list.push({ ok: Boolean(d.owner), text: d.owner ? "Claimed: a business owner is linked" : "Not claimed: nobody owns this listing", fix: "Leads, permits and bids go only to claimed businesses. This is the usual reason an imported or scraped listing gets none: approve a claim under Directory > Claims." });
+    list.push({ ok: true, text: d.owner ? "Claimed: a business owner is linked" : "Not claimed yet: matches are held for the owner", fix: "Leads, permits and bids are matched to this listing anyway. Alerts and unlocking start once a claim is approved under Directory > Claims." });
     list.push({ ok: Boolean(listing.city && listing.state), text: listing.city && listing.state ? `Service location: ${listing.city}, ${listing.state}` : "No city or state", fix: "A lead matches when its city is this city or in the service areas, or within the service radius of the ZIP code." });
     list.push({ ok: Boolean(listing.postal_code), text: listing.postal_code ? `ZIP code ${listing.postal_code} (enables the service radius)` : "No ZIP code", fix: "Without a ZIP code only an exact city or service-area name can match, not the radius." });
     list.push({ ok: Boolean(listing.email), text: listing.email ? "Has an email for lead alerts" : "No email on file", fix: "Lead and opportunity alerts are emailed to the owner; this listing has no email to fall back on." });
