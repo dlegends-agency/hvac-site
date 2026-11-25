@@ -8,6 +8,7 @@ import { useLiveQuery } from "@/lib/admin-hooks";
 import { getSupabaseBrowser } from "@/lib/supabase";
 import { LISTING_STATUSES, type Listing, type ListingStatus } from "@/lib/types";
 import { DirectoryTabs } from "./DirectoryTabs";
+import { ImportBusinesses } from "./ImportBusinesses";
 import { PageTitle, QueryState } from "./widgets";
 
 const PAGE = 25;
@@ -23,7 +24,17 @@ const csvCell = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
 
 export function ListingsAdmin() {
   const supabase = getSupabaseBrowser();
-  const q = useLiveQuery<Listing[]>([], () => supabase.from("listings").select("*").order("created_at", { ascending: false }).limit(2000), { key: "listings-admin", intervalMs: 60_000 });
+  // Read in pages: the API returns at most 1000 rows per request.
+  const q = useLiveQuery<Listing[]>([], async () => {
+    const out: Listing[] = [];
+    for (let from = 0; from < 20000; from += 1000) {
+      const { data, error } = await supabase.from("listings").select("*").order("created_at", { ascending: false }).range(from, from + 999);
+      if (error) return { data: null, error };
+      out.push(...(data as Listing[]));
+      if (data.length < 1000) break;
+    }
+    return { data: out, error: null };
+  }, { key: "listings-admin", intervalMs: 60_000 });
 
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<ListingStatus | "all">("all");
@@ -120,6 +131,7 @@ export function ListingsAdmin() {
   return (
     <>
       <PageTitle title="Directory">
+        <ImportBusinesses onDone={() => void q.reload()} />
         <Button variant="secondary" onClick={exportCsv} disabled={filtered.length === 0} className="!py-2 text-sm"><Download className="size-4" aria-hidden /> Export CSV</Button>
         <Link to="/admin/listings/new" className={buttonClass("primary", "!py-2 text-sm")}><Plus className="size-4" aria-hidden /> Add listing</Link>
       </PageTitle>
