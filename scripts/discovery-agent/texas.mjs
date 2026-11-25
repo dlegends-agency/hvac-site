@@ -1,6 +1,6 @@
 // Statewide Texas export. Searches Google Business listings (official Places API) city by city, reads each business's own
 // website for a public email, and writes a CSV. No database needed.
-//   node scripts/discovery-agent/texas.mjs [--cities 25] [--queries "..."] [--no-email] [--all] [--out file.csv]  (key from env or .env)
+//   node scripts/discovery-agent/texas.mjs [--cities 25] [--queries "..."] [--no-email] [--all] [--exclude old.csv,...] [--out file.csv]  (key from env or .env)
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 
 // Loads GOOGLE_PLACES_API_KEY from .env (never committed) when it is not already in the environment.
@@ -54,11 +54,23 @@ for (const city of cities) {
   }
 }
 
+// --exclude a.csv,b.csv: skip businesses already collected in earlier files (matched by website host or phone), so a second run only adds new ones.
+const excludeFiles = arg("exclude", "").split(",").map((f) => f.trim()).filter(Boolean);
+const known = new Set();
+for (const f of excludeFiles) {
+  for (const line of readFileSync(f, "utf8").split("\n").slice(1)) {
+    const cells = [...line.matchAll(/"((?:[^"]|"")*)"/g)].map((m) => m[1].replace(/""/g, '"'));
+    const [phone, website] = [cells[5], cells[7]];
+    if (hostOf(website ?? "")) known.add(`h:${hostOf(website)}`);
+    if (phoneDigits(phone)) known.add(`p:${phoneDigits(phone)}`);
+  }
+}
+
 // Same business can appear under different place ids (e.g. service-area listings): collapse by website host, else by phone.
 const seen = new Set();
 const rows = [...byId.values()].filter((l) => {
   const k = hostOf(l.website ?? "") ? `h:${hostOf(l.website)}` : phoneDigits(l.phone) ? `p:${phoneDigits(l.phone)}` : l.externalId;
-  if (seen.has(k)) return false;
+  if (seen.has(k) || known.has(`h:${hostOf(l.website ?? "")}`) || (phoneDigits(l.phone) && known.has(`p:${phoneDigits(l.phone)}`))) return false;
   seen.add(k);
   return true;
 });
