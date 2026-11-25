@@ -13,7 +13,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { SOURCES } from "./sources.mjs";
-import { digits10, enrichPermits, isCompletePerson, keepComplete, makeSearch, plainCompany } from "./contacts.mjs";
+import { digits10, enrichPermits, isCompletePerson, keepComplete, makeSearch, NO_CONTRACTOR_SOURCES, plainCompany } from "./contacts.mjs";
 
 const arg = (name) => {
   const i = process.argv.indexOf(`--${name}`);
@@ -75,7 +75,7 @@ if (!skipEmails && all.length && emailLimit > 0) {
 const found = all.length;
 const complete = keepComplete(all);
 console.log(`
-Kept ${complete.length} of ${found} permits: only those whose contractor has a name, a phone number and an email address.`);
+Kept ${complete.length} of ${found} permits: those whose contractor has a name, a phone number and an email address, plus permits from ${[...NO_CONTRACTOR_SOURCES].join(", ")} (their open data lists no contractor).`);
 all.length = 0;
 all.push(...complete);
 
@@ -113,11 +113,11 @@ for (let i = 0; i < all.length; i += 500) {
 const removed = await sb.from("public_permits").delete({ count: "exact" }).neq("trade", "HVAC");
 if (removed.error) console.error(`Could not remove non-HVAC permits: ${removed.error.message}`);
 // Also remove anything saved earlier that has no contractor with a name, phone and email.
-const { data: saved, error: savedError } = await sb.from("public_permits").select("id,people").limit(50000);
+const { data: saved, error: savedError } = await sb.from("public_permits").select("id,source,people").limit(50000);
 let incomplete = 0;
 if (savedError) console.error(`Could not check saved permits: ${savedError.message}`);
 else {
-  const ids = (saved ?? []).filter((r) => !(r.people ?? []).some(isCompletePerson)).map((r) => r.id);
+  const ids = (saved ?? []).filter((r) => !NO_CONTRACTOR_SOURCES.has(r.source) && !(r.people ?? []).some(isCompletePerson)).map((r) => r.id);
   incomplete = ids.length;
   for (let i = 0; i < ids.length; i += 100) await sb.from("public_permits").delete().in("id", ids.slice(i, i + 100));
 }

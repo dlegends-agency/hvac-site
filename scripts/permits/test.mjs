@@ -1,7 +1,7 @@
 // Offline tests for the permit classifier and the city mappers. Run: npm run permits:test
 import assert from "node:assert/strict";
 import { buildPermit, buildPerson, phoneText, classifyProperty, classifyTrade, cleanDescription, dedupe, summarize } from "./classify.mjs";
-import { dallasDate, mapAustin, mapCollin, mapDallas } from "./sources.mjs";
+import { dallasDate, fortWorthAddress, mapAustin, mapCollin, mapDallas, mapFortWorth } from "./sources.mjs";
 import { ageInDays, scorePermit } from "../../src/lib/permit-score.ts";
 import { matchDirectory, permitTitle } from "../../src/lib/permits.ts";
 import { contactKey, domainGuesses, enrichPermits, findContractorEmail, isCompletePerson, isEmail, keepComplete, pageHasPhone, plainCompany } from "./contacts.mjs";
@@ -252,6 +252,24 @@ test("Collin County: any city in the county, the contractor is the builder name 
   assert.equal(p.contractor_name, "ACCURATE AIR TX");
   assert.ok(!JSON.stringify(p).includes("SOME OWNER"), "the property owner is never kept");
   assert.equal(mapCollin({ permitid: "2", permitissuedby: "PLANO CITY", permitcomments: "ROOF", permittypedescr: "Roof/Re-Roof" }).city, "Plano", "the city falls back to the issuing city");
+});
+
+test("Fort Worth: address is built from the street parts, empty fields are ignored, owners are never kept", () => {
+  const row = { Permit_No: "PM26-11056", Permit_Type: "Mechanical", Permit_SubType: "Umbrella", B1_WORK_DESC: "B1_WORK_DESC", Addr_No: 701, Direction: null, Street_Name: "BEL MARES", Street_Suffix: "ST", Full_Street_Address: null, Zip_Code: 76052, File_Date: Date.UTC(2026, 10, 24, 12), JobValue: null, Owner_Full_Name: "SOME OWNER" };
+  const p = mapFortWorth(row);
+  assert.deepEqual([p.source, p.source_id, p.city, p.trade, p.issued_on, p.zip, p.address], ["fortworth", "PM26-11056", "Fort Worth", "HVAC", "2026-11-24", "76052", "701 BEL MARES ST"]);
+  assert.equal(p.description, null, "the placeholder text the city writes into empty descriptions is dropped");
+  assert.equal(p.contractor_name, null);
+  assert.ok(!JSON.stringify(p).includes("SOME OWNER"));
+  assert.equal(fortWorthAddress({ Full_Street_Address: "10 MAIN ST", Addr_No: 1 }), "10 MAIN ST");
+  assert.equal(fortWorthAddress({}), null);
+});
+
+test("keepComplete keeps Fort Worth permits without a contractor, and still drops incomplete permits from other cities", () => {
+  const fw = { source: "fortworth", people: [] };
+  const austin = { source: "austin", people: [{ company: "A", phone: "5125550101", email: null }] };
+  const kept = keepComplete([fw, austin]);
+  assert.deepEqual(kept.map((p) => p.source), ["fortworth"]);
 });
 
 await Promise.all(pending);
