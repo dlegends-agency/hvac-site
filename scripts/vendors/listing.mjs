@@ -1,6 +1,6 @@
 // Turns a vendor into an UNCLAIMED directory listing. Pure.
-// Rules: the listing is created pending (an admin publishes it), carries no login, plan or lead routing, says plainly that the business
-// has not claimed it, and never shows the vendor's email (it stays in gov_vendors for admin and claim checks).
+// Rules: the listing is created pending (an admin publishes it), carries no login, plan or lead routing, and says plainly that the business
+// has not claimed it. The business's contact email from the government record is included, like the discovery agent's candidates.
 import { servicesFor } from "./nigp.mjs";
 
 export const slugify = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 70);
@@ -25,7 +25,7 @@ export function vendorToListing(v, id, { publish = false } = {}) {
     services,
     emergency_service: false,
     phone: v.phone,
-    email: null,
+    email: v.email ?? null,
     website: v.website,
     address: v.address?.slice(0, 200) ?? null,
     city: v.city,
@@ -41,9 +41,9 @@ export function vendorToListing(v, id, { publish = false } = {}) {
 /** The listing columns a later sync may refresh on a listing that is still unclaimed. */
 export function refreshFields(v) {
   const l = vendorToListing(v, "0000xxxx");
-  const { business_name, address, city, state, postal_code, phone, website, services, service_areas, attribution, description, vendor_synced_at } = l;
-  return { business_name, address, city, state, postal_code, phone, website, services, service_areas, attribution, description, vendor_synced_at };
+  const { business_name, address, city, state, postal_code, phone, email, website, services, service_areas, attribution, description, vendor_synced_at } = l;
+  return { business_name, address, city, state, postal_code, phone, email, website, services, service_areas, attribution, description, vendor_synced_at };
 }
 
 /** Whether a vendor can be listed at all: it needs a city and state, and a way to reach the business. */
-export const listable = (v) => Boolean(v.name && v.city && v.state && (v.phone || v.website));
+export const listable = (v) => Boolean(v.name && v.city && v.state && (v.phone || v.email || v.website));

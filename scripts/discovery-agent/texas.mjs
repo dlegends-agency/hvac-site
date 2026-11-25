@@ -27,6 +27,9 @@ export const TEXAS_CITIES = [
 const arg = (n, d) => { const i = process.argv.indexOf(`--${n}`); return i > -1 ? process.argv[i + 1] : d; };
 const csvCell = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
 
+/** A hung request must not stall the whole run: give up on it after ms and move on. */
+const withTimeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error(`timed out after ${ms / 1000}s`)), ms))]);
+
 const key = process.env.GOOGLE_PLACES_API_KEY;
 if (!key) { console.error("Set GOOGLE_PLACES_API_KEY (Google Cloud > Places API (New), billing enabled)."); process.exit(1); }
 
@@ -38,7 +41,7 @@ const byId = new Map();
 for (const city of cities) {
   for (const q of queries) {
     try {
-      const leads = await findGoogle(`${city}, TX`, q, key, 60);
+      const leads = await withTimeout(findGoogle(`${city}, TX`, q, key, 60), 90_000);
       let added = 0;
       for (const l of leads) {
         if (l.state && l.state !== "Texas") continue;
@@ -62,9 +65,11 @@ const rows = [...byId.values()].filter((l) => {
 
 if (!process.argv.includes("--no-email")) {
   console.log(`Reading ${rows.filter((r) => r.website).length} business websites for public emails (robots.txt respected)...`);
+  let done = 0;
   await mapConcurrent(rows, 3, async (l) => {
     if (!l.website) return;
-    const site = await readSite(l.website);
+    const site = await withTimeout(readSite(l.website), 60_000).catch(() => null);
+    if (++done % 100 === 0) console.log(`  read ${done} websites, ${rows.filter((r) => r.email).length} emails so far`);
     if (site?.ok) { l.email = site.email ?? null; l.services = site.services ?? []; }
   });
 }

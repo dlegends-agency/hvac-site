@@ -6,7 +6,7 @@ Finds HVAC vendors in **official government files**, matches them to the bids an
 
 | Source | How it is read | Notes |
 | --- | --- | --- |
-| Texas Comptroller **CMBL** | The Comptroller's own download files (`web_name.csv`, `vnr_clas.csv`, refreshed nightly) at comptroller.texas.gov/purchasing/downloads | Name, address, phone, **email**, HUB / veteran / small-business flags, NIGP class and item codes. The search form is not scraped (it is for people and exports at most 1,000 vendors). |
+| Texas Comptroller **CMBL** | The Comptroller's own download files (`web_name.csv`, `vnr_clas.csv`, refreshed nightly) at comptroller.texas.gov/purchasing/downloads | Name, address, phone, **email** (copied to the listing), HUB / veteran / small-business flags, NIGP class and item codes. The search form is not scraped (it is for people and exports at most 1,000 vendors). |
 | **SAM.gov** certified businesses | The official Entity Management API, needs a free `SAM_API_KEY` | NAICS codes, SBA certifications, address, website. No email or phone in the public data. Mapping follows SAM.gov's v3 response; it has been tested with sample data only. |
 | **SBA Small Business Search** | An export you save yourself: `node scripts/vendors/index.mjs --sba-file export.csv` | search.certifications.sba.gov has no public API or bulk download, so it is not scraped. Column names are detected automatically. |
 
@@ -18,7 +18,7 @@ Finds HVAC vendors in **official government files**, matches them to the bids an
 
 ## What it never does
 
-No login, subscription, plan or lead routing is created for a vendor. The vendor's email is kept in `gov_vendors` (admin only) and is not shown on the public listing. The public page says the profile is unclaimed and not a customer.
+No login, subscription, plan or lead routing is created for a vendor. The public page says the profile is unclaimed and not a customer.
 
 ## Claiming
 
