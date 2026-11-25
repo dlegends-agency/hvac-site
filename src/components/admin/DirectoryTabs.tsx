@@ -4,6 +4,7 @@ import { useAdminCounts } from "@/lib/use-admin-counts";
 const tabs: { to: string; label: string; badge?: "listings" | "claims" }[] = [
   { to: "/admin/listings", label: "Listings", badge: "listings" },
   { to: "/admin/listings/discover", label: "Find businesses" },
+  { to: "/admin/listings/vendors", label: "Government vendors" },
   { to: "/admin/listings/claims", label: "Claims", badge: "claims" },
   { to: "/admin/listings/recommendations", label: "Recommendations" },
 ];

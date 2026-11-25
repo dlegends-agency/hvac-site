@@ -1,0 +1,45 @@
+name: Vendor sync
+
+# Government vendor discovery. Reads the Texas Comptroller's official CMBL download files (refreshed nightly) and, when configured, SAM.gov's
+# official API, matches the vendors to the bids and permits already collected, and adds matches to the directory as UNCLAIMED, pending listings.
+# It runs after the Permits import and Bids import finish (so new opportunities are matched the same day), and once a night as a backstop.
+# Manual run: Actions > Vendor sync > Run workflow. Optional repository secret SAM_API_KEY (free, from sam.gov) turns on the SAM.gov source.
+# An SBA Small Business Search export is imported by hand: node scripts/vendors/index.mjs --sba-file export.csv (see scripts/vendors/README.md).
+
+on:
+  workflow_run:
+    workflows: ["Permits import", "Bids import"]
+    types: [completed]
+  schedule:
+    - cron: "40 3 * * *"
+  workflow_dispatch:
+    inputs:
+      importListings:
+        description: "Create unclaimed listings for matches (false = sync and match only)"
+        default: "true"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vendor-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci --ignore-scripts
+      - name: Sync vendors, match and import
+        run: node scripts/vendors/index.mjs --source "${SOURCES}" ${NO_IMPORT}
+        env:
+          SOURCES: ${{ secrets.SAM_API_KEY != '' && 'cmbl,sam' || 'cmbl' }}
+          NO_IMPORT: ${{ github.event.inputs.importListings == 'false' && '--no-import' || '' }}
+          SAM_API_KEY: ${{ secrets.SAM_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}

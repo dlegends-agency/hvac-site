@@ -18,6 +18,19 @@ Nothing is published automatically: an admin imports a candidate as a **pending*
 
 Optional free AI help: set `GEMINI_API_KEY` (Google AI Studio, no billing) or `GROQ_API_KEY` and the agent also asks a model to classify each site and extract fields. Website text is treated as untrusted data and the model's answer is validated field by field.
 
+## Google Business listings and the Texas export
+
+Set `GOOGLE_PLACES_API_KEY` (Google Cloud > enable **Places API (New)** > billing on > create a key restricted to that API) and every job also searches Google Business listings through the **official Places API** (name, address, phone, website, service category). Google Maps pages are never scraped. Places returns no email, so the agent reads it from the business's own website as before. Run `supabase/update-2026-11-25-google-origin.sql` once first.
+
+Statewide Texas CSV (no database needed; the biggest Texas cities first):
+
+```bash
+GOOGLE_PLACES_API_KEY=... node scripts/discovery-agent/texas.mjs --cities 10   # try 10 cities first to check cost and quality
+GOOGLE_PLACES_API_KEY=... node scripts/discovery-agent/texas.mjs --queries "HVAC contractor,air conditioning repair,heating repair"
+```
+
+Columns: company, address, city, state, ZIP, phone, email, website, service category, services from the website, Google Maps URL. Check Google's current Places pricing (phone and website make it a paid field tier) and the Places API terms on storing results before importing at scale.
+
 ## Email search for businesses already in the directory
 
 Every scheduled run also checks a batch (40) of directory listings and candidates that have a website but no email, reads the site and fills the empty email field. It never overwrites an email someone typed in, and it skips businesses it looked at in the last 30 days (`discovery_email_checks`).

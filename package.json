@@ -28,7 +28,9 @@
     "test:recommend": "node --import ./scripts/ts-resolve.mjs scripts/test-recommend.mjs",
     "test:submit": "node --import ./scripts/ts-resolve.mjs scripts/test-submit.mjs",
     "test:bids-ai": "node --import ./scripts/ts-resolve.mjs scripts/test-bids-ai.mjs",
-    "test:admin-advice": "node --import ./scripts/ts-resolve.mjs scripts/test-admin-advice.mjs"
+    "test:admin-advice": "node --import ./scripts/ts-resolve.mjs scripts/test-admin-advice.mjs",
+    "vendors": "node scripts/vendors/index.mjs",
+    "vendors:test": "node --import ./scripts/ts-resolve.mjs scripts/vendors/test.mjs"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.3.0",
