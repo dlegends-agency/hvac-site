@@ -42,7 +42,7 @@ export function PermitsAdmin() {
 
   return (
     <div className="w-full">
-      <PageTitle title="Permits" description="Lead source 1 of 2: HVAC building permits from city open data. Only permits with a contractor name, phone and email are kept.">
+      <PageTitle title="Permits" description="Lead source 1 of 2: HVAC building permits from city open data. Permits keep a contractor name, phone and email; Fort Worth permits are kept without one (its open data lists no contractor).">
         <Button variant="secondary" onClick={exportContacts} disabled={withContact === 0} className="!py-2 text-sm"><Download className="size-4" aria-hidden /> Export contractors (CSV)</Button>
       </PageTitle>
       <StatStrip items={[

@@ -37,9 +37,14 @@ export const isEmail = (s) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(s ?? "
 /** A contractor we can actually contact: a name, a phone number and an email address. */
 export const isCompletePerson = (x) => Boolean(x && (x.name || x.company) && digits10(x.phone) && isEmail(x.email));
 
-/** Keeps only permits with at least one contractor that has a name, phone and email, and only those contractors on them. */
+/** Sources whose open data never names a contractor (Fort Worth lists only the owner, which is never kept). Their permits are kept as job leads. */
+export const NO_CONTRACTOR_SOURCES = new Set(["fortworth"]);
+
+/** Keeps only permits with at least one contractor that has a name, phone and email, and only those contractors on them. Permits from NO_CONTRACTOR_SOURCES are kept as they are. */
 export function keepComplete(permits) {
-  return permits.map((p) => ({ ...p, people: (p.people ?? []).filter(isCompletePerson) })).filter((p) => p.people.length > 0);
+  return permits
+    .map((p) => (NO_CONTRACTOR_SOURCES.has(p.source) ? p : { ...p, people: (p.people ?? []).filter(isCompletePerson) }))
+    .filter((p) => NO_CONTRACTOR_SOURCES.has(p.source) || p.people.length > 0);
 }
 
 /** Likely website addresses for a company name, most likely first. Only .com, at most `max`. */

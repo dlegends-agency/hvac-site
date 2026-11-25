@@ -265,5 +265,12 @@ test("Fort Worth: address is built from the street parts, empty fields are ignor
   assert.equal(fortWorthAddress({}), null);
 });
 
+test("keepComplete keeps Fort Worth permits without a contractor, and still drops incomplete permits from other cities", () => {
+  const fw = { source: "fortworth", people: [] };
+  const austin = { source: "austin", people: [{ company: "A", phone: "5125550101", email: null }] };
+  const kept = keepComplete([fw, austin]);
+  assert.deepEqual(kept.map((p) => p.source), ["fortworth"]);
+});
+
 await Promise.all(pending);
 console.log(`${passed} permit tests passed`);
