@@ -8,6 +8,7 @@ import { addressProblems } from "@/lib/address-check";
 import { safeUrl, slugify } from "@/lib/directory";
 import { getSupabaseBrowser } from "@/lib/supabase";
 import { LISTING_STATUSES, type Listing, type ListingPrivate, type ListingStatus, type PlanId } from "@/lib/types";
+import { ListingTimeline } from "./ListingTimeline";
 import { Panel, QueryState } from "./widgets";
 
 interface Draft {
@@ -44,6 +45,7 @@ export function ListingEditor() {
   const [priv, setPriv] = useState<ListingPrivate | null>(null);
   const [meta, setMeta] = useState<{ source: string; sourceUrl: string | null; attribution: string | null; placeId: string | null } | null>(null);
   const [notes, setNotes] = useState("");
+  const [basics, setBasics] = useState<Listing | null>(null);
   // False until contractor SQL has been run (the plan columns do not exist yet), so saving keeps working before then.
   const [planColumn, setPlanColumn] = useState(false);
   // False until supabase/schema-revamp.sql has been run (the premium column does not exist yet).
@@ -75,6 +77,7 @@ export function ListingEditor() {
         setLicenseSince(row.license_verified_at ?? null);
         setOwnerVerified(Boolean(row.verified_at));
       }
+      if (row) setBasics(row);
       if (row) setMeta({ source: row.source ?? "submitted", sourceUrl: row.source_url ?? null, attribution: row.attribution ?? null, placeId: row.google_place_id ?? null });
       if (!row) setMissing(true);
       else {
@@ -264,6 +267,12 @@ export function ListingEditor() {
                   <p className="text-sm text-slate-700">{priv.submitter_name}</p>
                   {priv.submitter_email && <a className="text-sm text-primary underline" href={`mailto:${priv.submitter_email}`}>{priv.submitter_email}</a>}
                 </Panel>
+              )}
+              {id && basics && (
+                <ListingTimeline
+                  listingId={id}
+                  listing={{ status: draft.status, city: draft.city, state: draft.state, postal_code: draft.postal_code || null, email: draft.email || null, phone: draft.phone || null, service_areas: draft.service_areas || null, unclaimed: basics.unclaimed, created_at: basics.created_at, source: basics.source, vendor_synced_at: (basics as Listing & { vendor_synced_at?: string | null }).vendor_synced_at ?? null }}
+                />
               )}
               <Panel title="Internal notes">
                 <label htmlFor="notes" className="sr-only">Internal notes</label>
