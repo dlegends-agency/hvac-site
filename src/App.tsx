@@ -56,6 +56,7 @@ const ContractorBilling = lazy(() => import("@/components/contractor/ContractorB
 const ContractorAccount = lazy(() => import("@/components/contractor/ContractorAccount"));
 const ContractorRecommendations = lazy(() => import("@/components/contractor/ContractorRecommendations"));
 const ClaimsAdmin = lazy(() => import("@/components/admin/ClaimsAdmin").then((m) => ({ default: m.ClaimsAdmin })));
+const OpportunityMatches = lazy(() => import("@/components/admin/OpportunityMatches").then((m) => ({ default: m.OpportunityMatches })));
 const VendorsAdmin = lazy(() => import("@/components/admin/VendorsAdmin").then((m) => ({ default: m.VendorsAdmin })));
 const RecommendationsAdmin = lazy(() => import("@/components/admin/RecommendationsAdmin").then((m) => ({ default: m.RecommendationsAdmin })));
 const FlowLogs = lazy(() => import("@/components/admin/FlowLogs").then((m) => ({ default: m.FlowLogs })));
@@ -123,6 +124,7 @@ export default function App() {
             <Route path="listings" element={<ListingsAdmin />} />
             <Route path="listings/discover" element={<DiscoveryAdmin />} />
             <Route path="listings/vendors" element={<VendorsAdmin />} />
+            <Route path="listings/opportunities" element={<OpportunityMatches />} />
             <Route path="listings/claims" element={<ClaimsAdmin />} />
             <Route path="listings/recommendations" element={<RecommendationsAdmin />} />
             <Route path="listings/new" element={<ListingEditor />} />

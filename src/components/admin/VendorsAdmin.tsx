@@ -138,7 +138,7 @@ export function VendorsAdmin() {
         <Info className="mt-0.5 size-5 shrink-0" aria-hidden />
         <p>
           Vendors come from <strong>official files</strong>: the Texas Comptroller&apos;s CMBL downloads, SAM.gov&apos;s API and SBA exports you import. The sync matches them to the open bids and permits already collected (by NAICS and NIGP code, location and set-aside), then adds matches to the directory as <strong>unclaimed, pending</strong> listings.
-          No login, plan or lead routing is created for them. A business becomes the owner only through <Link to="/admin/listings/claims" className="font-semibold underline">a claim you approve</Link>.
+          No login or plan is created for them. Leads, permits and bids are still matched to them and held until the business is claimed; it becomes the owner only through <Link to="/admin/listings/claims" className="font-semibold underline">a claim you approve</Link>. See every bid and permit with its matched contractors under <Link to="/admin/listings/opportunities" className="font-semibold underline">Bids & permits</Link>.
         </p>
       </div>
       {health && <p role="alert" className={`mb-5 rounded-xl border p-3 text-sm ${health.bad ? "border-red-200 bg-red-50 text-red-800" : "border-amber-200 bg-amber-50 text-amber-900"}`}>{health.text}</p>}
