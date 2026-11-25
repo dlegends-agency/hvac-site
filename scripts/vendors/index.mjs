@@ -15,7 +15,7 @@ import { loadCmbl } from "./cmbl.mjs";
 import { buildListingIndex, contentHash } from "./dedupe.mjs";
 import { listable, refreshFields, vendorToListing } from "./listing.mjs";
 import { matchVendors, MATCH_THRESHOLD } from "./match.mjs";
-import { DEFAULT_MAP } from "./nigp.mjs";
+import { DEFAULT_MAP, targetsFor } from "./nigp.mjs";
 import { fetchSam, importCsv } from "./sba.mjs";
 
 const arg = (n) => {
@@ -142,6 +142,9 @@ await stage("match", async (say, stats) => {
   const since = new Date(Date.now() - 60 * 86400_000).toISOString().slice(0, 10);
   const permits = await all("public_permits", "id,city,zip,issued_on", (q) => q.gte("issued_on", since));
   say(`${vendors.length} vendors, ${bids.length} open bids, ${permits.length} permits from the last 60 days.`);
+  // Bids whose NAICS has no NIGP mapping cannot be matched: say so (Admin > Government vendors shows them with a form to add the mapping).
+  const unmapped = [...new Set(bids.map((b) => b.naics).filter((n) => n && targetsFor(n, map).length === 0))];
+  if (unmapped.length) say(`No NIGP mapping for NAICS ${unmapped.slice(0, 15).join(", ")}${unmapped.length > 15 ? "..." : ""}: bids with these codes got no vendor matches.`);
   const rows = [];
   for (const b of bids) for (const m of matchVendors(vendors, { kind: "bid", naics: b.naics, state: b.state === "TX" ? "Texas" : b.state, city: b.city, zip: b.zip, setAsideCode: b.set_aside_code }, { map })) rows.push({ vendor_id: m.vendor.id, bid_id: b.id, score: m.score, reasons: m.reasons });
   for (const p of permits) for (const m of matchVendors(vendors, { kind: "permit", state: "Texas", city: p.city, zip: p.zip }, { map })) rows.push({ vendor_id: m.vendor.id, permit_id: p.id, score: m.score, reasons: m.reasons });
