@@ -8,6 +8,7 @@ import { addressProblems } from "@/lib/address-check";
 import { safeUrl, slugify } from "@/lib/directory";
 import { getSupabaseBrowser } from "@/lib/supabase";
 import { LISTING_STATUSES, type Listing, type ListingPrivate, type ListingStatus, type PlanId } from "@/lib/types";
+import { ListingAssigned } from "./ListingAssigned";
 import { ListingTimeline } from "./ListingTimeline";
 import { Panel, QueryState } from "./widgets";
 
@@ -53,6 +54,7 @@ export function ListingEditor() {
   // Same for the license and verification columns (profiles SQL). `licenseSince` keeps the date an earlier check was recorded.
   const [profileColumns, setProfileColumns] = useState(false);
   const [licenseSince, setLicenseSince] = useState<string | null>(null);
+  const [ownerClaimed, setOwnerClaimed] = useState(false);
   const [ownerVerified, setOwnerVerified] = useState(false);
   const [slugTouched, setSlugTouched] = useState(false);
   const [loading, setLoading] = useState(Boolean(id));
@@ -66,7 +68,9 @@ export function ListingEditor() {
     Promise.all([
       supabase.from("listings").select("*").eq("id", id).maybeSingle(),
       supabase.from("listing_private").select("*").eq("listing_id", id).maybeSingle(),
-    ]).then(([l, p]) => {
+      supabase.from("listing_owners").select("listing_id").eq("listing_id", id).maybeSingle(),
+    ]).then(([l, p, ow]) => {
+      setOwnerClaimed(Boolean(ow.data));
       const row = l.data as Listing | null;
       if (row) {
         setPlanColumn(row.plan !== undefined);
@@ -268,6 +272,7 @@ export function ListingEditor() {
                   {priv.submitter_email && <a className="text-sm text-primary underline" href={`mailto:${priv.submitter_email}`}>{priv.submitter_email}</a>}
                 </Panel>
               )}
+              {id && basics && <ListingAssigned listingId={id} claimed={ownerClaimed} />}
               {id && basics && (
                 <ListingTimeline
                   listingId={id}
