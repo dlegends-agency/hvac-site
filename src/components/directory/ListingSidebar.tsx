@@ -1,4 +1,5 @@
 import { Globe, Mail, MapPin, Navigation, Phone } from "lucide-react";
+import { Link } from "react-router-dom";
 import { HoursSection } from "@/components/directory/Hours";
 import { telHref } from "@/components/directory/ListingCard";
 import { safeUrl } from "@/lib/directory";
@@ -25,6 +26,13 @@ export function ListingSidebar({ listing: l }: { listing: Listing }) {
   const icon = "mt-0.5 size-4 shrink-0 text-slate-500";
   return (
     <aside aria-label="Location and contact details" className="lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:self-start lg:overflow-y-auto">
+      {l.unclaimed && (
+        <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+          <p className="font-semibold">Unclaimed listing</p>
+          <p className="mt-1">This profile was created from public government vendor records. The business has not claimed it, and it is not an HVACHelp customer.</p>
+          <Link to="/contractor/login" className="mt-2 inline-block font-semibold text-primary underline">Is this your business? Claim it</Link>
+        </div>
+      )}
       <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
         <iframe
           title={`Map showing ${l.business_name}`}

@@ -1,7 +1,7 @@
 // The agent loop for one discovery job:
 // plan -> gather leads (OpenStreetMap, optional web search) -> drop known ones -> visit each business's own site -> decide -> save candidates.
 
-import { findOsm, findWeb } from "./sources.mjs";
+import { findGoogle, findOsm, findWeb } from "./sources.mjs";
 import { readSite } from "./site.mjs";
 import { extractWithLlm } from "./llm.mjs";
 import { isKnown } from "./db.mjs";
@@ -14,7 +14,7 @@ const MIN_SCORE = 4; // site must read like an HVAC contractor
 export function decide(lead, site, llm, location) {
   const notes = [];
   const target = parseLocation(location);
-  const sourceNote = lead.origin === "osm" ? "Listed on OpenStreetMap" : "Found by web search";
+  const sourceNote = lead.origin === "osm" ? "Listed on OpenStreetMap" : lead.origin === "google" ? "Listed on Google Business Profile" : "Found by web search";
   notes.push(sourceNote);
 
   if (SUPPLIER_RE.test(lead.name)) return { drop: `looks like a parts supplier, not a contractor (${lead.name})` };
@@ -28,11 +28,11 @@ export function decide(lead, site, llm, location) {
   const addr = site?.address;
   const phone = formatPhone(llm?.phone) ?? site?.phone ?? lead.phone ?? null;
   const email = site?.ok && site.email ? site.email : lead.email ?? null; // from the business's own website first, then OpenStreetMap
-  const city = llm?.city ?? addr?.city ?? lead.city ?? (lead.origin === "osm" ? target.city : null);
+  const city = llm?.city ?? addr?.city ?? lead.city ?? (lead.origin === "web" ? null : target.city);
   const state = stateName(llm?.state ?? addr?.state) ?? lead.state ?? target.state;
   const street = llm?.street ?? addr?.street ?? lead.street ?? null;
   const postal = llm?.postal ?? addr?.postal ?? lead.postal_code ?? null;
-  const services = [...new Set([...(llm?.services ?? []), ...(site?.ok ? site.services : [])])];
+  const services = [...new Set([lead.category, ...(llm?.services ?? []), ...(site?.ok ? site.services : [])].filter(Boolean))];
   const emergency = Boolean(llm?.emergency || (site?.ok && site.emergency));
 
   if (!phone) notes.push("No phone number found");
@@ -41,7 +41,7 @@ export function decide(lead, site, llm, location) {
   if (verified) notes.push("Details read from the business's own website");
 
   let confidence = 20;
-  if (lead.origin === "osm") confidence += 15;
+  if (lead.origin === "osm" || lead.origin === "google") confidence += 15;
   if (verified) confidence += 30;
   if (phone) confidence += 15;
   if (email) confidence += 5;
@@ -64,7 +64,7 @@ export function decide(lead, site, llm, location) {
       phone,
       email,
       website: lead.website,
-      source_url: site?.ok ? site.pages[0] : lead.origin === "osm" ? `https://www.openstreetmap.org/${lead.externalId.slice(4)}` : lead.website,
+      source_url: lead.mapsUrl ?? (site?.ok ? site.pages[0] : lead.origin === "osm" ? `https://www.openstreetmap.org/${lead.externalId.slice(4)}` : lead.website),
       services,
       emergency,
       verified,
@@ -135,6 +135,16 @@ export async function runJob(job, db, env, { log = () => {}, dryRun = false } = 
       leads.push(...osm.leads);
     } catch (e) {
       say(`OpenStreetMap lookup failed: ${e.message}`);
+    }
+
+    if (env.GOOGLE_PLACES_API_KEY) {
+      try {
+        const g = await findGoogle(job.location, job.query, env.GOOGLE_PLACES_API_KEY, 60);
+        say(`Google Business: ${g.length} HVAC businesses.`);
+        leads.push(...g);
+      } catch (e) {
+        say(`Google Places lookup failed: ${e.message}`);
+      }
     }
 
     if (env.TAVILY_API_KEY) {

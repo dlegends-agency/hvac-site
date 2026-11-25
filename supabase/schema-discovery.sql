@@ -59,7 +59,7 @@ create table if not exists public.listing_candidates (
   fetched_at   timestamptz not null default now(),
   job_id       uuid references public.discovery_jobs (id) on delete set null,
   external_id  text not null unique,           -- "web:example.com" or "osm:node/123"
-  origin       text not null default 'web' check (origin in ('web', 'osm')),
+  origin       text not null default 'web' check (origin in ('web', 'osm', 'google')),
   name         text not null,
   address      text,
   city         text,

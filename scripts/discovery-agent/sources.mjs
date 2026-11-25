@@ -103,3 +103,55 @@ export async function findWeb(location, queryText, apiKey, max = 10) {
   }
   return leads;
 }
+
+/** Maps one Google Places (New) result to a lead. Pure, so it can be tested offline. */
+export function mapGooglePlace(p) {
+  if (!p?.displayName?.text || p.businessStatus === "CLOSED_PERMANENTLY") return null;
+  const part = (type, short = false) => {
+    const c = (p.addressComponents ?? []).find((x) => x.types?.includes(type));
+    return c ? (short ? c.shortText : c.longText) : null;
+  };
+  const street = [part("street_number"), part("route")].filter(Boolean).join(" ") || null;
+  const website = cleanUrl(p.websiteUri);
+  const host = hostOf(website ?? "");
+  return {
+    origin: "google",
+    externalId: `google:${p.id}`,
+    name: p.displayName.text,
+    phone: formatPhone(p.nationalPhoneNumber),
+    email: null, // Places has no email field; the agent reads it from the business's own website
+    website: website && !isBlockedHost(host) ? website : null,
+    street,
+    city: part("locality") ?? part("postal_town"),
+    state: stateName(part("administrative_area_level_1", true)),
+    postal_code: part("postal_code"),
+    category: p.primaryTypeDisplayName?.text ?? null,
+    googleTypes: p.types ?? [],
+    mapsUrl: p.googleMapsUri ?? null,
+  };
+}
+
+const PLACES_FIELDS = [
+  "places.id", "places.displayName", "places.addressComponents", "places.nationalPhoneNumber", "places.websiteUri",
+  "places.primaryTypeDisplayName", "places.types", "places.businessStatus", "places.googleMapsUri", "nextPageToken",
+].join(",");
+
+/**
+ * HVAC businesses from the official Google Places API (New) Text Search. Needs GOOGLE_PLACES_API_KEY (Cloud billing enabled).
+ * Returns up to `max` leads (Google caps one search at 60 results, 20 per page).
+ */
+export async function findGoogle(location, queryText, apiKey, max = 60) {
+  if (!apiKey) return [];
+  const leads = [];
+  let pageToken;
+  do {
+    const data = await getJson("https://places.googleapis.com/v1/places:searchText", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Goog-Api-Key": apiKey, "X-Goog-FieldMask": PLACES_FIELDS },
+      body: JSON.stringify({ textQuery: `${queryText} in ${location}`, pageSize: 20, regionCode: "US", ...(pageToken ? { pageToken } : {}) }),
+    });
+    leads.push(...(data.places ?? []).map(mapGooglePlace).filter(Boolean));
+    pageToken = data.nextPageToken;
+  } while (pageToken && leads.length < max);
+  return leads.slice(0, max);
+}

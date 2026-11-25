@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { useLiveQuery } from "@/lib/admin-hooks";
 import { getSupabaseBrowser } from "@/lib/supabase";
 import type { ListingClaim } from "@/lib/types";
+import { claimEvidence, type VendorOnFile } from "@/lib/vendor-claim";
 import { DirectoryTabs } from "./DirectoryTabs";
 import { PageTitle, Panel } from "./widgets";
 
@@ -16,6 +17,12 @@ export function ClaimsAdmin() {
     [],
     () => supabase.from("listing_claims").select("*, listings(business_name, city, state, status, website, phone)").order("created_at", { ascending: false }).limit(200),
     { key: "claims", intervalMs: 30_000 },
+  );
+  // Listings created from government vendor records: the business details on file in the official source, used to check claims.
+  const vendors = useLiveQuery<(VendorOnFile & { listing_id: string; source: string })[]>(
+    [],
+    () => supabase.from("gov_vendors").select("listing_id,email,phone,website,source").not("listing_id", "is", null).limit(5000),
+    { key: "claim-vendors", intervalMs: null },
   );
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -61,6 +68,18 @@ export function ClaimsAdmin() {
                   Requested by <strong>{c.contact_name}</strong> · <a className="text-primary underline" href={`mailto:${c.user_email}`}>{c.user_email}</a>{c.contact_phone ? ` · ${c.contact_phone}` : ""}
                 </p>
                 {c.note && <p className="mt-1 whitespace-pre-line text-sm text-slate-600">&ldquo;{c.note}&rdquo;</p>}
+                {(() => {
+                  const v = vendors.data.find((x) => x.listing_id === c.listing_id) ?? null;
+                  if (!v) return null;
+                  const e = claimEvidence(c.user_email, c.contact_phone, v);
+                  const strong = e.exactEmail;
+                  return (
+                    <p className={`mt-2 rounded-lg border p-2 text-xs ${strong ? "border-green-200 bg-green-50 text-green-900" : "border-slate-200 bg-slate-50 text-slate-700"}`}>
+                      Listing created from public government vendor records. Contact on file: {v.email ?? "no email"}{v.phone ? ` · ${v.phone}` : ""}.{" "}
+                      {strong ? "The claimant signed in with that exact email: strong match." : e.domain ? "The claimant's email uses the business's own domain." : e.phone ? "The claimant gave the phone number on file." : "Nothing links the claimant to that contact yet: call the business or ask for proof before approving."}
+                    </p>
+                  );
+                })()}
                 <p className="mt-1 text-xs text-slate-500">
                   Business phone on file: {c.listings?.phone ?? "none"} · <Link to={`/admin/listings/${c.listing_id}`} className="font-semibold text-primary hover:underline">Open listing <ExternalLink className="inline size-3" aria-hidden /></Link>
                 </p>

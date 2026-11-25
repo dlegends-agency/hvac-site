@@ -115,7 +115,9 @@ export interface Listing {
   state: string;
   postal_code: string | null;
   service_areas: string | null;
-  source?: "submitted" | "seed" | "agent" | "manual";
+  source?: "submitted" | "seed" | "agent" | "manual" | "vendor";
+  /** True for listings created from public government vendor records until an owner's claim is approved. */
+  unclaimed?: boolean;
   source_url?: string | null;
   attribution?: string | null;
   /** The database stores "free" or "featured". Premium is "featured" with `premium` true (see activePlan). */
@@ -217,5 +219,58 @@ export interface DiscoveryRun {
   finished_at: string | null;
   status: string | null;
   found: number;
+  log: string[];
+}
+
+/** A business found in an official government vendor file (Texas CMBL, SBA / SAM.gov). Admins only. */
+export interface GovVendor {
+  id: string;
+  source: "cmbl" | "sba" | "sam";
+  source_id: string;
+  name: string;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  postal_code: string | null;
+  county: string | null;
+  phone: string | null;
+  email: string | null;
+  website: string | null;
+  naics: string[];
+  nigp_items: string[];
+  classifications: string[];
+  hvac_score: number;
+  status: "new" | "matched" | "imported" | "merged" | "rejected";
+  listing_id: string | null;
+  first_seen_at: string;
+  last_seen_at: string;
+  last_changed_at: string;
+  source_updated_on: string | null;
+  active: boolean;
+  verified_at: string | null;
+}
+
+export interface VendorMatch {
+  id: string;
+  created_at: string;
+  score: number;
+  reasons: string[];
+  gov_vendors: { name: string; city: string | null } | null;
+  gov_bids: { title: string; city: string | null } | null;
+  public_permits: { summary: string; city: string } | null;
+}
+
+export interface VendorSyncRun {
+  id: string;
+  started_at: string;
+  finished_at: string | null;
+  source: string;
+  status: string | null;
+  fetched: number;
+  inserted: number;
+  updated: number;
+  matched: number;
+  imported: number;
+  duplicates: number;
   log: string[];
 }
