@@ -260,6 +260,16 @@ export interface VendorMatch {
   public_permits: { summary: string; city: string } | null;
 }
 
+/** One vendor-to-opportunity match, with enough of the bid or permit to monitor it in the admin. */
+export interface VendorMatchDetail {
+  id: string;
+  vendor_id: string;
+  score: number;
+  reasons: string[];
+  gov_bids: { title: string; agency: string | null; city: string | null; state: string | null; response_due: string | null } | null;
+  public_permits: { summary: string; city: string; address: string | null; issued_on: string | null; contractor_name: string | null } | null;
+}
+
 export interface VendorSyncRun {
   id: string;
   started_at: string;

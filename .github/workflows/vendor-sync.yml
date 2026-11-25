@@ -17,6 +17,9 @@ on:
       importListings:
         description: "Create unclaimed listings for matches (false = sync and match only)"
         default: "true"
+      importAll:
+        description: "Also create listings for vendors that have no bid or permit match yet"
+        default: "false"
 
 permissions:
   contents: read
@@ -36,9 +39,10 @@ jobs:
           node-version: 22
       - run: npm ci --ignore-scripts
       - name: Sync vendors, match and import
-        run: node scripts/vendors/index.mjs --source "${SOURCES}" ${NO_IMPORT}
+        run: node scripts/vendors/index.mjs --source "${SOURCES}" ${NO_IMPORT} ${IMPORT_ALL}
         env:
           SOURCES: ${{ secrets.SAM_API_KEY != '' && 'cmbl,sam' || 'cmbl' }}
+          IMPORT_ALL: ${{ github.event.inputs.importAll == 'true' && '--import-all' || '' }}
           NO_IMPORT: ${{ github.event.inputs.importListings == 'false' && '--no-import' || '' }}
           SAM_API_KEY: ${{ secrets.SAM_API_KEY }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
