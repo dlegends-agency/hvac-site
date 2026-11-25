@@ -62,7 +62,7 @@ export function VendorsAdmin() {
         <Info className="mt-0.5 size-5 shrink-0" aria-hidden />
         <p>
           Vendors come from <strong>official files</strong>: the Texas Comptroller&apos;s CMBL downloads, SAM.gov&apos;s API and SBA exports you import. The sync matches them to the open bids and permits already collected (by NAICS and NIGP code, location and set-aside), then adds matches to the directory as <strong>unclaimed, pending</strong> listings.
-          No login, plan or lead routing is created for them. A business becomes the owner only through <Link to="/admin/listings/claims" className="font-semibold underline">a claim you approve</Link>. Their email is kept here and is not shown on the public listing.
+          No login, plan or lead routing is created for them. A business becomes the owner only through <Link to="/admin/listings/claims" className="font-semibold underline">a claim you approve</Link>.
         </p>
       </div>
       {notSetUp && <p role="alert" className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Run <code>supabase/schema-vendors.sql</code> in the Supabase SQL Editor to turn this page on.</p>}

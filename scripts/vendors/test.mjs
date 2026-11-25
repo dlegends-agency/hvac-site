@@ -109,20 +109,21 @@ await test("content hash changes only when listing details change", () => {
   assert.notEqual(contentHash(austin), contentHash({ ...austin, phone: "(512) 555-9999" }));
 });
 
-await test("imported listings are unclaimed, pending, public-safe and never carry the vendor's email", () => {
+await test("imported listings are unclaimed, pending and carry the contact email from the government record", () => {
   const v = { ...austin, name: "Cool Breeze Heating & Air Llc", email: "pat@coolbreeze.com", phone: "(512) 555-0100", county: "Travis", address: "12 Main St", source_updated_on: "2026-11-25" };
   const l = vendorToListing(v, "abcd1234-0000-0000-0000-000000000000");
   assert.equal(l.status, "pending");
   assert.equal(l.unclaimed, true);
   assert.equal(l.source, "vendor");
-  assert.equal(l.email, null);
+  assert.equal(l.email, "pat@coolbreeze.com");
   assert.match(l.slug, /^cool-breeze-heating-air-llc-austin-abcd$/);
   assert.equal(l.service_areas, "Austin, Travis County");
   assert.match(l.description, /not claimed it yet/);
   assert.match(l.attribution, /Texas Comptroller.*2026-11-25.*Unclaimed/);
   for (const k of ["user_id", "plan", "owner_id"]) assert.ok(!(k in l), `no ${k}`);
   assert.ok(!("status" in refreshFields(v)) && !("unclaimed" in refreshFields(v)), "a refresh never changes status or claim state");
-  assert.equal(listable({ ...v, phone: null, website: null }), false);
+  assert.equal(listable({ ...v, phone: null, website: null, email: null }), false);
+  assert.equal(listable({ ...v, phone: null, website: null }), true, "an email alone is enough contact");
   assert.equal(vendorToListing(v, "abcd1234", { publish: true }).status, "published");
 });
 
